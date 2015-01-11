@@ -1,6 +1,7 @@
-import util, sys
 from pprint import pprint
+import sys
 
+import util
 
 #    Private Sub CalculateHeight()
 #        Dim Hcropyesterday As Double

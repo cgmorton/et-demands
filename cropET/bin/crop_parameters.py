@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import sys
 from pprint import pprint
+import sys
+
 import numpy as np
 
 ## 
 CGDDWinterDoy = 274
 CGDDMainDoy = 1
-
 
 class CropParameters:
 

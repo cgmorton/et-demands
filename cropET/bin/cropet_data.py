@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-import sys
-from pprint import pprint
-import numpy as np
 import datetime
+from pprint import pprint
+import sys
 import time
+
+import numpy as np
 
 import crop_parameters
 import crop_coefficients

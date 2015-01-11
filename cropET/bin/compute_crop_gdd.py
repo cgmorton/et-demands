@@ -1,14 +1,13 @@
-import util
 from pprint import pprint
 
+import util
 
-    #' Compute crop growing degree days
+#' Compute crop growing degree days
 
-    #Private Sub ComputeCropGDD()
-    #    Dim cCurveNo, idx As Short
-    #    Dim esTMax, esTDew, ETreflost As Double
-    #    Dim TMaxOriginal, TMeanl, TMinl, TMaxl As Double
-
+#Private Sub ComputeCropGDD()
+#    Dim cCurveNo, idx As Short
+#    Dim esTMax, esTDew, ETreflost As Double
+#    Dim TMaxOriginal, TMeanl, TMinl, TMaxl As Double
 
 def ComputeCropGDD(data, crop, foo, foo_day, OUT):
     """ """

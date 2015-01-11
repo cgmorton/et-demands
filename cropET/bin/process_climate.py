@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
-from pprint import pprint
-#import cropet_read
-import sys
-import cropet_data
-import numpy as np
 import math
+from pprint import pprint
+import sys
+
+import numpy as np
+
+#import cropet_read
+import cropet_data
 
 VERBOSE = True
 VERBOSE = False

@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
-from pprint import pprint
 import getopt
-import sys
-import numpy as np
 import math
+from pprint import pprint
+import sys
 
-import util
+import numpy as np
+
 import cropet_data
-from process_climate import ProcessClimate
 from crop_cycle import CropCycle
+from process_climate import ProcessClimate
+import util
 
 VERBOSE=True
 
@@ -20,7 +21,6 @@ class cropET:
 
 VERBOSE = False
 VERBOSE = True
-
 
 
 def ETCellsCycle(data, basin_id, nsteps, ncells, OUT, odir, refet_msk, txt_pth):

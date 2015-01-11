@@ -1,6 +1,7 @@
+import datetime
 import sys
 from pprint import pprint
-import datetime
+
 import util
 
 from open_water_evap import OpenWaterEvaporation
