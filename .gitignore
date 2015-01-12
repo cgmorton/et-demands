@@ -3,4 +3,4 @@ __pycache__/
 *.py[cod]
 
 # CropET output folder/files
-cet/
+klamath/cet/
