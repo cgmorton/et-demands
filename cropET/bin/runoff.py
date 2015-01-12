@@ -4,7 +4,7 @@ def runoff(foo, foo_day, OUT):
 
     # Bring in CNII for antecedent condition II from crop-soil combination
     # Check to insure CNII is within limits
-    CNII = foo.CN2
+    CNII = foo.cn2
     if CNII < 10:
         CNII = 10
     if CNII > 100:
@@ -17,25 +17,25 @@ def runoff(foo, foo_day, OUT):
     # Determine antecedent condition
     # Presume that AWCIII is quite moist (when only 1/2 of REW is evaporated)
     # Be sure that REW and TEW are shared
-    AWCIII = 0.5 * foo.REW
+    AWCIII = 0.5 * foo.rew
 
     #' presume that dry AWCI condition occurs somewhere between REW and TEW
-    AWCI = 0.7 * foo.REW + 0.3 * foo.TEW
+    AWCI = 0.7 * foo.rew + 0.3 * foo.tew
 
     # Value for CN adjusted for soil moisture
     # Make sure AWCI>AWCIII
     if AWCI <= AWCIII:
         AWCI = AWCIII + 0.01 
-    if foo.Depl_surface < AWCIII:   
+    if foo.depl_surface < AWCIII:   
         CN = CNIII
     else:
-        if foo.Depl_surface > AWCI:   
+        if foo.depl_surface > AWCI:   
             CN = CNI
         else:
-            CN = ((foo.Depl_surface - AWCIII) * CNI + (AWCI - foo.Depl_surface) * CNIII) / (AWCI - AWCIII)
+            CN = ((foo.depl_surface - AWCIII) * CNI + (AWCI - foo.depl_surface) * CNIII) / (AWCI - AWCIII)
     foo.S = 250 * (100 / CN - 1)
     s = 'runoff():a CN %s  Depl_surface %s  AWCIII %s  CNI %s  AWCI %s  CNIII %s\n'
-    t = (CN, foo.Depl_surface, AWCIII, CNI, AWCI, CNIII) 
+    t = (CN, foo.depl_surface, AWCIII, CNI, AWCI, CNIII) 
     OUT.debug(s % t)
 
     # If irrigations are automatically scheduled, base runoff on an average of

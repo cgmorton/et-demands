@@ -15,11 +15,11 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
     if foo_day.tdew < -90 or foo_day.tmax_original < -90:
         foo_day.rhmin = 30.0
     else:
-        esTDew = util.aFNEs(foo_day.tdew)
+        es_tdew = util.aFNEs(foo_day.tdew)
         # For now do not consider SVP over ice
         # (it was not used in ETr or ETo computations, anyway)
-        esTMax = util.aFNEs(foo_day.tmax_original) 
-        foo_day.rhmin = min(esTDew / esTMax * 100, 100)
+        es_tmax = util.aFNEs(foo_day.tmax_original) 
+        foo_day.rhmin = min(es_tdew / es_tmax * 100, 100)
 
     # Wind at 2 m height
     foo_day.u2 = foo_day.wind 
@@ -33,13 +33,13 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
         etref_lost = foo_day.etref_array[0]
         for idx in range(29):   #' idx = 1 is 30 days ago
             foo_day.etref_array[idx] = foo_day.etref_array[idx + 1]
-        foo_day.etref_array[29] = foo_day.ETref
-        foo.ETref30 = foo.ETref30 + (foo_day.ETref - etref_lost) / 30.
+        foo_day.etref_array[29] = foo_day.etref
+        foo.etref_30 = foo.etref_30 + (foo_day.etref - etref_lost) / 30.
     else:
-        foo_day.etref_array[foo_day.sdays-1] = foo_day.ETref
-        foo.ETref30 = (foo.ETref30 * (foo_day.sdays - 1) + foo_day.ETref) / foo_day.sdays
-        #foo.ETref30 = (foo.ETref30 * (foo_day.sdays) + foo_day.ETref) / (foo_day.sdays + 1)
-    #print 'ETref30', foo.ETref30, foo_day.sdays, foo_day.ETref
+        foo_day.etref_array[foo_day.sdays-1] = foo_day.etref
+        foo.etref_30 = (foo.etref_30 * (foo_day.sdays - 1) + foo_day.etref) / foo_day.sdays
+        #foo.etref_30 = (foo.etref_30 * (foo_day.sdays) + foo_day.etref) / (foo_day.sdays + 1)
+    #print 'ETref30', foo.etref_30, foo_day.sdays, foo_day.etref
 
     # reset cumGDD if new year
     # for all crops, but winter grain, reset cumGDD counter on cropGDDTriggerDoy (formerly hard wired to Jan 1 or Oct 1)
@@ -69,7 +69,7 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
     s = ('0compute_crop_gdd(): ETref30 %s  sdays %s  ETref %s  etref_lost %s '+
          'jd_start_cycle %s  crop_curve_number %s  crop_class_num %s  '+
          'in_season %s\n')
-    t = (foo.ETref30, foo_day.sdays, foo_day.ETref, etref_lost,
+    t = (foo.etref_30, foo_day.sdays, foo_day.etref, etref_lost,
          foo.jd_start_cycle, crop.crop_curve_number, crop.crop_class_num,
          foo.in_season) 
     OUT.debug(s % t)

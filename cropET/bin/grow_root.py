@@ -6,38 +6,44 @@ def grow_root(crop, foo, OUT):
     # dlk - 10/31/2011 - added zero value tests        
     fractime = 0
     if crop.crop_curve_type == 1 and crop.end_of_root_growth_fraction_time != 0.0:
-        fractime = foo.ncumGDD / crop.end_of_root_growth_fraction_time
+        fractime = foo.n_cumgdd / crop.end_of_root_growth_fraction_time
     if crop.crop_curve_type > 1 and crop.end_of_root_growth_fraction_time != 0.0:    
         fractime = foo.nPL_EC / crop.end_of_root_growth_fraction_time
     if fractime < 0:    
         fractime = 0
     if fractime > 1:    
         fractime = 1
-    lZr = foo.Zr
+    lZr = foo.zr
 
     # Old linear function
-    # Zr = Initial_rooting_depth() + (Maximum_rooting_depth(ctCount) - Initial_rooting_depth(ctCount)) * fractime
+    #zr = initial_rooting_depth() + (maximum_rooting_depth(ctCount) - initial_rooting_depth(ctCount)) * fractime
 
     # Borg and Grimes (1986) sigmoidal function       
-    foo.Zr = (0.5 + 0.5 * math.sin(3.03 * fractime - 1.47)) * (foo.Zrx - foo.Zrn) + foo.Zrn
-    delta_zr = foo.Zr - lZr
+    foo.zr = (
+        (0.5 + 0.5 * math.sin(3.03 * fractime - 1.47)) *
+        (foo.zrx - foo.zrn) + foo.zrn)
+    delta_zr = foo.zr - lZr
 
     # update Dr for new moisture coming in bottom of root zone
     # Dr (depletion) will increase if new portion of root zone is < FC
     if delta_zr > 0:   
-        foo.Dr = foo.Dr + delta_zr * (foo.AW - foo.AW3) #' AM3 is mean moisture of maxrootzone - Zr layer
+        #' AM3 is mean moisture of maxrootzone - Zr layer
+        foo.dr += delta_zr * (foo.aw - foo.aw3)
 
-    s = '4grow_root(): Zr %s  fractime %s  Zrx %s  Zrn %s  Dr %s  delta_zr %s  AW %s  AW3 %s  ncumGDD %s  nPL_EC %s  end_of_root... %s  Crop_curve_type %s\n'
+    s = (
+        '4grow_root(): zr %s  fractime %s  zrx %s  zrn %s  dr %s  '+
+        'delta_zr %s  aw %s  aw3 %s  n_cumgdd %s  nPL_EC %s  '+
+        'end_of_root... %s  crop_curve_type %s\n')
     t = (
-        foo.Zr, fractime, foo.Zrx, foo.Zrn, foo.Dr, delta_zr, foo.AW, foo.AW3,
-        foo.ncumGDD, foo.nPL_EC, crop.end_of_root_growth_fraction_time,
+        foo.zr, fractime, foo.zrx, foo.zrn, foo.dr, delta_zr, foo.aw, foo.aw3,
+        foo.n_cumgdd, foo.nPL_EC, crop.end_of_root_growth_fraction_time,
         crop.crop_curve_type) 
     OUT.debug(s % t)
                 
-    # Also keep Zr from #'shrinking' (for example, with multiple alfalfa cycles    
-    if foo.Zr < lZr:    
-        foo.Zr = lZr
+    # Also keep zr from #'shrinking' (for example, with multiple alfalfa cycles    
+    if foo.zr < lZr:    
+        foo.zr = lZr
                     
-    ## [140616] remove foo's, pass in Zr, Zrx, Zrn, AW, AW3 ...  return Zr,Dr
+    ## [140616] remove foo's, pass in zr, zrx, zrn, aw, aw3 ...  return zr,dr
 
     # continuity from one season to next is done elsewhere (in xxxxxxx)

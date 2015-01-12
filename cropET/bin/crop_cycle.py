@@ -133,11 +133,11 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         wind = data.refet['Wind'][i]
         tdew = data.refet['TDew'][i]
         #ETr = data.refet['ASCEPMStdETr'][i]
-        ETo = data.refet['ASCEPMStdETo'][i]
-        ETref = refet_array[i]
+        eto = data.refet['ASCEPMStdETo'][i]
+        etref = refet_array[i]
 
         if VERBOSE: print doy, yearOfCalcs, monthOfCalcs, dayOfCalcs, precip, wind, tdew,
-        if VERBOSE: print ETo, ETref
+        if VERBOSE: print eto, etref
 
         # in original there was 80 lines of alternative Tmax/Tmin for climate change scenarios
         '''
@@ -157,8 +157,8 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         if VERBOSE: print tmax, tmin, tmean, t30
 
         # copies of these were made using loop
-        cumGDD0LT = np.copy(data.climate['maincumGDD0LT'])
-        T30LT = np.copy(data.climate['mainT30LT'])
+        cumgdd_0lt = np.copy(data.climate['maincumGDD0LT'])
+        t30_lt = np.copy(data.climate['mainT30LT'])
 
         #' this is done before calling ETc
         #' determine if this is a valid day (for use in assessing alfalfa cuttings in that file)
@@ -194,13 +194,13 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         foo_day.tmax_original = data.refet['TMax'][i]
         foo_day.tdew = tdew
         foo_day.wind = wind
-        foo_day.ETref = ETref
+        foo_day.etref = etref
         foo_day.tmean = tmean
         foo_day.tmin = tmin
         foo_day.tmax = tmax
         foo_day.snow_depth = data.climate['snow_depth'][i]
-        foo_day.cumGDD0LT = cumGDD0LT
-        #foo_day.T30LT = T30LT
+        foo_day.cumgdd_0lt = cumgdd_0lt
+        #foo_day.t30_lt = t30_lt
         foo_day.t30 = t30
         foo_day.precip = precip
         #pprint(vars(foo_day))
@@ -218,7 +218,7 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
             #print 'ET:: ',data.refet['Dates'][i], doy, ETref, Precip, T30, foo.ETcact, foo.ETcpot, foo.ETcbas
             m,d,y = data.refet['Dates'][i].split('/')
             date = '%4s%02d%02d' % (y, int(m), int(d))
-            tup = (date, doy, ETref, precip, t30, foo.etc_act, foo.etc_pot,
+            tup = (date, doy, etref, precip, t30, foo.etc_act, foo.etc_pot,
                    foo.etc_bas, foo.simulated_irr, foo.in_season, foo.SRO,
                    foo.Dpr)
             fmt = '%8s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
@@ -228,7 +228,7 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         # write final output file variables to DEBUG file
         m,d,y = data.refet['Dates'][i].split('/')
         date = '%4s%02d%02d' % (y, int(m), int(d))
-        tup = (ETref, precip, t30, foo.etc_act, foo.etc_pot, foo.etc_bas, 
+        tup = (etref, precip, t30, foo.etc_act, foo.etc_pot, foo.etc_bas, 
                foo.simulated_irr, foo.in_season, foo.SRO, foo.Dpr)
         s = 'zCropCycle(): 0ETref %s  1Precip %s 2T30 %s  3ETact %s  4ETpot %s  5ETbas %s  6Irrn %s  7Season %s  8Runoff %s 9DPerc %s\n'
         OUT.debug(s % tup)
