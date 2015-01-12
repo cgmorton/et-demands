@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
+import os
 from pprint import pprint
 import sys
 
 import numpy as np
 
 class ETCell:
-
     name = None
 
     def __init__(self):
@@ -25,7 +25,6 @@ class ETCell:
         # ETCellIDs, ETCellNames, RefETIDs, station_lat, station_long, station_elevft, _
         #  station_WHC, station_soildepth, station_HydroGroup, aridity_rating, refETPaths) 
 
-
         #  info
         self.cell_id = data[0]
         self.cell_name = data[1]
@@ -42,7 +41,6 @@ class ETCell:
         self.stn_hydrogroup = int(eval(data[10]))
         self.aridity_rating = float(data[11])
         self.refET_path = data[12]
-
         #print data
         #print len(data)
 
@@ -56,7 +54,6 @@ class ETCell:
             self.cell_lon = float(data[14])
             self.cell_elev = float(data[15])
 
-
     def init_crops_from_row(self, data):
         """ Parse the row of data
         """
@@ -65,15 +62,13 @@ class ETCell:
         self.crop_flags = data[4:].astype(bool)
         self.ncrops = len(self.crop_flags)
 
-
     def init_cuttings_from_row(self, data):
         """ Parse the row of data
         """
         #  info
         self.cuttingsLat = float(data[2])
-        self.dairyCuttings = int(data[3])
-        self.beefCuttings = int(data[4])
-
+        self.dairy_cuttings = int(data[3])
+        self.beef_cuttings = int(data[4])
 
     def read(self):
         """ Read from ETCell file 
@@ -87,14 +82,14 @@ class ETCell:
         print 'not implemented'
 
 
-def ReadETCellsProperties(fn=''):
+def read_et_cells_properties(fn=''):
     """ 
-    ReadETCellsProperties(ETCellIDs, ETCellNames, RefETIDs, station_lat, station_long, station_elevft, _
-                          station_WHC, station_soildepth, station_HydroGroup, aridity_rating, refETPaths) Then
+    read_et_cells_properties(ETCellIDs, ETCellNames, RefETIDs, station_lat, station_long, station_elevft, _
+                             station_WHC, station_soildepth, station_HydroGroup, aridity_rating, refETPaths) Then
 
     # then calls
-    ReadETCellsProperties(etcIndices(), etcNames(), metIds(), lats(), longs(), elevs(), 
-                            WHCs(), soilDepths(), HydroGroups(), aridityRatings(), refETPaths()
+    read_et_cells_properties(etcIndices(), etcNames(), metIds(), lats(), longs(), elevs(), 
+                             WHCs(), soilDepths(), HydroGroups(), aridityRatings(), refETPaths()
 
     ' #varies by ET cell, ie, huc8
     txt_KlamathMetAndDepletionNodes/ETCellsProperties.txt
@@ -137,9 +132,9 @@ def ReadETCellsProperties(fn=''):
     return et_cells
 
 
-def ReadETCellsCrops(fn, et_cells={}):
+def read_et_cells_crops(fn, et_cells={}):
     """
-    ReadETCellsCrops(CropsETCellIDs, cropFlags, station_irrigation_flag):
+    read_et_cells_crops(CropsETCellIDs, cropFlags, station_irrigation_flag):
 
     # basically flags for each crop in CropParameters file
     txt_KlamathMetAndDepletionNodes/ETCellsCrops.txt
@@ -179,7 +174,7 @@ def ReadETCellsCrops(fn, et_cells={}):
         #sys.exit()
 
 
-def ReadMeanCuttings(fn, et_cells={}):
+def read_mean_cuttings(fn, et_cells={}):
     """
     # read into memory once
     If Not ReadMeanCuttingsGivenETCellID(ETCellIDs(ETCellCount), staLatitude, dcuttings, bcuttings)
@@ -211,8 +206,8 @@ def ReadMeanCuttings(fn, et_cells={}):
 
 
 
-##### not used for CropET
-def ReadETCellsCropMix(fn, et_cells=[]):
+## Not used for CropET
+def read_et_cells_crop_mix(fn, et_cells=[]):
     """
        DATA/EX/ExampleData/Params/ETCellsCropMix.txt
         Year    ET Cell ID/ET Index User Crop Name  Area or Percent Crop Number User Begin Month    User Begin Day  User End Month  User End Day
@@ -227,36 +222,22 @@ def ReadETCellsCropMix(fn, et_cells=[]):
     ====> used by modAreaET.vb to calculate actual area-based ET
     """
 
-
-
-
 if __name__ == '__main__':
+    project_ws = os.getcwd()
+    static_ws = os.path.join(project_ws, 'static')
+    
+    # Initalize cells with property info
+    fn = os.path.join(static_ws,'ETCellsProperties.txt')
+    et_cells = read_et_cells_properties(fn)
 
-    ss_name = 'KlamathMetAndDepletionNodes'
-    ss_name = 'RGWWCRANodes'
+    # Add the crop to cells
+    fn = os.path.join(static_ws,'ETCellsCrops.txt')
+    read_et_cells_crops(fn, et_cells)
 
-    # import from text table
-
-    # cell property files
-    #fn = 'DATA/EX/ExampleData/Params/EtCellsProperties.txt'
-    #fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/ETCellsProperties.txt'
-    fn = 'DATA/EX/txt_%s/ETCellsProperties.txt' % ss_name
-
-    # init cells with property info
-    et_cells = ReadETCellsProperties(fn)
-
-    # cell crop mix files
-    #fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/ETCellsCrops.txt'
-    fn = 'DATA/EX/txt_%s/ETCellsCrops.txt' % ss_name
-    # add the crop to cells
-    ReadETCellsCrops(fn, et_cells)
-
-    # mean cuttings
-    #fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/MeanCuttings.txt'
-    fn = 'DATA/EX/txt_%s/MeanCuttings.txt' % ss_name
-    print '\nReadMeanCuttings'
-    ReadMeanCuttings(fn, et_cells)
-
+    # Mean cuttings
+    fn = os.path.join(static_ws,'MeanCuttings.txt')
+    print '\nRead Mean Cuttings'
+    read_mean_cuttings(fn, et_cells)
 
     #c = et_cells[0]
     c = et_cells.values()[0]

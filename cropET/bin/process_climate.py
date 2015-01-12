@@ -6,8 +6,7 @@ import sys
 
 import numpy as np
 
-#import cropet_read
-import cropet_data
+import crop_et_data
 
 VERBOSE = True
 VERBOSE = False
@@ -16,14 +15,14 @@ VERBOSE = False
 def ProcessClimate(data, cell_id, nsteps):
     """ """
     '''
-            ' compute long term averages (DAY LOOP)
-                ' adjust and check temperature data
-                ' process alternative TMax and TMin
-            ' fill in missing data with long term doy average (DAY LOOP)
-                ' Calculate an estimated depth of snow on ground using simple melt rate function))
-                ' compute main cumGDD for period of record for various bases for constraining earliest/latest planting or GU
-                ' only Tbase = 0 needs to be evaluated (used to est. GU for alfalfa, mint, hops)
-            ' compute long term mean cumGDD0 from sums (JDOY LOOP)
+    compute long term averages (DAY LOOP)
+        adjust and check temperature data
+        process alternative TMax and TMin
+    fill in missing data with long term doy average (DAY LOOP)
+        Calculate an estimated depth of snow on ground using simple melt rate function))
+        compute main cumGDD for period of record for various bases for constraining earliest/latest planting or GU
+        only Tbase = 0 needs to be evaluated (used to est. GU for alfalfa, mint, hops)
+    compute long term mean cumGDD0 from sums (JDOY LOOP)
     '''
     # AltTMaxArray, AltTMinArray in code has to do with when future climate
     # gets so much warmer that annuals are starting too soon, in this case,
@@ -34,8 +33,8 @@ def ProcessClimate(data, cell_id, nsteps):
     # should be taken care of outside of process
 
     # vars used later
-    # TMaxArray, TMinArray, TAvgArray, T30Array, cumGDD0LT(jdoy), T30LT(jdoy),
-    # mainT30LT(DoY)
+    # TMaxArray, TMinArray, TAvgArray, t30_array, cumGDD0LT(jdoy), T30LT(jdoy),
+    # mainT30LT(doy)
 
     if VERBOSE: pprint(data.refet)
     # print
@@ -66,8 +65,8 @@ def ProcessClimate(data, cell_id, nsteps):
     '''
     ############333 try with no loop
 
-    TMax = np.copy(data.refet['TMax'])
-    TMin = np.copy(data.refet['TMin'])
+    tmax = np.copy(data.refet['TMax'])
+    tmin = np.copy(data.refet['TMin'])
     aridity_rating = data.et_cells[cell_id].aridity_rating
 
     # seems most/all of what goes on in day loop could be done with array math    
@@ -85,21 +84,22 @@ def ProcessClimate(data, cell_id, nsteps):
         #originalTMax(sdays - 1) = TMax ' hold onto original TMax value for computing RHmin later on (for Kco), 12/2007, Allen
         #If aridity_rating(ETCellCount) > 0 Then ' adjust T's downward if station is arid
         if aridity_rating > 0:
-            #' interpolate value for aridity adjustment
-
-            MoaFrac = monthOfCalcs + (dayOfCalcs - 15) / 30.4
-            MoaFrac = min([max([MoaFrac, 1]), 11])
-            #Moabase = Int(CDbl(MoaFrac))
-            #Moabase, frac = math.modf(MoaFrac)
-            Moabase = int(MoaFrac)
-            AridAdj = aridity_adj[Moabase] + (aridity_adj[Moabase + 1] - aridity_adj[Moabase]) * (MoaFrac - Moabase)
+            # Interpolate value for aridity adjustment
+            moa_frac = monthOfCalcs + (dayOfCalcs - 15) / 30.4
+            moa_frac = min([max([moa_frac, 1]), 11])
+            #moa_base = Int(CDbl(moa_frac))
+            #moa_base, frac = math.modf(moa_frac)
+            moa_base = int(moa_frac)
+            AridAdj = (
+                aridity_adj[moa_base] +
+                (aridity_adj[moa_base + 1] - aridity_adj[moa_base]) *
+                (moa_frac - moa_base))
             if VERBOSE: print TMax[i],
-            TMax[i] = TMax[i] - aridity_rating / 100. * AridAdj
-            TMin[i] = TMin[i] - aridity_rating / 100. * AridAdj
+            tmax[i] = tmax[i] - aridity_rating / 100. * AridAdj
+            tmin[i] = tmin[i] - aridity_rating / 100. * AridAdj
 
 
-            if VERBOSE: print MoaFrac, TMax[i]
-            #if VERBOSE: print MoaFrac, MoaFrac2[i], MoaFrac-MoaFrac2[i], Moabase, Moabase2[i]
+            if VERBOSE: print moa_frac, tmax[i]
 
             #' fill in missing data with long term doy average
             # this should be done in separate process, prior to any refet or cropet
@@ -110,58 +110,57 @@ def ProcessClimate(data, cell_id, nsteps):
         #    sys.exit()
 
     # T30 stuff, done after temperature adjustments above
-    TMean = (TMax+TMin)*0.5
-    T30Array = np.zeros(len(TMax)) 
+    tmean = (tmax + tmin) * 0.5
+    t30_array = np.zeros(len(tmax)) 
     nrecordmainT30 = np.zeros(367)
     mainT30LT = np.zeros(367)
     maincumGDD0LT = np.zeros(367)
     nrecordMainCumGDD = np.zeros(367)
 
-    sdArray = np.copy(data.refet['SnowDepth'])
-    sweArray = np.copy(data.refet['Snow'])
+    sd_array = np.copy(data.refet['SnowDepth'])
+    swe_array = np.copy(data.refet['Snow'])
 
-    ### need to do precip conversion to mm, from hundreths of inches
-    precipArray = np.copy(data.refet['Precip']) * 25.4 / 100.
+    ## Need to do precip conversion to mm, from hundreths of inches
+    precip_array = np.copy(data.refet['Precip']) * 25.4 / 100.
 
     mainT30 = 0.0
-    Snowaccum = 0.0
+    snow_accum = 0.0
     for i in range(len(data.refet['ts'][:nsteps])):
         if VERBOSE: print i,data.refet['ts'][i],
-        DoY = data.refet['ts'][i][7] 
+        doy = data.refet['ts'][i][7] 
 
         # ' Calculate an estimated depth of snow on ground using simple melt rate function))
-        if len(sdArray) > 0:
-            Snow = sweArray[i]
-            Snowdepth = sdArray[i]
+        if len(sd_array) > 0:
+            snow = swe_array[i]
+            snow_depth = sd_array[i]
             
             ### [140610] TP, the ETo file has snow in hundreths, not tenths????
-            Snow = Snow / 10 * 25.4 #'tenths of inches to mm
-            sweArray[i] = Snow
-            #Snow = sweArray(sdays - 1)  # ???
-            Snowdepth = Snowdepth * 25.4 #' inches to mm
+            snow = snow / 10 * 25.4 #'tenths of inches to mm
+            swe_array[i] = snow
+            #snow = swe_array(sdays - 1)  # ???
+            snow_depth = snow_depth * 25.4 #' inches to mm
             
             #' Calculate an estimated depth of snow on ground using simple melt rate function))
-            
-            Snowaccum = Snowaccum + Snow * 0.5 #' assume a settle rate of 2 to 1
-            Snowmelt = 4 * TMax[i] #' 4 mm/day melt per degree C
-            Snowmelt = max(Snowmelt, 0.0)
-            Snowaccum = Snowaccum - Snowmelt
-            Snowaccum = max(Snowaccum, 0.0)
-            Snowdepth = min(Snowdepth, Snowaccum)
-            sdArray[i] = Snowdepth
+            snow_accum += snow * 0.5 #' assume a settle rate of 2 to 1
+            snow_melt = 4 * tmax[i] #' 4 mm/day melt per degree C
+            snow_melt = max(snow_melt, 0.0)
+            snow_accum = snow_accum - snow_melt
+            snow_accum = max(snow_accum, 0.0)
+            snow_depth = min(snow_depth, snow_accum)
+            sd_array[i] = snow_depth
 
 
         if i > 29:
-            mainT30 = sum(TMean[i-29:i+1])/30
+            mainT30 = sum(tmean[i-29:i+1])/30
         else:
-            mainT30 = (mainT30 * (i) + TMean[i]) / (i+1)
-        T30Array[i] = mainT30
+            mainT30 = (mainT30 * (i) + tmean[i]) / (i+1)
+        t30_array[i] = mainT30
 
         #' build cummulative over period of record
-        nrecordmainT30[DoY] += 1
-        mainT30LT[DoY] = (mainT30LT[DoY] * (nrecordmainT30[DoY] - 1) + mainT30) / nrecordmainT30[DoY] 
+        nrecordmainT30[doy] += 1
+        mainT30LT[doy] = (mainT30LT[doy] * (nrecordmainT30[doy] - 1) + mainT30) / nrecordmainT30[doy] 
 
-        if VERBOSE: print T30Array[i]
+        if VERBOSE: print t30_array[i]
 
         #if i > 60:
         #    sys.exit()
@@ -169,24 +168,24 @@ def ProcessClimate(data, cell_id, nsteps):
 
         #' compute main cumGDD for period of record for various bases for constraining earliest/latest planting or GU
         #' only Tbase = 0 needs to be evaluated (used to est. GU for alfalfa, mint, hops)
-        if i == 0 or DoY == 1: 
+        if i == 0 or doy == 1: 
             mainGDD0 = 0.0
 
         # Tbase(ctCount) -- have no idea what ctCount value should be, since this
         # is before start of CropCycle & each crop has own Tbase value in
         # crop_parameters.py, use 0.0 for now, since appears may be ctCount
         #  Based on previous comment, assume Tbase = 0.0
-        Tbase = 0.0
-        if TMean[i] > 0: #' simple method for all other crops
-            GDD = TMean[i] - Tbase
+        tbase = 0.0
+        if tmean[i] > 0: #' simple method for all other crops
+            gdd = tmean[i] - tbase
         else:
-            GDD = 0.0
+            gdd = 0.0
 
-        mainGDD0 = mainGDD0 + GDD
-        maincumGDD0LT[DoY] = maincumGDD0LT[DoY] + mainGDD0
-        nrecordMainCumGDD[DoY] += 1
+        mainGDD0 = mainGDD0 + gdd
+        maincumGDD0LT[doy] = maincumGDD0LT[doy] + mainGDD0
+        nrecordMainCumGDD[doy] += 1
 
-        #print i, DoY, TMean[i], TMax[i], TMin[i], maincumGDD0LT[DoY]
+        #print i, doy, TMean[i], TMax[i], TMin[i], maincumGDD0LT[doy]
 
     #pprint(mainT30LT[:20])
     #print mainT30LT[365], len(mainT30LT)
@@ -199,21 +198,18 @@ def ProcessClimate(data, cell_id, nsteps):
              maincumGDD0LT[jdoy] = maincumGDD0LT[jdoy] / nrecordMainCumGDD[jdoy]
         else:
              maincumGDD0LT[jdoy] = 0.0
-
-    #pprint(T30Array)
+    #pprint(t30_array)
     #pprint(mainT30LT)
-    #sys.exit()
 
-    # TMaxArray, TMinArray, TAvgArray, T30Array, cumGDD0LT, maincumGDD0LT, mainT30LT(DoY)
-    d['TMaxArray'] = TMax
-    d['TMinArray'] = TMin
-    d['TAvgArray'] = TMean
-    d['T30Array'] = T30Array
+    d['tmax_array'] = tmax
+    d['tmin_array'] = tmin
+    d['tmean_array'] = tmean
+    d['t30_array'] = t30_array
     d['mainT30LT'] = mainT30LT
     d['maincumGDD0LT'] = maincumGDD0LT
-    d['SnowDepth'] = sdArray
-    d['Snow'] = sweArray
-    d['Precip'] = precipArray
+    d['snow_depth'] = sd_array
+    d['snow'] = swe_array
+    d['precip'] = precip_array
     return d
 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
+import os
 from pprint import pprint
 import sys
 import time
@@ -14,19 +15,11 @@ import et_cell
 #DELIMITER = ','
 DELIMITER = '\t'
 
+def get_date_params(date_str='1/1/1950', date_fmt='%m/%d/%Y'):
+    dt = datetime.strptime(date_str, date_fmt)
+    return dt.year, dt.month, dt.day, dt.timetuple().tm_yday
 
-
-def getDateParams(date='1/1/1950'):
-    """ """
-    mo,da,yr = date.split('/')
-    mo = int(mo)
-    da = int(da)
-    yr = int(yr)
-    doy = datetime.datetime(yr,mo,da).timetuple().tm_yday
-    return yr,mo,da,doy
-
-
-def ReadDailyRefETData(fn):
+def read_daily_refet_data(fn):
     """ 
     ' in modPM.vb, several different formats supported.
     ' #file per ETCell
@@ -58,7 +51,7 @@ Date    TMax    TMin    Precip  Snow    SDep    EstRs   EsWind  EsTDew  Penm48  
 
     a = np.loadtxt(fn, dtype='str', skiprows=sr)
 
-    ### may want to save the date field(s) as some point
+    ## may want to save the date field(s) as some point
     dates = a[:,0]
     a = a[:,o:].astype(float)
 
@@ -79,8 +72,7 @@ Date    TMax    TMin    Precip  Snow    SDep    EstRs   EsWind  EsTDew  Penm48  
     return d
   
 
-class Cropet_data:
-
+class CropETData:
     climate = None
 
     def __init__(self):
@@ -97,17 +89,17 @@ class Cropet_data:
 
     def set_crop_parameters(self, fn=''):
         """ List of <CropParameter> instances """
-        self.crop_parameters = crop_parameters.ReadCropParameters(fn)
+        self.crop_parameters = crop_parameters.read_crop_parameters(fn)
         #pprint(vars(self.crop_parameters[0]))
 
     def set_crop_coefficients(self, fn=''):
         """ List of <CropCoeff> instances """
-        self.crop_coeffs = crop_coefficients.ReadCropCoefs(fn)
+        self.crop_coeffs = crop_coefficients.read_crop_coefs(fn)
         #pprint(vars(self.crop_coeffs[0]))
 
     def set_refet_data(self, fn=''):
         """ Mapping refet output variables """
-        self.refet = ReadDailyRefETData(fn)
+        self.refet = read_daily_refet_data(fn)
 
     # options from the KLPenmanMonteithManager.txt, or PMControl spreadsheet
     ctrl = {
@@ -123,116 +115,80 @@ class Cropet_data:
 
         # also in crop_parameters.py
         'CGDDWinterDoy' : 274,
-        'CGDDMainDoy' : 1,
+        'CGDDMainDoy' : 1}
 
+##def _test_old():
+##    """ """
+##    cet = Cropet_data()
+##    print '\nRead Cell data'
+##    # cell property files
+##    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/ETCellsProperties.txt'
+##    # init cells with property info
+##    et_cells = et_cell.read_et_cells_properties(fn)
+##    # cell crop mix files
+##    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/ETCellsCrops.txt'
+##    # add the crop to cells
+##    et_cell.read_et_cells_crops(fn, et_cells)
+##    # add mean cuttings
+##    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/MeanCuttings.txt'
+##    et_cell.ReadMeanCuttings(fn, et_cells)
+##    #c = et_cells.values()[0]
+##    #pprint(vars(c))
+##    #print c
+##    cet.set_et_cells(et_cells)
+##
+##    print '\nReadCropParameters'
+##    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/CropParams.txt'
+##    cet.set_crop_parameters(fn)
+##    #print(cet.crop_parameters[0])
+##
+##    print '\nReadCropCoefficients'
+##    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/CropCoefs.txt'
+##    cet.set_crop_coefficients(fn)
+##    #print(coeff[0])
+##    #pprint(ReadCropCoefs(fn))
+##
+##    '''
+##    print '\nReadDailyRefETData' 
+##    #fn = 'DATA/EX/Klamath_pmdata/ETo/OR1571E2_KL_2020_S0.dat'  # 1
+##    #fn = 'DATA/EX/Klamath_pmdata/ETo/OR8007E2_KL_2020_S0.dat'  # 2
+##    fn = 'DATA/EX/Klamath_pmdata/ETo/OR8007E2_KL_2020_S0.dat'  # 2
+##    cet.set_refet_data(fn)
+##    #pprint(ReadDailyRefETData(fn))
+##    '''
+##    return cet
 
-    }
-
-def _test_old():
+def _test(static_ws=os.getcwd()):
     """ """
+    if not os.path.isdir(static_ws):
+        raise SystemExit()
+    cet = CropETData()
 
-    cet = Cropet_data()
-    print '\nRead Cell data'
-    # cell property files
-    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/ETCellsProperties.txt'
-    # init cells with property info
-    et_cells = et_cell.ReadETCellsProperties(fn)
-    # cell crop mix files
-    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/ETCellsCrops.txt'
-    # add the crop to cells
-    et_cell.ReadETCellsCrops(fn, et_cells)
-    # add mean cuttings
-    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/MeanCuttings.txt'
-    et_cell.ReadMeanCuttings(fn, et_cells)
-    #c = et_cells.values()[0]
-    #pprint(vars(c))
-    #print c
+    # Init cells with property info
+    fn = os.path.join(static_ws, 'ETCellsProperties.txt')
+    print '\nRead Cell Properties:', fn
+    et_cells = et_cell.read_et_cells_properties(fn)
+
+    # Add the crop to cells
+    fn = os.path.join(static_ws, 'ETCellsCrops.txt')
+    print '\nRead Cell crops:', fn
+    et_cell.read_et_cells_crops(fn, et_cells)
+
+    # Add mean cuttings
+    fn = os.path.join(static_ws, 'MeanCuttings.txt')
+    print '\nRead mean cuttings:', fn
+    et_cell.read_mean_cuttings(fn, et_cells)
     cet.set_et_cells(et_cells)
 
-    print '\nReadCropParameters'
-    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/CropParams.txt'
+    fn = os.path.join(static_ws, 'CropParams.txt')
+    print '\nRead Crop Parameters:', fn
     cet.set_crop_parameters(fn)
-    #print(cet.crop_parameters[0])
 
-    print '\nReadCropCoefficients'
-    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/CropCoefs.txt'
+    fn = os.path.join(static_ws, 'CropCoefs.txt')
+    print '\nRead Crop Coefficients:', fn
     cet.set_crop_coefficients(fn)
-    #print(coeff[0])
-    #pprint(ReadCropCoefs(fn))
-
-    '''
-    print '\nReadDailyRefETData' 
-    #fn = 'DATA/EX/Klamath_pmdata/ETo/OR1571E2_KL_2020_S0.dat'  # 1
-    #fn = 'DATA/EX/Klamath_pmdata/ETo/OR8007E2_KL_2020_S0.dat'  # 2
-    fn = 'DATA/EX/Klamath_pmdata/ETo/OR8007E2_KL_2020_S0.dat'  # 2
-    cet.set_refet_data(fn)
-    #pprint(ReadDailyRefETData(fn))
-    '''
     return cet
-
-
-def _test(ss_name='klamath', pth='DATA/EX/klamath/txt'):
-    """ """
-    cet = Cropet_data()
-    #pth = pth % ss_name
-
-    # cell property files
-    #fn = 'DATA/EX/%s/txt/ETCellsProperties.txt' % ss_name
-    fn = '%s/ETCellsProperties.txt' % pth
-    print '\nRead Cell Properties', fn
-    # init cells with property info
-    et_cells = et_cell.ReadETCellsProperties(fn)
-
-    # cell crop mix files
-    #fn = 'DATA/EX/%s/txt/ETCellsCrops.txt' % ss_name
-    fn = '%s/ETCellsCrops.txt' % pth
-    print '\nRead Cell crops', fn
-    # add the crop to cells
-    et_cell.ReadETCellsCrops(fn, et_cells)
-
-    # add mean cuttings
-    #fn = 'DATA/EX/%s/txt/MeanCuttings.txt' % ss_name
-    fn = '%s/MeanCuttings.txt' % pth
-    print '\nRead mean cuttings', fn
-    et_cell.ReadMeanCuttings(fn, et_cells)
-    #c = et_cells.values()[0]
-    #pprint(vars(c))
-    #print c
-    cet.set_et_cells(et_cells)
-
-    #fn = 'DATA/EX/%s/txt/CropParams.txt' % ss_name
-    fn = '%s/CropParams.txt' % pth
-    print '\nReadCropParameters', fn
-    cet.set_crop_parameters(fn)
-    #print(cet.crop_parameters[0])
-
-    #fn = 'DATA/EX/%s/txt/CropCoefs.txt' % ss_name
-    fn = '%s/CropCoefs.txt' % pth
-    print '\nReadCropCoefficients', fn
-    cet.set_crop_coefficients(fn)
-    #print(coeff[0])
-    #pprint(ReadCropCoefs(fn))
-
-    '''
-    print '\nReadDailyRefETData' 
-    #fn = 'DATA/EX/Klamath_pmdata/ETo/OR1571E2_KL_2020_S0.dat'  # 1
-    #fn = 'DATA/EX/Klamath_pmdata/ETo/OR8007E2_KL_2020_S0.dat'  # 2
-    fn = 'DATA/EX/Klamath_pmdata/ETo/OR8007E2_KL_2020_S0.dat'  # 2
-    cet.set_refet_data(fn)
-    #pprint(ReadDailyRefETData(fn))
-    '''
-
-    return cet
-
 
 if __name__ == '__main__':
-    #cet = _test()
-    ss_name = 'klamath'
-    ss_name = 'rioGrande'
-    ss_name = 'CVP'
-    ss_name = 'truckee'
-    cet = _test(ss_name)
-
-
-
-
+    basin_id = 'klamath'
+    cet = _test(basin_id)

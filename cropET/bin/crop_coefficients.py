@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
 from pprint import pprint
-import sys
 
 import numpy as np
 
 class CropCoeff:
-
     name = None
     gdd_type_name = ''
 
@@ -46,7 +44,6 @@ class CropCoeff:
             if val < self.data[i]:
                 val = self.data[i]
         return val
-                
 
     def init_from_column(self, percents, dc):
         """ Parse the column of data
@@ -103,9 +100,8 @@ class CropCoeff:
         print 'not implemented'
 
 
-def ReadCropCoefs(fn):
+def read_crop_coefs(fn):
     """ Load the crop coefficients 
-    Private Function ReadTextCropCoefs(ByVal ccPath As String, ByVal valuesSeparator As Char) As Boolean
 
     # these are same for all areas
     DATA/EX/ExampleData/Params/GrassCropCoefficients.csv
@@ -117,19 +113,17 @@ def ReadCropCoefs(fn):
 
     # crops vary in number of records, so None for sparse areas
     # used vars
-cropco_num           # not used
-cropco_type          # not used
-cropco_name          # not used
-cropco_scale1        # not used
-cropco_scale2        # not used
-cropco_val           # 2d table
-cropco_GDD_base      # 
-cropco_GDD_type      # not used?
-cropco_GDD_PLtoEC    # not used?
-cropco_GDD_PLtoTerm1 # not used?
-cropco_GDD_PLtoTerm2 # not used?
-
-    
+    cropco_num           # not used
+    cropco_type          # not used
+    cropco_name          # not used
+    cropco_scale1        # not used
+    cropco_scale2        # not used
+    cropco_val           # 2d table
+    cropco_GDD_base      # 
+    cropco_GDD_type      # not used?
+    cropco_GDD_PLtoEC    # not used?
+    cropco_GDD_PLtoTerm1 # not used?
+    cropco_GDD_PLtoTerm2 # not used?
 
     """
     '''
@@ -155,7 +149,6 @@ cropco_GDD_PLtoTerm2 # not used?
         data_col = a[:,2+i]
         if not data_col[2]:
             continue
-
         #print percents
         #print data_col
 
@@ -166,19 +159,14 @@ cropco_GDD_PLtoTerm2 # not used?
 
         #coeffs.append(coeff_obj)
         coeffs[int(coeff_obj.curve_no)] = coeff_obj
-        #sys.exit()
-
     return coeffs
 
 
-
 if __name__ == '__main__':
-
     # import from text table of all coefficients
-    fn = 'DATA/TEST/params/crop_coefficients.txt'
-    fn = 'DATA/TEST/params/crop_coefficients60.txt'
-    fn = 'DATA/EX/txt_KlamathMetAndDepletionNodes/CropCoefs.txt'
-    coeff = ReadCropCoefs(fn)
+    static_ws = os.path.join(os.getcwd(), 'static')
+    fn = os.path.join(static_ws, 'CropCoefs.txt')
+    coeff = read_crop_coefs(fn)
     c = coeff[0]
     pprint(vars(c))
     print c
