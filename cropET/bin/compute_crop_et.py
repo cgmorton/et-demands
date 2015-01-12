@@ -742,7 +742,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
             crop_doy += 365
         if (crop_doy >= crop.days_after_planting_irrigation and
             foo_day.doy >= jd_to_start_irr and foo.in_season and
-            foo.dr > raw and foo.kcb > 0.22:   
+            foo.dr > raw and foo.kcb > 0.22):   
             # No premature end for irrigations is used for Idaho CU comps.
             # Limit irrigation to periods when Kcb > 0.22 to preclude
             #   frequent irrigation during initial periods
@@ -813,9 +813,9 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #   as an incidental loss
     gDPr = foo.dpr + 0.1 * foo.simulated_irr
 
-    #' This moisture can recharge a dry profile
-    #' from previous year and reduce need for irrigation.
-    #' This is realistic, but make sure it does not reduce any #'NIR'
+    # This moisture can recharge a dry profile
+    # from previous year and reduce need for irrigation.
+    # This is realistic, but make sure it does not reduce any #'NIR'
 
     # Calc total water currently in layer 3.
     # aw3 is 0 first time through and calculated in next section
