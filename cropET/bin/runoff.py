@@ -1,17 +1,14 @@
 def runoff(foo, foo_day, OUT):
-    """curve number method for computing runoff."""
+    """Curve number method for computing runoff."""
     # print 'in runoff()...'
 
     # Bring in CNII for antecedent condition II from crop-soil combination
     # Check to insure CNII is within limits
-    CNII = foo.cn2
-    if CNII < 10:
-        CNII = 10
-    if CNII > 100:
-        CNII = 100
+    CNII = min(max(foo.cn2, 10), 100)
 
     # Compute CN's for other antecedent conditions
-    CNI = CNII / (2.281 - 0.01281 * CNII) #' Hawkins et al., 1985, ASCE Irr.Drn. 11(4):330-340
+    # Hawkins et al., 1985, ASCE Irr.Drn. 11(4):330-340
+    CNI = CNII / (2.281 - 0.01281 * CNII) 
     CNIII = CNII / (0.427 + 0.00573 * CNII)
 
     # Determine antecedent condition
@@ -27,43 +24,38 @@ def runoff(foo, foo_day, OUT):
     if AWCI <= AWCIII:
         AWCI = AWCIII + 0.01 
     if foo.depl_surface < AWCIII:   
-        CN = CNIII
+        cn = CNIII
     else:
         if foo.depl_surface > AWCI:   
-            CN = CNI
+            cn = CNI
         else:
-            CN = ((foo.depl_surface - AWCIII) * CNI + (AWCI - foo.depl_surface) * CNIII) / (AWCI - AWCIII)
-    foo.S = 250 * (100 / CN - 1)
-    s = 'runoff():a CN %s  Depl_surface %s  AWCIII %s  CNI %s  AWCI %s  CNIII %s\n'
-    t = (CN, foo.depl_surface, AWCIII, CNI, AWCI, CNIII) 
+            cn = (
+                ((foo.depl_surface - AWCIII) * CNI +
+                 (AWCI - foo.depl_surface) * CNIII) / (AWCI - AWCIII))
+    foo.s = 250 * (100 / cn - 1)
+    s = 'runoff():a cn %s  depl_surface %s  AWCIII %s  CNI %s  AWCI %s  CNIII %s\n'
+    t = (cn, foo.depl_surface, AWCIII, CNI, AWCI, CNIII) 
     OUT.debug(s % t)
 
     # If irrigations are automatically scheduled, base runoff on an average of
     #   conditions for prior four days to smooth results.
-
     OUT.debug('runoff():b SRO %s  irr_flag %s  S %s\n' % (
-        foo.SRO, foo.irr_flag, foo.S))
-    # was Irr > 0:
+        foo.SRO, foo.irr_flag, foo.s))
     if foo.irr_flag:    
         # Initial abstraction
-        Pnet4 = foo_day.precip - 0.2 * foo.S4
-        Pnet3 = foo_day.precip - 0.2 * foo.S3
-        Pnet2 = foo_day.precip - 0.2 * foo.S2
-        Pnet1 = foo_day.precip - 0.2 * foo.S1 
-        if Pnet4 < 0:
-            Pnet4 = 0
-        if Pnet3 < 0:
-            Pnet3 = 0
-        if Pnet2 < 0:
-            Pnet2 = 0
-        if Pnet1 < 0:
-            Pnet1 = 0
-        foo.SRO = (
-            Pnet4 * Pnet4 / (foo_day.precip + 0.8 * foo.S4) + Pnet3 * Pnet3 
-               / (foo_day.precip + 0.8 * foo.S3) + Pnet2 * Pnet2 / 
-               (foo_day.precip + 0.8 * foo.S2) + Pnet1 * Pnet1 / (foo_day.precip + 0.8 * foo.S1)) / 4
-        s = 'runoff():c SRO %s  Pnet4 %s  S4 %s  Pnet3 %s  S3 %s  Pnet2 %s  S2 %s  Pnet1 %s  S1 %s\n'
-        t = (foo.SRO, Pnet4, foo.S4, Pnet3, foo.S3, Pnet2, foo.S2, Pnet1, foo.S1)
+        ppt_net4 = max(foo_day.precip - 0.2 * foo.S4, 0)
+        ppt_net3 = max(foo_day.precip - 0.2 * foo.S3, 0)
+        ppt_net2 = max(foo_day.precip - 0.2 * foo.S2, 0)
+        ppt_net1 = max(foo_day.precip - 0.2 * foo.S1 , 0)
+        foo.SRO = 0.25 * (
+            ppt_net4 ** 2 / (foo_day.precip + 0.8 * foo.S4) +
+            ppt_net3 ** 2 / (foo_day.precip + 0.8 * foo.S3) +
+            ppt_net2 ** 2 / (foo_day.precip + 0.8 * foo.S2) +
+            ppt_net1 ** 2 / (foo_day.precip + 0.8 * foo.S1))
+        s = ('runoff():c SRO %s  Pnet4 %s  S4 %s  Pnet3 %s  S3 %s  '+
+             'Pnet2 %s  S2 %s  Pnet1 %s  S1 %s\n')
+        t = (foo.SRO, ppt_net4, foo.S4, ppt_net3, foo.S3,
+             ppt_net2, foo.S2, ppt_net1, foo.S1)
         OUT.debug(s % t)
 
         foo.S4 = foo.S3

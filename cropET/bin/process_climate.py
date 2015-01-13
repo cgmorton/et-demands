@@ -11,9 +11,9 @@ import crop_et_data
 VERBOSE = True
 VERBOSE = False
 
-#    Private Function ProcessClimate() As Boolean
-def ProcessClimate(data, cell_id, nsteps):
+def process_climate(data, cell_id, nsteps):
     """ """
+    
     '''
     compute long term averages (DAY LOOP)
         adjust and check temperature data
@@ -32,17 +32,11 @@ def ProcessClimate(data, cell_id, nsteps):
     # Also lots of missing data substitution stuff going on, ignore, this
     # should be taken care of outside of process
 
-    # vars used later
-    # TMaxArray, TMinArray, TAvgArray, t30_array, cumGDD0LT(jdoy), T30LT(jdoy),
-    # mainT30LT(doy)
-
     if VERBOSE: pprint(data.refet)
-    # print
 
     # keep refet values intact & return any 'modified' variables in new mapping 
     d = {}
 
-    #Private aridity_adj() As Double = {0, 0, 0, 0, 1, 1.5, 2, 3.5, 4.5, 3, 0, 0, 0}
     aridity_adj = [0., 0., 0., 0., 1., 1.5, 2., 3.5, 4.5, 3., 0., 0., 0.]
 
     ############333 try with no loop
@@ -98,12 +92,11 @@ def ProcessClimate(data, cell_id, nsteps):
             tmax[i] = tmax[i] - aridity_rating / 100. * AridAdj
             tmin[i] = tmin[i] - aridity_rating / 100. * AridAdj
 
-
             if VERBOSE: print moa_frac, tmax[i]
 
-            #' fill in missing data with long term doy average
-            # this should be done in separate process, prior to any refet or cropet
-            # calcs  (30 lines of code)
+            # Fill in missing data with long term doy average
+            # This should be done in separate process,
+            #   prior to any refet or cropet calcs (30 lines of code)
 
         #if i > 366:
         #    break
@@ -140,7 +133,7 @@ def ProcessClimate(data, cell_id, nsteps):
             #snow = swe_array(sdays - 1)  # ???
             snow_depth = snow_depth * 25.4 #' inches to mm
             
-            #' Calculate an estimated depth of snow on ground using simple melt rate function))
+            # Calculate an estimated depth of snow on ground using simple melt rate function))
             snow_accum += snow * 0.5 #' assume a settle rate of 2 to 1
             snow_melt = 4 * tmax[i] #' 4 mm/day melt per degree C
             snow_melt = max(snow_melt, 0.0)
@@ -149,25 +142,22 @@ def ProcessClimate(data, cell_id, nsteps):
             snow_depth = min(snow_depth, snow_accum)
             sd_array[i] = snow_depth
 
-
         if i > 29:
-            mainT30 = sum(tmean[i-29:i+1])/30
+            mainT30 = sum(tmean[i-29:i+1]) / 30
         else:
             mainT30 = (mainT30 * (i) + tmean[i]) / (i+1)
         t30_array[i] = mainT30
 
-        #' build cummulative over period of record
+        # Build cummulative over period of record
         nrecordmainT30[doy] += 1
         mainT30LT[doy] = (mainT30LT[doy] * (nrecordmainT30[doy] - 1) + mainT30) / nrecordmainT30[doy] 
 
         if VERBOSE: print t30_array[i]
 
-        #if i > 60:
-        #    sys.exit()
-
-
-        #' compute main cumGDD for period of record for various bases for constraining earliest/latest planting or GU
-        #' only Tbase = 0 needs to be evaluated (used to est. GU for alfalfa, mint, hops)
+        # Compute main cumgdd for period of record for various bases for
+        #   constraining earliest/latest planting or GU
+        # Only Tbase = 0 needs to be evaluated
+        #   (used to est. GU for alfalfa, mint, hops)
         if i == 0 or doy == 1: 
             mainGDD0 = 0.0
 
@@ -192,12 +182,12 @@ def ProcessClimate(data, cell_id, nsteps):
     #pprint(nrecordMainCumGDD[:20])
     #pprint(TMean[:20])
 
-    # ' compute long term mean cumGDD0 from sums
-    for jdoy in range(1,367):
-        if nrecordMainCumGDD[jdoy] > 0:
-             maincumGDD0LT[jdoy] = maincumGDD0LT[jdoy] / nrecordMainCumGDD[jdoy]
+    # Compute long term mean cumGDD0 from sums
+    for doy in range(1,367):
+        if nrecordMainCumGDD[doy] > 0:
+             maincumGDD0LT[doy] = maincumGDD0LT[doy] / nrecordMainCumGDD[doy]
         else:
-             maincumGDD0LT[jdoy] = 0.0
+             maincumGDD0LT[doy] = 0.0
     #pprint(t30_array)
     #pprint(mainT30LT)
 
@@ -218,7 +208,6 @@ def main():
     # _test() loads the data for Klamath
     #data = cropet_data._test()
     #pprint(data.refet)
-
 
 if __name__ == '__main__':
     main()

@@ -47,8 +47,8 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
 
     #' winter grain '<------ specific value for crop number, changed to two ww crops Jan 07
     #If ctCount = 13 Or ctCount = 14 Or ccName.Equals("WINTER WHEAT") Then 
-    #if crop.crop_curve_number in [13,14] or crop.crop_curve_name == 'WINTER WHEAT':
-    if crop.crop_class_num in [13,14] or 'WINTER' in crop.crop_curve_name:
+    #if crop.curve_number in [13,14] or crop.curve_name == 'WINTER WHEAT':
+    if crop.class_number in [13,14] or 'WINTER' in crop.curve_name:
         if (foo.lDoy < crop.crop_gdd_trigger_doy and
             foo_day.doy >= crop.crop_gdd_trigger_doy):
             foo.cumgdd = 0.0
@@ -70,14 +70,14 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
          'jd_start_cycle %s  crop_curve_number %s  crop_class_num %s  '+
          'in_season %s\n')
     t = (foo.etref_30, foo_day.sdays, foo_day.etref, etref_lost,
-         foo.jd_start_cycle, crop.crop_curve_number, crop.crop_class_num,
+         foo.jd_start_cycle, crop.curve_number, crop.class_number,
          foo.in_season) 
     OUT.debug(s % t)
 
     # Calculate cumGDD since trigger date
 
     # Only needed if a crop
-    if crop.crop_curve_number > 0:    
+    if crop.curve_number > 0:    
         # use general GDD basis except for corn (crop types 7 thru 10), which require 86-50 method.
         # evalute winter grain separately because of penalties during winter
         # Development of winter grain is followed through winter,
@@ -90,8 +90,8 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
         #   If TMin for day is < -25 C (very cold temperature) and no snow cover, burning of leaves is assumed to occur and cumGDD is reduced.
         #      On first day following -25 C TMin, cumGDD prior to day is reduced by 30%.
 
-        if (crop.crop_class_num in [13,14] or
-            crop.crop_curve_name == 'WINTER WHEAT'):
+        if (crop.class_number in [13,14] or
+            crop.curve_name == 'WINTER WHEAT'):
             ## Winter wheat or winter grain
             foo.gdd = 0.0
             if foo_day.tmin < -4.0:

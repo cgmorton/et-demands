@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import math
 import os
 from pprint import pprint
 import sys
@@ -10,52 +9,50 @@ import numpy as np
 
 import crop_et_data
 import crop_cycle
-from process_climate import ProcessClimate
+import process_climate
 import util
 
-VERBOSE=True
-
-class cropET:
-    def __init(self):
-        """ """
-
-VERBOSE = False
 VERBOSE = True
+VERBOSE = False
 
+##class CropET:
+##    def __init(self):
+##        """ """
 
 def et_cells_cycle(data, basin_id, nsteps, ncells, OUT,
-                   odir, refet_fmt, txt_pth):
+                   output_ws, refet_fmt, text_ws):
     """ """
     et_cells = sorted(data.et_cells.keys())
 
-    ## For testing, only process a subset of the cells
+    ## For testing, only process a subset of the cells/stations
     if ncells:
         et_cells = et_cells[:ncells]
 
-    ##
-    for i,cell_id in enumerate(et_cells):
+    ## Process each cell/station
+    for i, cell_id in enumerate(et_cells):
         # print i, cell_id
         print '\nRead Daily RefET Data:', data.et_cells[cell_id].refET_id 
         fn = refet_fmt % (data.et_cells[cell_id].refET_id)
         data.set_refet_data(fn)
         ## This impacts the long-term variables, like maincumGDD0LT & mainT30LT
         if not nsteps:
-            nsteps=len(data.refet['ts'])  # full period of refet
+            nsteps = len(data.refet['ts'])  # full period of refet
 
-        data.climate = ProcessClimate(data, cell_id, nsteps)
+        data.climate = process_climate.process_climate(data, cell_id, nsteps)
         #pprint(data.climate)
     
-        crop_cycle.crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir)
+        crop_cycle.crop_cycle(data, cell_id, nsteps, basin_id, OUT, output_ws)
 
 
 def main(basin_id='klamath', nsteps=0, ncells=0, OUT=None,
-         odir='', refet_pth='', txt_pth=''):
+         output_ws='', refet_fmt='', txt_ws=''):
     """ """
-    data = crop_et_data._test(txt_pth)
+    
+    data = crop_et_data._test(txt_ws)
     #pprint(data.refet)
 
     et_cells_cycle(data, basin_id, nsteps, ncells, OUT,
-                   odir, refet_pth, txt_pth)
+                   output_ws, refet_fmt, txt_ws)
     #pprint(cropet_data)
 
 
@@ -64,8 +61,8 @@ if __name__ == '__main__':
     output_help = os.path.join('cwd', 'cet')
     refet_fmt = os.path.join(os.getcwd(), r'pmdata\ETo\%sE2.dat')
     refet_help = os.path.join('cwd', r'pmdata\ETo\%%sE2.dat')
-    static_ws = os.path.join(os.getcwd(), r'static')
-    static_help = os.path.join('cwd', r'static')
+    text_ws = os.path.join(os.getcwd(), r'static')
+    text_help = os.path.join('cwd', r'static')
     
     ## Assume script is run in the "basin" folder
     parser = argparse.ArgumentParser(description='Crop ET Demands')
@@ -86,8 +83,8 @@ if __name__ == '__main__':
         '-r', '--refet', metavar='FMT', default=refet_fmt, 
         help='RefET data path formatter [%s]' % refet_help)
     parser.add_argument(
-        '-t', '--static', metavar='PATH', default=static_ws, 
-        help='static text workspace/path [%s]' % static_help)
+        '-t', '--text', metavar='PATH', default=text_ws, 
+        help='static text workspace/path [%s]' % text_help)
     ##parser.add_argument(
     ##    '-d', '--debug', action="store_true", 
     ##    help="increase output verbosity")
@@ -107,4 +104,4 @@ if __name__ == '__main__':
     ##OUT = util.Output(args.output, debug_flag=args.verbose)
 
     main(args.basin_id, args.nsteps, args.ncells, OUT,
-         args.output, args.refet, args.static)
+         args.output, args.refet, args.text)

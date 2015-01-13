@@ -36,13 +36,13 @@ def is_winter(data, foo_day):
     """
     if data.ctrl['CGDDMainDoy'] < 183:
         # Northern hemisphere
-        if foo_day.monthOfCalcs < 4 or foo_day.monthOfCalcs > 10:
+        if foo_day.month < 4 or foo_day.month > 10:
             return True
         else:
             return False
     else:
         # Southern hemisphere
-        if foo_day.monthOfCalcs <= 10 and foo_day.monthOfCalcs >= 4:
+        if foo_day.month <= 10 and foo_day.month >= 4:
             return True 
         else:
             return False

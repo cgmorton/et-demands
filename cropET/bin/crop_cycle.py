@@ -53,15 +53,15 @@ def crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir=''):
 
     ## crop loop through all crops, doesn't include bare soil??
     for i,crop in enumerate(data.crop_parameters):
-        #print i, crop, crop.crop_curve_name, et_cell.crop_flags[i]
+        #print i, crop, crop.curve_name, et_cell.crop_flags[i]
 
         #pprint(vars(crop))
         # ' check to see if crop/landuse is at station
         # If cropFlags(ETCellCount, ctCount) > 0 Then
         if not et_cell.crop_flags[i]:
-            if VERBOSE: print 'NOT USED: ', i+1, crop, crop.crop_class_num, crop.crop_curve_name, et_cell.crop_flags[i]
+            if VERBOSE: print 'NOT USED: ', i+1, crop, crop.class_number, crop.curve_name, et_cell.crop_flags[i]
             continue
-        if VERBOSE: print i+1,crop, crop.crop_curve_name, crop.crop_gdd_trigger_doy
+        if VERBOSE: print i+1,crop, crop.curve_name, crop.crop_gdd_trigger_doy
         ### for klamath_1:  3,4,11,13,16,17,21,30,44,45,46
         ### other  6,7,10,19,22,23,25,27,29,33,61,62,63,64
         #if i+1 not in (6,7,10,19,22,23,25,27,29,33,61,62,63,64):
@@ -89,10 +89,10 @@ def crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir=''):
         if COMPARE: 
             if not odir:
                 ofn = 'cet/%s/py/%s_%s.%s' % (
-                    basin_id, cell_id, crop.crop_class_num, cropnn)
+                    basin_id, cell_id, crop.class_number, cropnn)
             else:
                 ofn = '%s/%s_%s.%s' % (
-                    odir, cell_id, crop.crop_class_num, cropnn)
+                    odir, cell_id, crop.class_number, cropnn)
             ofp = open(ofn, 'w')
             fmt = '%8s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
             header = ('#   Date','doy','PMETo','Pr.mm','T30','ETact','ETpot','ETbas','Irrn','Seasn','Runof','DPerc')
@@ -125,9 +125,9 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
     for i,ts in enumerate(data.refet['ts'][:nsteps]):
         if VERBOSE: print i, data.refet['Dates'][i]
         doy = ts[7]
-        yearOfCalcs = ts[0]
-        monthOfCalcs = ts[1]
-        dayOfCalcs = ts[2]
+        year = ts[0]
+        month = ts[1]
+        day = ts[2]
 
         precip = data.refet['Precip'][i]
         wind = data.refet['Wind'][i]
@@ -136,7 +136,7 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         eto = data.refet['ASCEPMStdETo'][i]
         etref = refet_array[i]
 
-        if VERBOSE: print doy, yearOfCalcs, monthOfCalcs, dayOfCalcs, precip, wind, tdew,
+        if VERBOSE: print doy, year, month, day, precip, wind, tdew,
         if VERBOSE: print eto, etref
 
         # in original there was 80 lines of alternative Tmax/Tmin for climate change scenarios
@@ -153,7 +153,8 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         tmin = data.climate['tmin_array'][i]
         tmean = data.climate['tmean_array'][i]
         t30 = data.climate['t30_array'][i]
-        precip = data.climate['precip'][i]        # converted to mm in ProcessClimate()
+        # Precip converted to mm in process_climate()
+        precip = data.climate['precip'][i]        
         if VERBOSE: print tmax, tmin, tmean, t30
 
         # copies of these were made using loop
@@ -169,7 +170,7 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         # variables set validDaysPerYear & expectedYear, but seem unused
         # except for printing ???
 
-        if VERBOSE: print crop, crop.crop_curve_name, crop.crop_curve_number
+        if VERBOSE: print crop, crop.curve_name, crop.curve_number
 
         # ' at very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
@@ -178,18 +179,18 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         # ' at end of season for each crop, set up for nongrowing and dormant season
         #foo.dormant_setup_flag = True   # for testing SetupDormant()
         if not foo.in_season and foo.dormant_setup_flag:
-            OUT.debug('CropCycle():  InSeason %s dormantSetupFlag %s\n' % (
+            OUT.debug('CropCycle():  in_season %s dormant_setup_flag %s\n' % (
                 foo.in_season, foo.dormant_setup_flag))
             foo.setup_dormant(data, et_cell, crop)
 
-        if VERBOSE: print 'InSeason[%s], cropSetupFlag[%s], dormantSetupFlag[%s]' % (
+        if VERBOSE: print 'in_season[%s], crop_setup_flag[%s], dormant_setup_flag[%s]' % (
             foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag)
 
         foo_day.sdays = i+1
         foo_day.doy = doy
-        foo_day.yearOfCalcs = yearOfCalcs
-        foo_day.monthOfCalcs = monthOfCalcs
-        foo_day.dayOfCalcs = dayOfCalcs
+        foo_day.year = year
+        foo_day.month = month
+        foo_day.day = day
         foo_day.date = data.refet['Dates'][i]
         foo_day.tmax_original = data.refet['TMax'][i]
         foo_day.tdew = tdew
@@ -219,7 +220,7 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
             m,d,y = data.refet['Dates'][i].split('/')
             date = '%4s%02d%02d' % (y, int(m), int(d))
             tup = (date, doy, etref, precip, t30, foo.etc_act, foo.etc_pot,
-                   foo.etc_bas, foo.simulated_irr, foo.in_season, foo.SRO,
+                   foo.etc_bas, foo.irr_simulated, foo.in_season, foo.SRO,
                    foo.Dpr)
             fmt = '%8s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
             ofp.write(fmt % tup)
@@ -229,8 +230,10 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         m,d,y = data.refet['Dates'][i].split('/')
         date = '%4s%02d%02d' % (y, int(m), int(d))
         tup = (etref, precip, t30, foo.etc_act, foo.etc_pot, foo.etc_bas, 
-               foo.simulated_irr, foo.in_season, foo.SRO, foo.Dpr)
-        s = 'zCropCycle(): 0ETref %s  1Precip %s 2T30 %s  3ETact %s  4ETpot %s  5ETbas %s  6Irrn %s  7Season %s  8Runoff %s 9DPerc %s\n'
+               foo.irr_simulated, foo.in_season, foo.SRO, foo.Dpr)
+        s = ('zcrop_cycle(): 0ETref %s  1Precip %s 2T30 %s  3ETact %s'+
+             '4ETpot %s  5ETbas %s  6Irrn %s  7Season %s  8Runoff %s '+
+             '9DPerc %s\n')
         OUT.debug(s % tup)
 
         #pprint(vars(foo_day))

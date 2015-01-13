@@ -8,101 +8,103 @@ de_initial = 10.0 #' mm initial depletion for first day of crop
 
 class InitializeCropCycle:
     """Initialize for crops cycle"""
-    hmin = 0.
-    hmax = 0.
-    hcrop = 0
-    zrn = 0.
-    zrx = 0.
-    aw = 0
-    mad_ini = 0.
-    mad_mid = 0.0
-    cn2 = 0.
-    rew = 0.
-    tew2 = 0.
-    tew3 = 0.
-    kr2 = 0.
-    fwstd = 0.
-    kcb_mid = 0.
-    kc_max = 0.
-    kc_min = 0.
-    kcb = 0.
-    ks = 0.
-    ke = 0.
-    kei = 0
-    kep = 0.
-    fc = 0.
-    fw = 0.
-    #few = 0
-    fwspec = 0.
-    fwi = 0.
-    tew = 0.
-    de = 0.
-    dep = 0.
-    depl_surface = 0.
-    dr = 0.
     ad = 0.
-    #Ei = 0
-    #Ep = 0
+    aw = 0
+    aw3 = 0.
+    cn2 = 0.
+    cumgdd = 0.0
+    cum_et = 0.
     cummevap = 0.
     cummevap1 = 0.
+    cum_ppt = 0.
+    de = 0.
+    density = 0.
+    dep = 0.
+    depl_surface = 0.
     dpe = 0.
     dpe_yest = 0.
-    p_inf = 0.
-    p_inf_yest = 0.
-    #i_real = 0
-    i_auto = 0.
-    #i_manual = 0
-    #i_special = 0
-    #Pnet4 = 0
-    #Pnet3 = 0
-    #Pnet2 = 0
-    #Pnet1 = 0
-    S4 = 0.
-    S3 = 0.
-    S2 = 0.
-    S1 = 0.
-    S = 0.
-    #kr = 0
-    z = 0.
-    simulated_irr = 0.
-    kc_act = 0.
-    #kc_pot = 0
+    dr = 0.
+    #ei = 0
+    #ep = 0
     etc_act = 0.
     etc_pot = 0.
     etc_bas = 0.
+    etref_30 = 0.                 #' thirty day mean ETref  ' added 12/2007
+    fc = 0.
+    #few = 0
+    fw = 0.
+    fw_spec = 0.
+    fw_std = 0.
+    fwi = 0.
+    gdd = 0.0
+    hmin = 0.
+    hmax = 0.
+    height = 0
+    irr_auto = 0.
+    #irr_manual = 0
+    #irr_real = 0
+    #irr_special = 0
+    irr_simulated = 0.
+    kc_act = 0.
+    #kc_pot = 0
+    kc_max = 0.
+    kc_min = 0.
+    kcb = 0.
+    kcb_mid = 0.
+    ke = 0.
+    kei = 0
+    kep = 0.
+    #kr = 0
+    kr2 = 0.
+    ks = 0.
+    #kt_prop = 1
+    kt_reducer = 1.
+    mad = 0.
+    mad_ini = 0.
+    mad_mid = 0.0
+    ppt_inf = 0.
+    ppt_inf_yest = 0.
+    #ppt_net4 = 0
+    #ppt_net3 = 0
+    #ppt_net2 = 0
+    #ppt_net1 = 0
+    rew = 0.
+    tew = 0.
+    tew2 = 0.
+    tew3 = 0.
+    S = 0.
+    S1 = 0.
+    S2 = 0.
+    S3 = 0.
+    S4 = 0.
+    zrn = 0.
+    zrx = 0.
+    z = 0.
+
     e = 0.
     lDoy = 0
     frost_flag = 0.
     penalty = 0.
     cumgdd_penalty = 0.
     l_cumgdd = 0.
-    real_start = False
     pressure = 0.0
-    density = 0.
     n_cumgdd = 0.
     nPL_EC = 0.
-    mad = 0.
-    aw3 = 0.
     #tei = 0
-    #kt_prop = 1
-    kt_reducer = 1.
     #Kcmult = 1
     SRO = 0.
     Dpr = 0.
     jd_start_cycle = 0
-    etref_30 = 0.                 #' thirty day mean ETref  ' added 12/2007
-    cumgdd = 0.0
-    gdd = 0.0
+
+    real_start = False
     irr_flag = False
     in_season = False            #' false if outside season, true if inside
     dormant_setup_flag = False
     crop_setup_flag = True        #' flag to setup crop parameter information
     cycle = 1.
-    cumET = 0.
-    cumP = 0.
 
-    # [140609] TP added this, looks like its value comes from ComputeCropET(),
-    # but needed for SetupDormant() below...
+    # [140609] TP added this, looks like its value comes from compute_crop_et(),
+    # but needed for setup_dormant() below...
     totwatinZe = 0.0
 
     cumgdd_at_planting = 0.0
@@ -129,9 +131,8 @@ class InitializeCropCycle:
 
     wtirr = 0.0   # compute_crop_et()
 
-    # from modCropET.vb:    Private irrigMin As Double = 10 ' mm minimum net depth of
-    # application for germination irrig., etc.
-    irrig_min = 10.0
+    # Minimum net depth of application for germination irrig., etc.
+    irr_min = 10.0
 
     def __init__(self):
         """ """
@@ -145,25 +146,25 @@ class InitializeCropCycle:
         #Dim zr_dormant As Double = 0.0
         zr_dormant = 0.0
     
-        #' SetupCrop is called from CropCycle if isseason is false and cropsetupflag is true
+        #' setup_crop is called from crop_cycle if is_season is false and crop_setup_flag is true
         #' thus only setup 1st time for crop (not each year)
         #' also called from kcb_daily each time GU/Plant date is reached, thus at growing season start
-        self.hmin = crop.starting_crop_height
-        self.hmax = crop.maximum_crop_height
-        self.zrn = crop.initial_rooting_depth
-        self.zrx = crop.maximum_rooting_depth
+        self.hmin = crop.height_initial
+        self.hmax = crop.height_maximum
+        self.zrn = crop.rooting_depth_initial
+        self.zrx = crop.rooting_depth_maximum
         self.hcrop = self.hmin
         self.tew = self.tew2 #' find total evaporable water
         if self.tew3 > self.tew:  
             self.tew = self.tew3
-        self.fwi = self.fwstd #' fw changed to fwi 8/10/06
-        self.i_auto = 0
-        self.simulated_irr = 0
+        self.fwi = self.fw_std #' fw changed to fwi 8/10/06
+        self.irr_auto = 0
+        self.irr_simulated = 0
     
-        # Reinitialize Zr, but actCount for additions of DP into reserve (zrmax - zr) for rainfed
+        # Reinitialize zr, but actCount for additions of DP into reserve (zrmax - zr) for rainfed
     
         # Convert current moisture content below Zr at end of season to AW for new crop
-        # (into starting moisture content of layer 3).  This is required if Zrn <> zr_dormant
+        # (into starting moisture content of layer 3).  This is required if zrn <> zr_dormant
         # Calc total water currently in layer 3
 
         # AW3 is mm/m and daw3 is mm in layer 3 (in case Zr<Zrx)
@@ -217,10 +218,10 @@ class InitializeCropCycle:
 
         Called by CropCycle just before time loop
         """
-        self.hmin = crop.starting_crop_height
-        self.hmax = crop.maximum_crop_height
-        self.zrn = crop.initial_rooting_depth
-        self.zrx = crop.maximum_rooting_depth
+        self.hmin = crop.height_initial
+        self.hmax = crop.height_maximum
+        self.zrn = crop.rooting_depth_initial
+        self.zrx = crop.rooting_depth_maximum
     
         self.de = de_initial #' (10 mm) at start of new crop at beginning of time
         self.dr = de_initial #' (20 mm) at start of new crop at beginning of time
@@ -228,24 +229,18 @@ class InitializeCropCycle:
         self.hcrop = self.hmin
         self.stress_event = False
     
-        #' Find maximum kcb in array for this crop (used later in height calc)
-        #' kcb_mid is the maximum kcb found in the kcb table read into program
-        #' Following code was repaired to properly parse crop curve arrays on 7/31/2012.  dlk
-    
-        cCurveNo = crop.crop_curve_number
-        #print 'cCurveNo', cCurveNo
+        # Find maximum kcb in array for this crop (used later in height calc)
+        # kcb_mid is the maximum kcb found in the kcb table read into program
+        # Following code was repaired to properly parse crop curve arrays on 7/31/2012.  dlk
+        #print 'cCurveNo', crop.curve_number
         #pprint(vars(data.crop_coeffs[cCurveNo]))
         self.kcb_mid = 0.
-        ## bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
-        if cCurveNo > 0:
-            self.kcb_mid = data.crop_coeffs[cCurveNo].max_value(self.kcb_mid)
+        ## Bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
+        if crop.curve_number > 0:
+            self.kcb_mid = data.crop_coeffs[crop.curve_number].max_value(self.kcb_mid)
         #print 'initialize_crop_cycle', self.kcb_mid, cCurveNo
 
-        #' available water in soil
-    
-        #aw = station_WHC(ETCellCount) / 12 * 1000 #' in/ft to mm/m  'AWArray(ctCount)
-        #MADini = MAD_initial(ctCount) #' MADiniArray(ctCount)
-        #MADmid = MAD_midseason(ctCount) #' MADmidArray(ctCount)
+        # Available water in soil    
         self.aw = et_cell.stn_whc / 12 * 1000.  #' in/ft to mm/m
         self.mad_ini = crop.mad_initial
         self.mad_mid = crop.mad_midseason
@@ -259,26 +254,23 @@ class InitializeCropCycle:
             self.cn2 = crop.curve_number_fine_soil
         self.cn2_crop = self.cn2
     
-        #' estimate readily evaporable water and total evaporable water from WHC
-        #' REW is from regression of REW vs. AW from FAO-56 soils table
-        #' R.Allen, August 2006, R2=0.92, n = 9
-    
+        # Estimate readily evaporable water and total evaporable water from WHC
+        # REW is from regression of REW vs. AW from FAO-56 soils table
+        # R.Allen, August 2006, R2=0.92, n = 9
         self.rew = 0.8 + 54.4 * self.aw / 1000 #'REW is in mm and AW is in mm/m
     
-        #' estimate TEW from AW and Ze = 0.1 m
-        #' use FAO-56 based regression, since WHC from statso database does not have texture indication
-        #' R.Allen, August 2006, R2=0.88, n = 9
-    
+        # Estimate TEW from AW and Ze = 0.1 m
+        # use FAO-56 based regression, since WHC from statso database does not have texture indication
+        # R.Allen, August 2006, R2=0.88, n = 9
         self.tew = -3.7 + 166 * self.aw / 1000 #'TEW is in mm and AW is in mm/m
         if self.rew > (0.8 * self.tew): 
             self.rew = 0.8 * self.tew #'limit REW based on TEW
         self.tew2 = self.tew #' TEW2Array(ctCount)
         self.tew3 = self.tew #' TEW3Array(ctCount) '(no severely cracking clays in Idaho)
         self.kr2 = 0 #' Kr2Array(ctCount)'(no severely cracking clays in Idaho)
-        self.fwstd = crop.crop_fw #' fwarray(ctCount)
+        self.fw_std = crop.crop_fw #' fwarray(ctCount)
     
-        #' Irrigation flag
-    
+        # Irrigation flag
         self.irr_flag = False #' no irrigations for this crop or station
         if crop.irrigation_flag > 0:
             self.irr_flag = True #' turn irrigation on for a generally 'irrigated' region
@@ -399,8 +391,8 @@ class InitializeCropCycle:
         #' used to recharge zrx - zr zone
         #' make sure that grow_root is not called during dormant season
 
-        self.fwi = self.fwstd #' fw changed to fwi 8/10/06
-        self.i_auto = 0
-        self.simulated_irr = 0
+        self.fwi = self.fw_std #' fw changed to fwi 8/10/06
+        self.irr_auto = 0
+        self.irr_simulated = 0
         self.dormant_setup_flag = False
 

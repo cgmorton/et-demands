@@ -23,7 +23,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #compute_crop_gdd()
 
     s = 'compute_crop_et() for %s crop %s %s %s %s\n' %  (
-        et_cell.cell_id, crop.crop_class_num, crop.name.replace(' ','_'),
+        et_cell.cell_id, crop.class_number, crop.name.replace(' ','_'),
         foo_day.doy, foo_day.date)
     OUT.debug(s)
 
@@ -45,10 +45,10 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
 
     #' Jump to end if open water (crops numbers 55 through 57 are open water)
 
-    #If crop.crop_class_num < 55 or crop.crop_class_num > 57:    #' <------ specific value for crop number
+    #If crop.class_number < 55 or crop.class_number > 57:    #' <------ specific value for crop number
     ### return here if open water
-    #print type(crop.crop_class_num), crop.crop_class_num
-    if crop.crop_class_num in [55,56,57]:
+    #print type(crop.class_number), crop.class_number
+    if crop.class_number in [55,56,57]:
         return 
 
     #' Maximum Kc when soil is wet.  For grass reference, kc_max = 1.2 plus climatic adj.
@@ -60,7 +60,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #' these have been reactivated 12/2007 by Allen, based on daily wind and TDew
     #' rhmin and u2 are computed in Climate subroutine called above
 
-    foo.Hcrop = max(0.05, foo.Hcrop) #' m #'limit Hcrop for numerical stability
+    foo.height = max(0.05, foo.height) #' m #'limit height for numerical stability
     if data.ctrl['refETType'] > 0:    #' edited by Allen, 6/8/09 to use kc_max from file if given
         if crop.crop_kc_max > 0.3:   
             kc_max = crop.crop_kc_max
@@ -72,12 +72,12 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
             kc_max = (
                 crop.crop_kc_max +
                 (0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rhmin - 45)) *
-                (foo.Hcrop / 3) ** 0.3)
+                (foo.height / 3) ** 0.3)
         else:
             kc_max = (
                 1.2 + (0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rhmin - 45)) *
-                (foo.Hcrop / 3) ** 0.3)
-        #' if yearOfCalcs < 1952:    PrintLine(lfNum, "ctcount, cropn, hcrop, crop_kc_max,RHMin,u2" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & crop.crop_class_num & ", " & cropn & Chr(9) & Hcrop & Chr(9) & crop_kc_max(ctCount) & Chr(9) & rhmin & Chr(9) & u2)
+                (foo.height / 3) ** 0.3)
+        #' if yearOfCalcs < 1952:    PrintLine(lfNum, "ctcount, cropn, hcrop, crop_kc_max,RHMin,u2" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & crop.class_number & ", " & cropn & Chr(9) & Hcrop & Chr(9) & crop_kc_max(ctCount) & Chr(9) & rhmin & Chr(9) & u2)
 
     #' if yearOfCalcs < 1952:    PrintLine(lfNum, "Initial kc_max" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & kc_max)
 
@@ -86,11 +86,11 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
 
     #' assign fraction of ground covered for each of three nongrowing season cover types
 
-    if crop.crop_class_num == 44:    #' bare soil  #.  changed Jan. 2007 for add. crop cats.
+    if crop.class_number == 44:    #' bare soil  #.  changed Jan. 2007 for add. crop cats.
         foo.fc = 0.0
-    if crop.crop_class_num == 45:    #' Mulched soil, including grain stubble  #.
+    if crop.class_number == 45:    #' Mulched soil, including grain stubble  #.
         foo.fc = 0.4
-    if crop.crop_class_num == 46:    #' Dormant turf/sod (winter time)  #.
+    if crop.class_number == 46:    #' Dormant turf/sod (winter time)  #.
         foo.fc = 0.7 #' was 0.6
 
     # kc_max and foo.fc for wintertime land use (Nov-Mar)
@@ -101,7 +101,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     # Assume that winter time is constrained to Nov thru March in northern hemisphere
     if util.is_winter(data, foo_day):    
         # Bare soil
-        if crop.crop_class_num == 44:
+        if crop.class_number == 44:
             # Less soil heat in winter.
             if data.ctrl['refETType'] > 0:
                 # For ETr (Allen 3/2008)
@@ -111,7 +111,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
                 kc_max = 1.1 
             foo.fc = 0.0
         # Mulched soil, including grain stubble
-        if crop.crop_class_num == 45:
+        if crop.class_number == 45:
             if data.ctrl['refETType'] > 0:
                 # For ETr (Allen 3/2008)
                 kc_max = 0.85 
@@ -120,7 +120,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
                 kc_max = 1.0  
             foo.fc = 0.4
         # Dormant turf/sod (winter time)
-        if crop.crop_class_num == 46:
+        if crop.class_number == 46:
             if data.ctrl['refETType'] > 0:    
                 # For ETr (Allen 3/2008)
                 kc_max = 0.8
@@ -134,7 +134,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
         #' kc_max for wintertime land use (Nov-Mar)for nongrowing season crops
 
         # (not ground cover class)
-        if crop.crop_class_num < 44 or crop.crop_class_num > 46:
+        if crop.class_number < 44 or crop.class_number > 46:
 
             if wscc == 1:    #' bare soil    #'note that these are ETr based.  Mult by 1.2 (plus adj?) for ETo base  *************
                 #' foo.fc is calculated below
@@ -160,7 +160,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
 
     #' override Kcb assigned from KcbDaily if nongrowing season and not water
     if (not foo.in_season and
-        (crop.crop_class_num < 55 or crop.crop_class_num > 57)):    
+        (crop.class_number < 55 or crop.class_number > 57)):    
         OUT.debug('3compute_crop_et():b0  Kcb %s  Kcb_wscc %s  wscc %s\n' % (
             foo.kcb, foo.kcb_wscc[wscc], wscc))
         foo.kcb = foo.kcb_wscc[wscc] 
@@ -178,19 +178,18 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #' Set Kcmin to 0.1 for all vegetation covers (crops and natural)
     #' Kcb will be reduced for all surfaces not irrigated when stressed, even during winter.
 
-    foo.Kcmin = 0.1 #' use same value for both ETr or ETo bases.
+    # Use same value for both ETr or ETo bases.
+    foo.kc_min = 0.1 
 
-    #' estimate height of vegetation for estimating fraction of ground cover for evaporation
-    #' and fraction of ground covered by vegetation
-
-    if crop.crop_class_num < 44 or crop.crop_class_num > 46:    #' <------ specific value for crop number (no's changed Jan. 07)
-        #'  was: if crop.crop_class_num < 39 or crop.crop_class_num > 41:
-        if kc_max <= foo.Kcmin:    
-            kc_max = foo.Kcmin + 0.001
+    # Estimate height of vegetation for estimating fraction of ground cover
+    #   for evaporation and fraction of ground covered by vegetation
+    if crop.class_number < 44 or crop.class_number > 46:
+        if kc_max <= foo.kc_min:    
+            kc_max = foo.kc_min + 0.001
         if foo.in_season:   
-            if foo.kcb > foo.Kcmin:   
+            if foo.kcb > foo.kc_min:   
                 #' heightcalc  #'call to heightcalc was moved to top of this subroutine 12/26/07 by Allen
-                foo.fc = ((foo.kcb - foo.Kcmin) / (kc_max - foo.Kcmin)) ** (1 + 0.5 * foo.Hcrop)
+                foo.fc = ((foo.kcb - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
                 # limit so that few > 0
                 if foo.fc > 0.99:    
                     foo.fc = 0.99 
@@ -198,27 +197,28 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
                 foo.fc = 0.001
 
     # 
-    s = '3compute_crop_et():b kc_max %s  Kcmin %s  Kcb %s  InSeason %s\n' % (kc_max, foo.Kcmin, foo.kcb, foo.in_season)
+    s = '3compute_crop_et():b kc_max %s  Kcmin %s  Kcb %s  InSeason %s\n' % (
+        kc_max, foo.kc_min, foo.kcb, foo.in_season)
     OUT.debug(s)
 
 
     # Estimate infiltrating precipitation
     # Yesterday's infiltration
-    foo.p_inf_yest = foo.p_inf 
-    foo.p_inf = 0.0
+    foo.ppt_inf_yest = foo.ppt_inf 
+    foo.ppt_inf = 0.0
     foo.SRO = 0.0
     if foo_day.precip > 0:   
         # Compute weighted depletion of surface from irr and precip areas
         foo.depl_surface = foo.wtirr * foo.de + (1 - foo.wtirr) * foo.dep
         runoff.runoff(foo, foo_day, OUT)
-        foo.p_inf = foo_day.precip - foo.SRO
+        foo.ppt_inf = foo_day.precip - foo.SRO
         #if foo.SRO > 0.01:   
             #' Debug.Writeline "P and SRO "; P; SRO
             #' return false
 
     s = ('3compute_crop_et():c p_inf_yest %s  p_inf %s  runoff().SRO %s  '+
          'precip %s  depl_surface %s  wtirr %s  de %s  dep %s\n')
-    t = (foo.p_inf_yest, foo.p_inf, foo.SRO, foo_day.precip, foo.depl_surface,
+    t = (foo.ppt_inf_yest, foo.ppt_inf, foo.SRO, foo_day.precip, foo.depl_surface,
          foo.wtirr, foo.de, foo.dep)
     OUT.debug(s % t)
 
@@ -229,18 +229,18 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     # Note: In Idaho CU computations, scheduling is assumed automated according to MAD
     # Following code contains capacity to specify manual and #'special' irrigations, but isn't used here
 
-    # i_real is a real irrigation experienced and read in
-    # i_manual is a manually specified irrigation from an array
-    # i_special is a special irrigation for leaching or germination
-    i_real = 0.0
-    i_manual = 0.0
-    i_special = 0.0
+    # irr_real is a real irrigation experienced and read in
+    # irr_manual is a manually specified irrigation from an array
+    # irr_special is a special irrigation for leaching or germination
+    irr_real = 0.0
+    irr_manual = 0.0
+    irr_special = 0.0
 
     # Update fw of irrigation if an irrigation yesterday
-    if i_real + foo.i_auto > 0:
-        foo.fwi = foo.fwstd
-    elif i_manual + i_special > 0:   
-        foo.fwi = foo.fwspec
+    if irr_real + foo.irr_auto > 0:
+        foo.fwi = foo.fw_std
+    elif irr_manual + irr_special > 0:   
+        foo.fwi = foo.fw_spec
 
     #' find current water in fwi portion of ze layer
 
@@ -248,14 +248,16 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     ## both versions tested values ~1e-15, which were being passed through
     ## and would happen inconsistently between py/vb versions
     watinZe = foo.tew - foo.de
-    OUT.debug('3compute_crop_et():d0 TEW %s  De %s  watinZe %s\n' % (foo.tew, foo.de, watinZe))
+    OUT.debug('3compute_crop_et():d0 TEW %s  De %s  watinZe %s\n' % (
+        foo.tew, foo.de, watinZe))
 
     #if watinZe <= 0.:    
     if round(watinZe,6) <= 0.:    
         watinZe = 0.001
     if watinZe > foo.tew:    
         watinZe = foo.tew
-    OUT.debug('3compute_crop_et():d1 tew %s  de %s  watinZe %s\n' % (foo.tew, foo.de, watinZe))
+    OUT.debug('3compute_crop_et():d1 tew %s  de %s  watinZe %s\n' % (
+        foo.tew, foo.de, watinZe))
 
     # Find current water in fwp portion of Ze layer
     # the use of 'fewp' (precip) fraction of surface
@@ -306,16 +308,16 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     if foo.fwi > 0.0001:   
         # De, irr from yesterday
         # fw changed to foo.fwi 8/10/06
-        dpe = foo.p_inf + foo.simulated_irr / foo.fwi - foo.de
+        dpe = foo.ppt_inf + foo.irr_simulated / foo.fwi - foo.de
     else:
         # De, irr from yesterday
         # fw changed to fwi 8/10/06
-        dpe = foo.p_inf + foo.simulated_irr / 1 - foo.de
+        dpe = foo.ppt_inf + foo.irr_simulated / 1 - foo.de
 
     if dpe < 0:
         dpe = 0.0
     # Dep from yesterday
-    dpe_yest = foo.p_inf - foo.dep 
+    dpe_yest = foo.ppt_inf - foo.dep 
     if dpe_yest < 0:
         dpe_yest = 0.0
 
@@ -327,11 +329,11 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #' occurred.  It is assumed that P occurs earlier in morning.
     if foo.fwi > 0.0001:
         #' fw changed to fwi 8/10/06
-        foo.de = foo.de - foo.p_inf - foo.simulated_irr / foo.fwi + dpe 
+        foo.de = foo.de - foo.ppt_inf - foo.irr_simulated / foo.fwi + dpe 
         OUT.debug('3compute_crop_et():da De %s\n' % (foo.de))
     else:
         #' fw changed to fwi 8/10/06
-        foo.de = foo.de - foo.p_inf - foo.simulated_irr / 1 + dpe 
+        foo.de = foo.de - foo.ppt_inf - foo.irr_simulated / 1 + dpe 
         OUT.debug('3compute_crop_et():db De %s\n' % (foo.de))
 
     if foo.de < 0:
@@ -343,7 +345,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
         OUT.debug('3compute_crop_et():dd De %s\n' % (foo.de))
 
     # Update depletion of few beyond that wetted by irrigation
-    foo.dep = foo.dep - foo.p_inf + dpe_yest
+    foo.dep = foo.dep - foo.ppt_inf + dpe_yest
     if foo.dep < 0:    
         foo.dep = 0.0
     if foo.dep > foo.tew:    
@@ -529,7 +531,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     s = ('3compute_crop_et():h Kcb %s  kc_pot %s  kc_act %s  ETcbas %s  '+
          'ETcpot %s  ETcact %s  Dr %s  Pinf %s\n')
     t = (foo.kcb, kc_pot, kc_act, foo.etc_bas, foo.etc_pot,
-         foo.etc_act, foo.dr, foo.p_inf)
+         foo.etc_act, foo.dr, foo.ppt_inf)
     OUT.debug(s % t)
 
     e = ke * foo_day.etref
@@ -698,7 +700,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #   infiltrated P less deep percolation of P from evaporation layer for P
     #   only (if no irrigation).
     # This was moved about 40 lines down 2/21/08 to be after adjustment to Ke, E, etc. made just above here.
-    foo.cummevap1 = foo.cummevap1 + ei - (foo.p_inf - dpe_yest)
+    foo.cummevap1 = foo.cummevap1 + ei - (foo.ppt_inf - dpe_yest)
     if foo.cummevap1 < 0:
         foo.cummevap1 = 0.0
 
@@ -718,19 +720,20 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #' water balance for Zr root zone (includes Ze layer)
     #' Initial calculation for Dr
 
-    s = '3compute_crop_et():i dr %s  etc_act %s  p_inf %s  i_real %s  i_manual %s  i_special %s\n'
-    t = (foo.dr, foo.etc_act, foo.p_inf, i_real, i_manual, i_special)
+    s = ('3compute_crop_et():i dr %s  etc_act %s  p_inf %s  '+
+         'irr_real %s  irr_manual %s  irr_special %s\n')
+    t = (foo.dr, foo.etc_act, foo.ppt_inf, irr_real, irr_manual, irr_special)
     OUT.debug(s % t)
 
-    foo.dr = foo.dr + foo.etc_act - foo.p_inf - i_real - i_manual - i_special
+    foo.dr = foo.dr + foo.etc_act - foo.ppt_inf - irr_real - irr_manual - irr_special
 
     # Ireal is a real irrigation experienced and read in
     # Imanual is a manually specified irrigation from an array
     # Ispecial is a special irrigation for leaching or germination
 
     # Determine if there is a need for an automatic irrigation
-    i_yester = foo.simulated_irr
-    foo.simulated_irr = 0.0
+    irr_yester = foo.irr_simulated
+    foo.irr_simulated = 0.0
     if foo.irr_flag:   
         jd_to_start_irr = foo.jd_start_cycle + crop.days_after_planting_irrigation
         if jd_to_start_irr > 365:
@@ -746,22 +749,22 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
             # No premature end for irrigations is used for Idaho CU comps.
             # Limit irrigation to periods when Kcb > 0.22 to preclude
             #   frequent irrigation during initial periods
-            foo.simulated_irr = foo.dr
-            foo.simulated_irr = max(foo.simulated_irr, foo.irrig_min)
-            #if debugFlag and crop.crop_class_num = 7:   
+            foo.irr_simulated = foo.dr
+            foo.irr_simulated = max(foo.irr_simulated, foo.irr_min)
+            #if debugFlag and crop.class_number = 7:   
             #    PrintLine(lfNum, "Field corn irrigated- Date, Dr, RAW, Irr, DOY, JD to start Irr, Crop DOY" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & Dr & Chr(9) & raw & Chr(9) & simulated_irr & Chr(9) & doy & Chr(9) & jd_to_start_irr & Chr(9) & crop_doy)
 
-            #if debugFlag and crop.crop_class_num = 13:   
+            #if debugFlag and crop.class_number = 13:   
 
     # Update Dr
     OUT.debug('3compute_crop_et():j dr %s  simulated_irr %s\n' % (
-        foo.dr, foo.simulated_irr))
-    foo.dr = foo.dr - foo.simulated_irr
+        foo.dr, foo.irr_simulated))
+    foo.dr = foo.dr - foo.irr_simulated
 
     # Total irrigation for today
-    foo.i_auto = foo.simulated_irr
-    foo.simulated_irr = foo.simulated_irr + i_real + i_manual + i_special
-    if foo.simulated_irr > 0:   
+    foo.irr_auto = foo.irr_simulated
+    foo.irr_simulated = foo.irr_simulated + irr_real + irr_manual + irr_special
+    if foo.irr_simulated > 0:   
         # Ready cummulative evaporation since last irrig for printing
         foo.cummevap = foo.cummevap1
         foo.cummevap1 = 0.0
@@ -771,7 +774,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #   for temporary water storage above field capacity
     # Don't allow deep perc on rainy day or if yesterday rainy if excess < 20 mm
     #   unless zr < .2 m
-    if ((foo.simulated_irr + i_yester + foo.p_inf + foo.p_inf_yest) <= 0.0001 or
+    if ((foo.irr_simulated + irr_yester + foo.ppt_inf + foo.ppt_inf_yest) <= 0.0001 or
         foo.zr < 0.2):   
         if foo.dr < 0.0:   
             foo.dpr = -foo.dr
@@ -798,20 +801,21 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     if crop.invoke_stress > 0.5:   
         if foo.dr > taw:   
             foo.etc_act = foo.etc_act - (foo.dr - taw)
-            #' since we overshot, then just give remaining water to etc_act
+            # Since we overshot, then just give remaining water to etc_act
             foo.etc_act = max(foo.etc_act, 0)
 
-            #' calc new kc_act
+            # Calc new kc_act
             if foo_day.etref > 0.1:    
                 kc_act = foo.etc_act / foo_day.etref
-            foo.dr = taw #' limit depletion to total available water
+            # Limit depletion to total available water
+            foo.dr = taw 
 
     # Update average Avail. Water in soil layer below current root depth
     #   and above maximum root depth.  Add gross deep percolation to it.
     # Assume a uniform soil texture.
     # First, calculate a #'gross' deep percolation that includes 10% of irrigation depth
     #   as an incidental loss
-    gDPr = foo.dpr + 0.1 * foo.simulated_irr
+    gDPr = foo.dpr + 0.1 * foo.irr_simulated
 
     # This moisture can recharge a dry profile
     # from previous year and reduce need for irrigation.
@@ -828,7 +832,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     daw3 = max(daw3, 0)
     taw3 = max(taw3, 0)
     # Increase water in layer 3 for deep perc from root zone
-    daw3 = daw3 + gDPr
+    daw3 += gDPr
     if daw3 > taw3:   
         foo.dpr = daw3 - taw3
         # Limit to FC
@@ -839,29 +843,17 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
 
     daw3 = max(daw3, 0)
     if foo.zrx > foo.zr:   
-        # Also defined in setup_dormant.  Check that zrx does not get changed during ngs
+        # Also defined in setup_dormant.
+        # Check that zrx does not get changed during ngs
         foo.aw3 = daw3 / (foo.zrx - foo.zr)
     else:
         # No layer present, thus, aw3 is meaningless
         foo.aw3 = 0
 
-    # note, at end of season (harvest or death, aw3 and zr need to be reset according
-    # to dr at that time and zr for dormant season.  This is done in Setupdormant.
+    # Note, at end of season (harvest or death), aw3 and zr need to be reset
+    #   according to dr at that time and zr for dormant season.
+    # This is done in setup_dormant().
 
-    # get setup for next time step.
-    # grow root
-
+    # Get setup for next time step.
     if foo.in_season:    
         grow_root.grow_root(crop, foo, OUT)
-
-"""
-End if #' for non-water bodies ---- if crop.crop_class_num < 55 or crop.crop_class_num > 57:    #' <------ specific value for crop number
-Return True
-
-#Catch ex As Exception
-#    if Not batchFlag:    MsgBox(Err.Description & " occurred computing ETc for ET Cell " & ETCellCount & " and crop " & crop.crop_class_num & ", " & cropn & ".")
-#    PrintLine(lfNum, Err.Description & " occurred computing ETc for ET Cell " & ETCellCount & " and crop " & crop.crop_class_num & ", " & cropn & ".")
-#    Return False
-#End Try
-#Function
-"""
