@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
+import math
 import os
 from pprint import pprint
 import sys
@@ -70,6 +71,98 @@ Date    TMax    TMin    Precip  Snow    SDep    EstRs   EsWind  EsTDew  Penm48  
     #    print i,date
 
     return d
+
+def pair_func(elevation):
+    """Calculates air pressure as a function of elevation
+
+    Args:
+        elevation: NumPy array of elevations [m]
+
+    Returns:
+        NumPy array of air pressures [kPa]
+    """
+    return 101.3 * np.power((293.0 - 0.0065 * elevation) / 293.0, 5.26)
+
+def ea_from_q(p, q):
+    """Calculates vapor pressure from pressure and specific humidity
+
+    Args:
+        p: NumPy array of pressures [kPa]
+        q: NumPy array of specific humidities [kg / kg]
+
+    Returns:
+        NumPy array of vapor pressures [kPa]
+    """
+    return p * q / (0.622 + 0.378 * q)
+
+def tdew_from_ea(ea):
+    """Calculates vapor pressure at a given temperature
+
+    Args:
+        temperature: NumPy array of temperatures [C]
+
+    Returns:
+        NumPy array of vapor pressures [kPa]
+    """
+    return (237.3 * np.log(ea / 0.6108)) / (17.27 - np.log(ea / 0.6108))
+
+
+def read_daily_nldas_data(fn, cell_elev):
+    """
+
+    Year,Month,Day,DOY,Tmin(K),Tmax(K),Specific Humidity(kg kg-1),Wind @ 10m (m s-1),Solar Radiation (W m-2),Precipitation (mm),ETo @ 2m (mm day-1),ETr @ 2m(mm day-1)
+    1979,1,1,1,252.7,263.62,0.00028215,1.9643,143.58,0,0.5754,0.92938
+    1979,1,2,2,252.24,267.21,0.00035664,0.80539,76.738,0,0.43268,0.64418
+    1979,1,3,3,257.46,272.2,0.00073107,0.64853,89.89,0,0.45107,0.6639
+
+    """
+
+    a = np.genfromtxt(fn, delimiter=',', names=True)
+    ##print a.dtype.names
+ 
+    ## Original Field Names
+    ##Year,Month,Day,DOY,Tmin(K),Tmax(K),
+    ##Specific Humidity(kg kg-1),Wind @ 10m (m s-1),Solar Radiation (W m-2),
+    ##Precipitation (mm),ETo @ 2m (mm day-1),ETr @ 2m(mm day-1)
+
+    ## Modified Field Names
+    ##Year,Month,Day,DOY,TminK,TmaxK,
+    ##Specific_Humiditykg_kg1,Wind__10m_m_s1,Solar_Radiation_W_m2,
+    ##Precipitation_mm,ETo__2m_mm_day1,ETr__2mmm_day1
+
+    dates = ['{0}/{1}/{2}'.format(int(m),int(d),int(y))
+             for y, m, d in zip(a['Year'], a['Month'], a['Day'])]
+    time_array = np.array([time.strptime(s, "%m/%d/%Y") for s in dates])
+
+    ## Convert temperatures from K to C
+    a['TmaxK'] -= 273.15
+    a['TminK'] -= 273.15
+
+    ## Convert W/m2 to MJ/m2
+    a['Solar_Radiation_W_m2'] *= 0.0864
+
+    ## Calculate Tdew from specific humidity
+    ## Convert station elevation from feet to meters
+    ea = ea_from_q(pair_func(0.3048 * cell_elev), a['Specific_Humiditykg_kg1'])
+    tdew = tdew_from_ea(ea)
+
+    zero_array = np.zeros(a['TmaxK'].shape, dtype=np.float32)
+    return {
+         'TMax': a['TmaxK'], 'TMin': a['TminK'],
+         'Precip': a['Precipitation_mm'],                     
+         'Snow': zero_array,
+         'SnowDepth': zero_array,
+         'EstRs': a['Solar_Radiation_W_m2'],                     
+         'Wind': a['Wind__10m_m_s1'],
+         'TDew' : tdew,
+         'ASCEPMStdETr': a['ETr__2mmm_day1'],
+         'ASCEPMStdETo': a['ETo__2m_mm_day1'],                     
+         ##'Penman' : zero_array,                     
+         ##'PreTay' : zero_array,
+         ##'Harg': zero_array,
+         'Dates': dates,
+         'ts': time_array                    
+         }
   
 
 class CropETData:
@@ -97,9 +190,10 @@ class CropETData:
         self.crop_coeffs = crop_coefficients.read_crop_coefs(fn)
         #pprint(vars(self.crop_coeffs[0]))
 
-    def set_refet_data(self, fn=''):
+    def set_refet_data(self, fn, cell_elev):
         """ Mapping refet output variables """
-        self.refet = read_daily_refet_data(fn)
+        self.refet = read_daily_nldas_data(fn, cell_elev)
+        ##self.refet = read_daily_refet_data(fn)
 
     # options from the KLPenmanMonteithManager.txt, or PMControl spreadsheet
     ctrl = {

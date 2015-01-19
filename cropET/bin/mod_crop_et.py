@@ -33,7 +33,11 @@ def et_cells_cycle(data, basin_id, nsteps, ncells, OUT,
         # print i, cell_id
         print '\nRead Daily RefET Data:', data.et_cells[cell_id].refET_id 
         fn = refet_fmt % (data.et_cells[cell_id].refET_id)
-        data.set_refet_data(fn)
+
+        ## Need to pass elevation to calculate pressure, ea, and Tdew
+        data.set_refet_data(fn, data.et_cells[cell_id].stn_elev)
+        ##data.set_refet_data(fn, data.et_cells[cell_id].cell_elev)
+
         ## This impacts the long-term variables, like maincumGDD0LT & mainT30LT
         if not nsteps:
             nsteps = len(data.refet['ts'])  # full period of refet
