@@ -141,6 +141,9 @@ def read_daily_nldas_data(fn, cell_elev):
     ## Convert W/m2 to MJ/m2
     a['Solar_Radiation_W_m2'] *= 0.0864
 
+    ## Scale wind from 10m to 2m
+    a['Wind__10m_m_s1'] *= 4.87 / math.log(67.8 * 10 - 5.42)
+
     ## Calculate Tdew from specific humidity
     ## Convert station elevation from feet to meters
     ea = ea_from_q(pair_func(0.3048 * cell_elev), a['Specific_Humiditykg_kg1'])

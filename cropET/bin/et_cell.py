@@ -127,8 +127,6 @@ def read_et_cells_properties(fn=''):
 
         #et_cells.append(obj)
         et_cells[obj.cell_id] = obj
-        #sys.exit()
-
     return et_cells
 
 
@@ -196,8 +194,8 @@ def read_mean_cuttings(fn, et_cells={}):
         row = line.split(DELIMITER)
         cell_id = row[1]
         #print cell_id
-        if cell_id not in et_cells:
-            print 'ReadMeanCuttings(), cell_id %s not found' % cell_id
+        if cell_id not in et_cells.keys():
+            print 'read_mean_cuttings(), cell_id %s not found' % cell_id
             sys.exit()
         obj = et_cells[cell_id]
         obj.init_cuttings_from_row(row)
