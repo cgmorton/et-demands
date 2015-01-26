@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import logging
 import os
 from pprint import pprint
 import sys
@@ -52,9 +53,17 @@ def main(basin_id='klamath', nsteps=0, ncells=0, OUT=None,
          output_ws='', refet_fmt='', txt_ws=''):
     """ """
     
-    data = crop_et_data._test(txt_ws)
-    #pprint(data.refet)
+    ## All data will be handled in this class
+    data = crop_et_data.CropETData()
 
+    ## Read in crop data
+    data.set_et_cells_properties(os.path.join(txt_ws, 'ETCellsProperties.txt'))
+    data.set_et_cells_crops(os.path.join(txt_ws, 'ETCellsCrops.txt'))
+    data.set_mean_cuttings(os.path.join(txt_ws, 'MeanCuttings.txt'))
+    data.set_crop_parameters(os.path.join(txt_ws, 'CropParams.txt'))
+    data.set_crop_coefficients(os.path.join(txt_ws, 'CropCoefs.txt'))
+    #pprint(data.refet)
+    
     et_cells_cycle(data, basin_id, nsteps, ncells, OUT,
                    output_ws, refet_fmt, txt_ws)
     #pprint(cropet_data)
@@ -92,16 +101,16 @@ if __name__ == '__main__':
     ##parser.add_argument(
     ##    '-d', '--debug', action="store_true", 
     ##    help="increase output verbosity")
-    ##parser.add_argument(
-    ##    '-v', '--verbose', action="store_true", 
-    ##    help="increase output verbosity")
+    parser.add_argument(
+        '-v', '--verbose', action="store_true", default=True,  
+        help="increase output verbosity")
     args = parser.parse_args()
 
     ## Set logging verbosity level
-    ##if args.verbose:
-    ##    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
-    ##else:
-    ##    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+    else:
+        logging.basicConfig(level=logging.INFO, format='%(message)s')
 
     ## Output control
     OUT = util.Output(args.output, DEBUG=False)
