@@ -13,60 +13,49 @@ import crop_cycle
 import process_climate
 import util
 
-VERBOSE = True
-VERBOSE = False
-
-##class CropET:
-##    def __init(self):
-##        """ """
-
-def et_cells_cycle(data, basin_id, nsteps, ncells, OUT,
-                   output_ws, refet_fmt, text_ws):
-    """ """
-    et_cells = sorted(data.et_cells.keys())
-
-    ## For testing, only process a subset of the cells/stations
-    if ncells:
-        et_cells = et_cells[:ncells]
-
-    ## Process each cell/station
-    for i, cell_id in enumerate(et_cells):
-        # print i, cell_id
-        print '\nRead Daily RefET Data:', data.et_cells[cell_id].refET_id 
-        fn = refet_fmt % (data.et_cells[cell_id].refET_id)
-
-        ## Need to pass elevation to calculate pressure, ea, and Tdew
-        data.set_refet_data(fn, data.et_cells[cell_id].stn_elev)
-        ##data.set_refet_data(fn, data.et_cells[cell_id].cell_elev)
-
-        ## This impacts the long-term variables, like maincumGDD0LT & mainT30LT
-        if not nsteps:
-            nsteps = len(data.refet['ts'])  # full period of refet
-
-        data.climate = process_climate.process_climate(data, cell_id, nsteps)
-        #pprint(data.climate)
-    
-        crop_cycle.crop_cycle(data, cell_id, nsteps, basin_id, OUT, output_ws)
-
-
 def main(basin_id='klamath', nsteps=0, ncells=0, OUT=None,
          output_ws='', refet_fmt='', txt_ws=''):
     """ """
-    
     ## All data will be handled in this class
     data = crop_et_data.CropETData()
 
-    ## Read in crop data
+    ## Read in crop data from shapefile
+    ##data.set_et_cells(
+    ##    r'D:\Projects\NLDAS_Demands\texas\gis\nldas_4km\nldas_4km_albers_sub.shp')
+    ##data.set_et_cells(os.path.join(txt_ws, 'ETCells.shp'))
+
+    ## Read in cell properties, crops and cuttings
     data.set_et_cells_properties(os.path.join(txt_ws, 'ETCellsProperties.txt'))
     data.set_et_cells_crops(os.path.join(txt_ws, 'ETCellsCrops.txt'))
     data.set_mean_cuttings(os.path.join(txt_ws, 'MeanCuttings.txt'))
+    ## Read in crop specific parameters and coefficients
     data.set_crop_parameters(os.path.join(txt_ws, 'CropParams.txt'))
     data.set_crop_coefficients(os.path.join(txt_ws, 'CropCoefs.txt'))
-    #pprint(data.refet)
+    ##pprint(cropet_data)
     
-    et_cells_cycle(data, basin_id, nsteps, ncells, OUT,
-                   output_ws, refet_fmt, txt_ws)
-    #pprint(cropet_data)
+    ## For testing, only process a subset of the cells/stations
+    if ncells:
+        cell_id_list = cell_id_list[:ncells]
+
+    ## Process each cell/station
+    for cell_id, cell in sorted(data.et_cells.items()):
+        logging.warning('CellID: {}'.format(cell_id))
+        fn = refet_fmt % (cell.refET_id)
+
+        ## Need to pass elevation to calculate pressure, ea, and Tdew
+        cell.set_daily_nldas_data(fn)
+        ##data.et_cells[cell_id].set_daily_refet_data(fn)
+        ##pprint(data.refet)
+
+        ## This impacts the long-term variables, like maincumGDD0LT & mainT30LT
+        if not nsteps:
+            nsteps = len(cell.refet['Dates'])  # full period of refet
+
+        cell.climate = process_climate.process_climate(cell, nsteps)
+        #pprint(data.climate)
+    
+        crop_cycle.crop_cycle(data, cell, nsteps, basin_id, OUT, output_ws)
+        ##crop_cycle.crop_cycle(data, cell_id, nsteps, basin_id, OUT, output_ws)
 
 
 if __name__ == '__main__':
@@ -85,32 +74,31 @@ if __name__ == '__main__':
         help='basin ID')
     parser.add_argument(
         '-c', '--ncells', default=0, metavar='N', type=int,
-        help='number of steps')
+        help='Number of steps')
     parser.add_argument(
         '-n', '--nsteps', default=0, metavar='N', type=int,
-        help='number of cells')
+        help='Number of cells')
     parser.add_argument(
         '-o', '--output',  metavar='PATH', default=output_ws,
-        help='output workspace/path [%s]' % output_help)
+        help='Output workspace/path [%s]' % output_help)
     parser.add_argument(
         '-r', '--refet', metavar='FMT', default=refet_fmt, 
         help='RefET data path formatter [%s]' % refet_help)
     parser.add_argument(
         '-t', '--text', metavar='PATH', default=text_ws, 
-        help='static text workspace/path [%s]' % text_help)
-    ##parser.add_argument(
-    ##    '-d', '--debug', action="store_true", 
-    ##    help="increase output verbosity")
+        help='Static text workspace/path [%s]' % text_help)
     parser.add_argument(
-        '-v', '--verbose', action="store_true", default=True,  
-        help="increase output verbosity")
+        '-d', '--debug', action="store_const",
+        dest='log_level', const=logging.DEBUG, default=logging.WARNING,
+        help="Print debug level comments")
+    parser.add_argument(
+        '-v', '--verbose', action="store_const",
+        dest='log_level', const=logging.INFO,  
+        help="Print info level comments")
     args = parser.parse_args()
 
     ## Set logging verbosity level
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG, format='%(message)s')
-    else:
-        logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logging.basicConfig(level=args.log_level, format='%(message)s')
 
     ## Output control
     OUT = util.Output(args.output, DEBUG=False)

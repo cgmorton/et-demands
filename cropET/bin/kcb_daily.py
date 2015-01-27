@@ -4,7 +4,7 @@ import sys
 
 import open_water_evap
 
-def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
+def kcb_daily(data, et_cell, crop, foo, foo_day, OUT):
     """Compute basal ET."""
     #print 'in kcb_daily()'
     #print crop
@@ -119,7 +119,7 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
             #' estimate date based on long term mean:
             #' prohibit specifying start of season as long term less 40 days when it is before that date.
 
-            T30LT = data.climate['mainT30LT']
+            T30LT = et_cell.climate['mainT30LT']
             T30LT[0] = T30LT[1]
             longtermpl = 0
             for jDoy in range(1,367):
@@ -331,7 +331,7 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
             if cumgdd_in_season < cumgdd_efc:    
                 # print 'kcbDaily:in cumgdd_in_season < cumgdd_efc'
                 foo.ncumGDD = cumgdd_in_season / cumgdd_efc
-                int_cumgdd = min(foo.maxLinesInCropCurveTable - 1, int(foo.ncumGDD * 10))
+                int_cumgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.ncumGDD * 10))
                 #kcb = cropco_val(cCurveNo, int_cumgdd) + (foo.ncumGDD * 10 - int_cumgdd) * (cropco_val(cCurveNo, int_cumgdd + 1) - cropco_val(cCurveNo, int_cumgdd))
                 foo.kcb = (
                     data.crop_coeffs[cCurveNo].data[int_cumgdd] +
@@ -363,7 +363,7 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
                     #End If
                     if foo.ncumGDD < 1:     
                         foo.ncumGDD = 1 #' keep from going back into dev. period
-                    int_cumgdd = min(foo.maxLinesInCropCurveTable - 1, int(foo.ncumGDD * 10))
+                    int_cumgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.ncumGDD * 10))
                     foo.mad = foo.mad_mid
                     lentry = data.crop_coeffs[cCurveNo].lentry
                     if int_cumgdd < lentry:     #' more entries in kcb array
@@ -457,9 +457,9 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
                 npl_ec100, crop.time_for_harvest, abs(crop.time_for_harvest)))
             #if npl_ec100 <= abs(crop.time_for_harvest):    
             if round(npl_ec100,4) <= abs(crop.time_for_harvest):    
-                OUT.debug('2kcb_daily():6 nPL_EC0 %s  maxLinesInCropCurveTable %s\n' % (
-                    foo.nPL_EC, foo.maxLinesInCropCurveTable))
-                int_PL_EC = min(foo.maxLinesInCropCurveTable - 1., int(foo.nPL_EC * 10.))
+                OUT.debug('2kcb_daily():6 nPL_EC0 %s  max_lines_in_crop_curve_table %s\n' % (
+                    foo.nPL_EC, foo.max_lines_in_crop_curve_table))
+                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1., int(foo.nPL_EC * 10.))
                 foo.kcb = (
                     data.crop_coeffs[cCurveNo].data[int_PL_EC] +
                     (foo.nPL_EC * 10 - int_PL_EC) *
@@ -496,7 +496,7 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
                 crop.time_for_efc = 1 #' deal with values of zero or null - added Dec. 29, 2011, rga
             foo.nPL_EC = days_into_season / crop.time_for_efc
             if foo.nPL_EC < 1:    
-                int_PL_EC = min(foo.maxLinesInCropCurveTable - 1, int(foo.nPL_EC * 10.))
+                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(foo.nPL_EC * 10.))
                 #kcb = cropco_val(cCurveNo, int_PL_EC) + (nPL_EC * 10 - int_PL_EC) _
                 #    * (cropco_val(cCurveNo, int_PL_EC + 1) - cropco_val(cCurveNo, int_PL_EC))
                 foo.kcb = (
@@ -504,8 +504,8 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
                     (foo.nPL_EC * 10 - int_PL_EC) *
                     (data.crop_coeffs[cCurveNo].data[int_PL_EC+1] -
                      data.crop_coeffs[cCurveNo].data[int_PL_EC]))
-                OUT.debug('2kcb_daily():8 kcb %s  nPL_EC %s  maxLinesInCropCurveTable %s  int_PL_EC %s\n' % (
-                    foo.kcb, foo.nPL_EC, foo.maxLinesInCropCurveTable, int_PL_EC))
+                OUT.debug('2kcb_daily():8 kcb %s  nPL_EC %s  max_lines_in_crop_curve_table %s  int_PL_EC %s\n' % (
+                    foo.kcb, foo.nPL_EC, foo.max_lines_in_crop_curve_table, int_PL_EC))
                 foo.mad = foo.mad_ini
             else:
                 foo.mad = foo.mad_mid
@@ -516,7 +516,7 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
     
                 if DaysafterEFC <= abs(crop.time_for_harvest):    
                     nDaysafterEFC = DaysafterEFC / 10 + 11 #' start at array index = 11 for 0 days into full cover
-                    int_PL_EC = min(foo.maxLinesInCropCurveTable - 1, int(nDaysafterEFC))
+                    int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(nDaysafterEFC))
                     #kcb = cropco_val(cCurveNo, int_PL_EC) + (nDaysafterEFC - int_PL_EC) _
                     #    * (cropco_val(cCurveNo, int_PL_EC + 1) - cropco_val(cCurveNo, int_PL_EC))
                     foo.kcb = (
@@ -581,7 +581,7 @@ def kcb_daily(data, crop, et_cell, foo, foo_day, OUT):
                 foo.mad = foo.mad_mid
 
             if foo.nPL_EC <= 1:    
-                int_PL_EC = min(foo.maxLinesInCropCurveTable - 1, int(foo.nPL_EC * 10))
+                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(foo.nPL_EC * 10))
                 foo.kcb = (
                     cropco_val(cCurveNo, int_PL_EC) +
                     (foo.nPL_EC * 10 - int_PL_EC) *

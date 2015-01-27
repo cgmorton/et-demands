@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
+import logging
 import math
-from pprint import pprint
+import pprint
 import sys
 
 import numpy as np
@@ -17,9 +18,9 @@ VERBOSE = False
 COMPARE = False
 COMPARE = True
 
-def crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir=''):
+def crop_cycle(data, et_cell, nsteps, basin_id, OUT, odir=''):
     """ """
-    #        ' following is for one crop grown back to back over entire ETr sequence
+    #' following is for one crop grown back to back over entire ETr sequence
 
     # do bare soil first, before looping through crops
     # current curve file has 60 curves, so 44 is not correct relative to coefficients
@@ -34,11 +35,6 @@ def crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir=''):
     #CGDDWinterDoy = 274
     #CGDDMainDoy = 1
 
-    et_cell = data.et_cells[cell_id]
-    #print et_cell
-    #pprint(vars(et_cell))
-    #sys.exit()
-
     '''
     ## no curve for bare soil
     ctCount = 43  # bare soil
@@ -48,11 +44,10 @@ def crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir=''):
     pprint(vars(crop))
     '''
 
-    #pprint(data.refet)
-    pprint(vars(et_cell))
+    logging.info(pprint.pformat(vars(et_cell)))
 
     ## crop loop through all crops, doesn't include bare soil??
-    for i,crop in enumerate(data.crop_parameters):
+    for i, crop in enumerate(data.crop_parameters):
         #print i, crop, crop.curve_name, et_cell.crop_flags[i]
 
         #pprint(vars(crop))
@@ -89,13 +84,15 @@ def crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir=''):
         if COMPARE: 
             if not odir:
                 ofn = 'cet/%s/py/%s_%s.%s' % (
-                    basin_id, cell_id, crop.class_number, cropnn)
+                    basin_id, et_cell.cell_id, crop.class_number, cropnn)
             else:
                 ofn = '%s/%s_%s.%s' % (
-                    odir, cell_id, crop.class_number, cropnn)
+                    odir, et_cell.cell_id, crop.class_number, cropnn)
             ofp = open(ofn, 'w')
             fmt = '%8s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
-            header = ('#   Date','doy','PMETo','Pr.mm','T30','ETact','ETpot','ETbas','Irrn','Seasn','Runof','DPerc')
+            header = (
+                '#   Date','doy','PMETo','Pr.mm','T30','ETact','ETpot','ETbas',
+                'Irrn','Seasn','Runof','DPerc')
             ofp.write(fmt % header)
 
         #print 'ET:: %11s %3s %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f %2d %8.5f %8.5f %8.5f' % tup
@@ -105,35 +102,35 @@ def crop_cycle(data, cell_id, nsteps, basin_id, OUT, odir=''):
 class DayData:
     def __init__(self):
         """ """
+        ## Used  in compute_crop_gdd(), needs to be persistant during day loop
+        self.etref_array = np.zeros(30)
 
 def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
     """ """
     ## day loop
     foo_day = DayData()
-    # used  in ComputeCropGDD(), needs to be persistant during day loop
-    foo_day.etref_array = np.zeros(30)  
 
     # originally in ProcessClimate() in vb code
     if data.ctrl['refETType'] > 0:
-        refet_array = data.refet['ASCEPMStdETr']
+        refet_array = et_cell.refet['ASCEPMStdETr']
     else:
-        refet_array = data.refet['ASCEPMStdETo']
+        refet_array = et_cell.refet['ASCEPMStdETo']
 
-    #for i,ts in enumerate(data.refet['ts'][:730]):
-    #for i,ts in enumerate(data.refet['ts'][:18]):
-    #for i,ts in enumerate(data.refet['ts'][:365]):
-    for i,ts in enumerate(data.refet['ts'][:nsteps]):
-        if VERBOSE: print i, data.refet['Dates'][i]
+    #for i,ts in enumerate(et_cell.refet['Dates'][:730]):
+    #for i,ts in enumerate(et_cell.refet['Dates'][:18]):
+    #for i,ts in enumerate(et_cell.refet['Dates'][:365]):
+    for i, ts in enumerate(et_cell.refet['Dates'][:nsteps]):
+        if VERBOSE: print i, et_cell.refet['Dates'][i]
         doy = ts[7]
         year = ts[0]
         month = ts[1]
         day = ts[2]
 
-        precip = data.refet['Precip'][i]
-        wind = data.refet['Wind'][i]
-        tdew = data.refet['TDew'][i]
-        #ETr = data.refet['ASCEPMStdETr'][i]
-        eto = data.refet['ASCEPMStdETo'][i]
+        precip = et_cell.refet['Precip'][i]
+        wind = et_cell.refet['Wind'][i]
+        tdew = et_cell.refet['TDew'][i]
+        #ETr = et_cell.refet['ASCEPMStdETr'][i]
+        eto = et_cell.refet['ASCEPMStdETo'][i]
         etref = refet_array[i]
 
         if VERBOSE: print doy, year, month, day, precip, wind, tdew,
@@ -149,17 +146,17 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
          ' 3 is use of alternative TMax and TMin for all crops 
         '''
         # ' default is no use of alternative TMax and TMin
-        tmax = data.climate['tmax_array'][i]
-        tmin = data.climate['tmin_array'][i]
-        tmean = data.climate['tmean_array'][i]
-        t30 = data.climate['t30_array'][i]
+        tmax = et_cell.climate['tmax_array'][i]
+        tmin = et_cell.climate['tmin_array'][i]
+        tmean = et_cell.climate['tmean_array'][i]
+        t30 = et_cell.climate['t30_array'][i]
         # Precip converted to mm in process_climate()
-        precip = data.climate['precip'][i]        
+        precip = et_cell.climate['precip'][i]        
         if VERBOSE: print tmax, tmin, tmean, t30
 
-        # copies of these were made using loop
-        cumgdd_0lt = np.copy(data.climate['maincumGDD0LT'])
-        t30_lt = np.copy(data.climate['mainT30LT'])
+        ## Copies of these were made using loop
+        cumgdd_0lt = np.copy(et_cell.climate['maincumGDD0LT'])
+        t30_lt = np.copy(et_cell.climate['mainT30LT'])
 
         #' this is done before calling ETc
         #' determine if this is a valid day (for use in assessing alfalfa cuttings in that file)
@@ -172,11 +169,11 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
 
         if VERBOSE: print crop, crop.curve_name, crop.curve_number
 
-        # ' at very start for crop, set up for next season
+        ## At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
             foo.setup_crop(crop)
 
-        # ' at end of season for each crop, set up for nongrowing and dormant season
+        ## At end of season for each crop, set up for nongrowing and dormant season
         #foo.dormant_setup_flag = True   # for testing SetupDormant()
         if not foo.in_season and foo.dormant_setup_flag:
             OUT.debug('CropCycle():  in_season %s dormant_setup_flag %s\n' % (
@@ -191,43 +188,42 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         foo_day.year = year
         foo_day.month = month
         foo_day.day = day
-        foo_day.date = data.refet['Dates'][i]
-        foo_day.tmax_original = data.refet['TMax'][i]
+        foo_day.date = et_cell.refet['Dates'][i]
+        foo_day.tmax_original = et_cell.refet['TMax'][i]
         foo_day.tdew = tdew
         foo_day.wind = wind
         foo_day.etref = etref
         foo_day.tmean = tmean
         foo_day.tmin = tmin
         foo_day.tmax = tmax
-        foo_day.snow_depth = data.climate['snow_depth'][i]
+        foo_day.snow_depth = et_cell.climate['snow_depth'][i]
         foo_day.cumgdd_0lt = cumgdd_0lt
         #foo_day.t30_lt = t30_lt
         foo_day.t30 = t30
         foo_day.precip = precip
         #pprint(vars(foo_day))
+        #print et_cell.climate.keys()
 
-        #print data.climate.keys()
-        # ' calculate Kcb, Ke, ETc, etc.
-        #If Not ComputeCropET(T30) Then Return False
+        ## Calculate Kcb, Ke, ETc
+        #If Not compute_crop_et(T30) Then Return False
         compute_crop_et.compute_crop_et(
-            t30, data, crop, et_cell, foo, foo_day, OUT)
+            t30, data, et_cell, crop, foo, foo_day, OUT)
 
         ## Write vb-like output file for comparison
         if COMPARE: 
             #   ' print to final daily file
             #   ' print date and ETref information first, if first crop in cycle
-            #print 'ET:: ',data.refet['Dates'][i], doy, ETref, Precip, T30, foo.ETcact, foo.ETcpot, foo.ETcbas
-            m,d,y = data.refet['Dates'][i].split('/')
-            date = '%4s%02d%02d' % (y, int(m), int(d))
+            #print 'ET:: ',et_cell.refet['Dates'][i], doy, ETref, Precip, T30, foo.ETcact, foo.ETcpot, foo.ETcbas
+            y,m,d = et_cell.refet['Dates'][i][:3]
+            date = '%4s%02d%02d' % (y, m, d)
             tup = (date, doy, etref, precip, t30, foo.etc_act, foo.etc_pot,
                    foo.etc_bas, foo.irr_simulated, foo.in_season, foo.SRO,
                    foo.Dpr)
             fmt = '%8s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
             ofp.write(fmt % tup)
 
-
-        # write final output file variables to DEBUG file
-        m,d,y = data.refet['Dates'][i].split('/')
+        ## Write final output file variables to DEBUG file
+        y,m,d = et_cell.refet['Dates'][i][:3]
         date = '%4s%02d%02d' % (y, int(m), int(d))
         tup = (etref, precip, t30, foo.etc_act, foo.etc_pot, foo.etc_bas, 
                foo.irr_simulated, foo.in_season, foo.SRO, foo.Dpr)
@@ -238,18 +234,18 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
 
         #pprint(vars(foo_day))
         #print len(foo_day.T30LT)
-        #pprint(data.climate['mainT30LT'])
-        #pprint(data.climate['maincumGDD0LT'])
+        #pprint(et_cell.climate['mainT30LT'])
+        #pprint(et_cell.climate['maincumGDD0LT'])
         #pprint(vars(foo))
 
-        if VERBOSE: print 'ZZZ', i, data.refet['Dates'][i]
-
+        if VERBOSE: print 'ZZZ', i, et_cell.refet['Dates'][i]
     #print et_cell.num_crop_sequence
     #pprint(vars(data))
 
 
 def main():
     """ """
+    pass
     # _test() loads the data for Klamath
     #data = cropet_data._test()
     #pprint(data.refet)

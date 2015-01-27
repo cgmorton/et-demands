@@ -9,7 +9,7 @@ import kcb_daily
 import runoff
 import util
 
-def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
+def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     """crop et computations"""
 
     #print 'in compute_crop_et()'
@@ -39,7 +39,7 @@ def compute_crop_et(t30, data, crop, et_cell, foo, foo_day, OUT):
     #' interpolate Kcb and make climate adjustment (for ETo basis)
 
     #If Not kcb_daily(t30):    Return False
-    kcb_daily.kcb_daily(data, crop, et_cell, foo, foo_day, OUT)
+    kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, OUT)
     #pprint(vars(crop))
     #pprint(vars(et_cell))
 
