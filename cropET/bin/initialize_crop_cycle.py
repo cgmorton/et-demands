@@ -111,8 +111,8 @@ class InitializeCropCycle:
 
     ### TP added these
     # from modCropET.vb
-    #Private Const maxLinesInCropCurveTable As Short = 34
-    maxLinesInCropCurveTable = 34
+    #Private Const max_lines_in_crop_curve_table As Short = 34
+    max_lines_in_crop_curve_table = 34
     # cutting(20) As Short
     cutting = np.zeros(20, dtype=np.int)
 
