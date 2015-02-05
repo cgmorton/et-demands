@@ -1,26 +1,26 @@
 def runoff(foo, foo_day, OUT):
     """Curve number method for computing runoff."""
-    # print 'in runoff()...'
+    ## print 'in runoff()...'
 
-    # Bring in CNII for antecedent condition II from crop-soil combination
-    # Check to insure CNII is within limits
+    ## Bring in CNII for antecedent condition II from crop-soil combination
+    ## Check to insure CNII is within limits
     CNII = min(max(foo.cn2, 10), 100)
 
-    # Compute CN's for other antecedent conditions
-    # Hawkins et al., 1985, ASCE Irr.Drn. 11(4):330-340
+    ## Compute CN's for other antecedent conditions
+    ## Hawkins et al., 1985, ASCE Irr.Drn. 11(4):330-340
     CNI = CNII / (2.281 - 0.01281 * CNII) 
     CNIII = CNII / (0.427 + 0.00573 * CNII)
 
-    # Determine antecedent condition
-    # Presume that AWCIII is quite moist (when only 1/2 of REW is evaporated)
-    # Be sure that REW and TEW are shared
+    ## Determine antecedent condition
+    ## Presume that AWCIII is quite moist (when only 1/2 of REW is evaporated)
+    ## Be sure that REW and TEW are shared
     AWCIII = 0.5 * foo.rew
 
-    #' presume that dry AWCI condition occurs somewhere between REW and TEW
+    ## Presume that dry AWCI condition occurs somewhere between REW and TEW
     AWCI = 0.7 * foo.rew + 0.3 * foo.tew
 
-    # Value for CN adjusted for soil moisture
-    # Make sure AWCI>AWCIII
+    ## Value for CN adjusted for soil moisture
+    ## Make sure AWCI>AWCIII
     if AWCI <= AWCIII:
         AWCI = AWCIII + 0.01 
     if foo.depl_surface < AWCIII:   
@@ -37,8 +37,8 @@ def runoff(foo, foo_day, OUT):
     t = (cn, foo.depl_surface, AWCIII, CNI, AWCI, CNIII) 
     OUT.debug(s % t)
 
-    # If irrigations are automatically scheduled, base runoff on an average of
-    #   conditions for prior four days to smooth results.
+    ## If irrigations are automatically scheduled, base runoff on an average of
+    ##   conditions for prior four days to smooth results.
     OUT.debug('runoff():b SRO %s  irr_flag %s  S %s\n' % (
         foo.SRO, foo.irr_flag, foo.s))
     if foo.irr_flag:    
@@ -65,7 +65,5 @@ def runoff(foo, foo_day, OUT):
     else:
         # Non-irrigated runoff
         # Initial abstraction
-        Pnet = foo_day.precip - 0.2 * foo.S 
-        if Pnet < 0:    
-            Pnet = 0
+        Pnet = max(foo_day.precip - 0.2 * foo.S, 0)
         foo.SRO = Pnet * Pnet / (foo_day.precip + 0.8 * foo.S)

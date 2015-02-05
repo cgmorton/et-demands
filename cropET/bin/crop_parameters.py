@@ -1,54 +1,24 @@
 #!/usr/bin/env python
 
-from pprint import pprint
+import logging
+import pprint
 import sys
 
 import numpy as np
 
-## 
-CGDDWinterDoy = 274
-CGDDMainDoy = 1
-
 class CropParameters:
     name = ''
-##    class_number = 0   
-##    crop_fw = 0
-##    crop_kc_max = 0.
-##    cumgdd_for_efc = 0
-##    cumgdd_for_termination = 0
-##    curve_name = ''
-##    curve_number = 0
-##    curve_number_coarse = 0
-##    curve_number_medium = 0
-##    curve_number_fine = 0
-##    curve_type = 0
-##    date_of_pl_or_gu = 0
-##    days_after_planting_irrigation = 0
-##    end_of_root_growth_fraction_time = 0.
-##    flag_for_means_to_estimate_pl_or_gu = 0
-##    height_initial = 0.
-##    height_maximum = 0.
-##    invoke_Stress = 0
-##    irrigation_flag = 0
-##    is_annual = False
-##    killing_frost_temperature = 0
-##    mad_initial = 0
-##    mad_midseason = 0
-##    rooting_depth_initial = 0.
-##    rooting_depth_maximum = 0.
-##    season = None
-##    t30_for_pl_or_gu_or_cumgdd = 0.
-##    tbase = 0.0
-##    time_for_efc = 0
-##    time_for_harvest = 0
-##    winter_surface_cover_class = 0
 
     def __init__(self, v):
         """ """
-        self.name = v[0]
+        ## If there is a comma in the string, it will also have quotes
+        self.name = str(v[0]).replace('"', '').strip()
         self.class_number = abs(int(v[1]))
+        ## DEADBEEF - Is this even used?
         if int(v[1]) < 0:
-            self.isAnnual = True
+            self.is_annual = True
+        else:
+            self.is_annual = False
         self.irrigation_flag = int(v[2])
         self.days_after_planting_irrigation = int(v[3])
         self.crop_fw = int(v[4])
@@ -63,36 +33,35 @@ class CropParameters:
         self.height_maximum = float(v[13])
         ## [140822] changed for RioGrande
         self.curve_number = int(v[14])
-        self.curve_name = v[15]
+        self.curve_name = str(v[15]).replace('"', '').strip()
         self.curve_type = int(v[16])
         self.flag_for_means_to_estimate_pl_or_gu = int(v[17])
-        self.t30_for_pl_or_gu_or_cumgdd = float(v[18])
+        self.t30_for_pl_or_gu_or_cgdd = float(v[18])
         self.date_of_pl_or_gu = float(v[19])
         self.tbase = float(v[20])
-        self.cumgdd_for_efc = int(v[21])
-        self.cumgdd_for_termination = int(v[22])
+        self.cgdd_for_efc = int(v[21])
+        self.cgdd_for_termination = int(v[22])
         self.time_for_efc = int(v[24])
         self.time_for_harvest = int(v[25])
         self.killing_frost_temperature = float(v[26])
         self.invoke_stress = int(v[27])
-        self.curve_number_coarse_soil = int(v[29])
-        self.curve_number_medium_soil = int(v[30])
-        self.curve_number_fine_soil = int(v[31])
+        self.cn_coarse_soil = int(v[29])
+        self.cn_medium_soil = int(v[30])
+        self.cn_fine_soil = int(v[31])
 
-        # winter crop
+        ## Winter crop
+        self.cgdd_winter_doy = 274
+        self.cgdd_main_doy = 1
         if self.curve_name == 'Winter Wheat':
-            self.crop_gdd_trigger_doy = CGDDWinterDoy
+            self.crop_gdd_trigger_doy = self.cgdd_winter_doy
             self.season = 'winter'
         else:
-            self.crop_gdd_trigger_doy = CGDDMainDoy
+            self.crop_gdd_trigger_doy = self.cgdd_main_doy
             self.season = 'non-winter'
-
 
     def __str__(self):
         """ """
-        # add any info to help in debugging, etc
-        s = '<%s>' % (self.name)
-        return s
+        return '<%s>' % (self.name)
 
     def set_winter_soil(self, crops=[]):
         """ """
@@ -104,50 +73,24 @@ class CropParameters:
 
 
 def read_crop_parameters(fn):
-    """
-    read_crop_parameters() Then
-    ' #varies by geographic Area, ie, Klamath, 
+    """Read in the crop parameter text file"""
 
-    DATA/EX/ExampleData/Params/crop_parameters.csv    # problems with ',' in some fields
-    DATA/EX/ExampleData/Params/Crop_Parameters.txt    # 
-     Parameter     Explanation  Crop1    Crop2 ...
-     'text name'   'text'      int|str
+    ## For now, hardcode reading the first 32 lines after the 3 header rows
+    crop_param_data = np.loadtxt(fn, delimiter="\t", dtype='str', skiprows=3)
+    crop_param_data = crop_param_data[:32,:]
 
-    Crops are indexed
+    ## Replace empty values
+    crop_param_data[crop_param_data == ''] = '0'
+    ##crop_param_data = np.where(crop_param_data == '', '0', crop_param_data)
 
-    """
-    #fn = 'static/Crop_Parameters.txt'
-    a = np.loadtxt(fn, delimiter="\t", dtype='str', skiprows=3)
-    a = a[0:32,:]
-    # replace empty fields
-    b = np.where(a == '', '0', a)
-
-    crops = []
-    for i,num in enumerate(b[1,2:]):
-        #print i,num
-        if num == '0':
+    crops_dict = {}
+    for crop_i, crop_num in enumerate(crop_param_data[1,2:]):
+        if crop_num <> '0':
+            crop_num = abs(int(crop_num))
+        else:
             break
-        #print type(b[:,i+2])
-        #print b[:,i+2]
-        crop_obj = CropParameters(b[:,i+2])
-        #pprint(crop_obj.__dict__)
-        crops.append(crop_obj)
-        #sys.exit()
-
-    #' setup curve number for antecedent II condition for winter covers
-    #for i,crop in enumerate(crops, start=1):
-    #    print i,crop
-    #    crop.set_winter_soil(crops)
-    #    sys.exit()
-    return crops
-
+        crops_dict[crop_num] = CropParameters(crop_param_data[:,crop_i+2])
+    return crops_dict
 
 if __name__ == '__main__':
-    static_ws = os.path.join(os.getcwd(), 'static')
-    fn = os.path.join(static_ws, 'Crop_Parameters.txt')
-    crops = read_crop_parameters(fn)
-    print 'Crops:',len(crops)
-    pprint(crops[0])
-    c = crops[0]
-    pprint(vars(c))
-    print c, 
+    pass

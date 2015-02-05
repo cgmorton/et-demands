@@ -7,8 +7,6 @@ import sys
 
 import numpy as np
 
-import crop_parameters
-import crop_coefficients
 import et_cell
 
 class CropETData():
@@ -17,50 +15,28 @@ class CropETData():
     def __init__(self):
         """ """
         self.et_cells = {}
+        
+        ## refet_type impacts adjustment of Kcb for climate
+        ## (ETo basis is adjusted, ETr basis is not)
+        ## refet_type also impacts value for Kcmax
+        ## 0 for grass ETo, 1 for alfalfa ETr
+        self.refet_type = 0
+
+        ### From PenmanMonteithManager & modPM.vb
+        self.crop_one_reducer = 0.9
+        ## False sets crop 1 to alfalfa peak with no cuttings
+        ## True sets crop 1 to nonpristine alfalfa w/cuttings
+        self.crop_one_flag = True  
+
+        ## Also in crop_parameters.py
+        self.cgdd_winter_doy = 274
+        self.cgdd_main_doy = 1
 
     def __str__(self):
         """ """
         return '<Cropet_data>'
     
-    def set_et_cells(self, fn):
-        """ Read ET cell properties, crops, and cuttings from a shapefile """
-        field_list = [f.name for f in arcpy.ListFields(fn)]
-        print field_list
-        ##crop_list = [f for f in field_list if f.startswith('CROP_')]
-        print crop_list
-        crop_flag_list = [
-            i for i in range(1,81,1) if 'CROP_{0:02d}'.format(i) in field_list]
-        print crop_flag_list
-        with arcpy.da.UpdateCursor(fn, "*") as u_cursor:
-            for row in u_cursor:        
-                ##self.cell_id = data[0]
-                ##self.cell_name = data[1]
-                ##self.refET_id = data[2]    # met_id ??
-                self.stn_lat = float(row[field_list.index('LAT')])
-                self.stn_lon = float(row[field_list.index('LON')])
-                self.stn_elev = float(row[field_list.index('ELEV')])
-                self.permeability = float(row[field_list.index('PERMEABIL')])
-                self.stn_whc = float(row[field_list.index('AWC')])
-                self.stn_soildepth = float(row[field_list.index('SOIL_DEPTH')])
-                self.stn_hydrogroup_str = row[field_list.index('HYDGRP')]
-                self.stn_hydrogroup = int(row[field_list.index('HYDGRP_NUM')])
-                self.aridity_rating = float(row[field_list.index('ARIDITY')])
-                ##self.refET_path = data[12]
-                ####self.area = data[13]
-                ####self.huc = data[13]
-                ####self.huc_name = data[14]
-                self.cell_lat = float(row[field_list.index('LAT')])
-                self.cell_lon = float(row[field_list.index('LON')])
-                self.cell_elev = float(row[field_list.index('ELEV')])
-                self.irrigation_flag = int(row[field_list.index('IRRIG_FLAG')])
-                self.crop_flags = crop_flag_list.astype(bool)
-                self.ncrops = len(self.crop_flags)
-                self.cuttingsLat = float(row[field_list.index('LAT')])
-                self.dairy_cuttings = int(row[field_list.index('DAIRY_CUT')])
-                self.beef_cuttings = int(row[field_list.index('BEEF_CUT')])
-
-    def set_et_cells_properties(self, fn='ETCellsProperties.txt',
-                                delimiter='\t'):
+    def static_cell_properties(self, fn, delimiter='\t'):
         """Extract the ET cell property data from the text file
 
         This function will build the ETCell objects and must be run first.
@@ -83,7 +59,7 @@ class CropETData():
             obj.source_file_properties = fn
             self.et_cells[obj.cell_id] = obj
 
-    def set_et_cells_crops(self, fn='ETCellsCrops.txt', delimiter='\t'):
+    def static_cell_crops(self, fn, delimiter='\t'):
         """Extract the ET cell crop data from the text file
 
         Args:
@@ -96,23 +72,21 @@ class CropETData():
         crop_numbers = a[1,4:].astype(int)
         crop_names = a[2,4:]
         a = a[3:]
-        for i,row in enumerate(a):
+        for i, row in enumerate(a):
             cell_id = row[0]
             if cell_id not in self.et_cells:
                 logging.error(
                     'read_et_cells_crops(), cell_id %s not found' % cell_id)
                 sys.exit()
             obj = self.et_cells[cell_id]
-            obj.init_crops_from_row(row)
+            obj.init_crops_from_row(row, crop_numbers)
             obj.source_file_crop = fn
             obj.crop_names = crop_names
             obj.crop_numbers = crop_numbers
-            i = (obj.crop_numbers*obj.crop_flags).nonzero()
-            obj.num_crop_sequence = obj.crop_numbers[i]
-            obj.crop_numbers = crop_numbers
+            ## List of active crop numbers (i.e. flag is True)
+            obj.num_crop_sequence = [k for k,v in obj.crop_flags.items() if v]
 
-    def set_mean_cuttings(self, fn='MeanCuttings.txt', delimiter='\t',
-                          skip_rows=2):
+    def static_mean_cuttings(self, fn, delimiter='\t', skip_rows=2):
         """Extract the mean cutting data from the text file
 
         Args:
@@ -137,32 +111,6 @@ class CropETData():
             obj.init_cuttings_from_row(row)
             ##obj.source_file_cuttings = fn
             ##self.et_cells[cell_id] = obj
-
-    def set_crop_parameters(self, fn=''):
-        """ List of <CropParameter> instances """
-        self.crop_parameters = crop_parameters.read_crop_parameters(fn)
-        #pprint(vars(self.crop_parameters[0]))
-    
-    def set_crop_coefficients(self, fn=''):
-        """ List of <CropCoeff> instances """
-        self.crop_coeffs = crop_coefficients.read_crop_coefs(fn)
-        #pprint(vars(self.crop_coeffs[0]))
-
-    # options from the KLPenmanMonteithManager.txt, or PMControl spreadsheet
-    ctrl = {
-        #' set refETType to 0 for grass ETo,  1 for alfalfa ETr
-        #' refETType impacts adjustment of Kcb for climate (ETo basis is adjusted, ETr basis is not)
-        #' refETType also impacts value for Kcmax
-        'refETType' : 0,  #  0 for Klamath
-
-        ### from PenmanMonteithManager & modPM.vb
-        'alfalfa1Reducer' : 0.9,
-        # for cropOneToggle '0 sets crop 1 to alfalfa peak with no cuttings; 1 sets crop 1 to nonpristine alfalfa w/cuttings.
-        'cropOneToggle' : 1,  
-
-        # also in crop_parameters.py
-        'CGDDWinterDoy' : 274,
-        'CGDDMainDoy' : 1}
 
 ##def get_date_params(date_str='1/1/1950', date_fmt='%m/%d/%Y'):
 ##    dt = datetime.strptime(date_str, date_fmt)

@@ -19,7 +19,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     #pprint(vars(foo))
 
     #' determine if within a new growing period, etc.
-    #' update 30 day mean air temperature (t30) and cumulative growing degree days (cumGDD)
+    #' update 30 day mean air temperature (t30) and cumulative growing degree days (CGDD)
     #compute_crop_gdd()
 
     s = 'compute_crop_et() for %s crop %s %s %s %s\n' %  (
@@ -28,8 +28,8 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     OUT.debug(s)
 
     compute_crop_gdd.compute_crop_gdd(data, crop, foo, foo_day, OUT)
-    s = '3compute_crop_et():a jdStartCycle %s cumgdd %s GDD %s TMean %s\n' % (
-        foo.jd_start_cycle, foo.cumgdd, foo.gdd, foo_day.tmean)
+    s = '3compute_crop_et():a jdStartCycle %s cgdd %s GDD %s TMean %s\n' % (
+        foo.doy_start_cycle, foo.cgdd, foo.gdd, foo_day.tmean)
     OUT.debug(s)
 
 
@@ -61,7 +61,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     #' rhmin and u2 are computed in Climate subroutine called above
 
     foo.height = max(0.05, foo.height) #' m #'limit height for numerical stability
-    if data.ctrl['refETType'] > 0:    #' edited by Allen, 6/8/09 to use kc_max from file if given
+    if data.refet_type > 0:    #' edited by Allen, 6/8/09 to use kc_max from file if given
         if crop.crop_kc_max > 0.3:   
             kc_max = crop.crop_kc_max
         else:
@@ -103,7 +103,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
         # Bare soil
         if crop.class_number == 44:
             # Less soil heat in winter.
-            if data.ctrl['refETType'] > 0:
+            if data.refet_type > 0:
                 # For ETr (Allen 3/2008)
                 kc_max = 0.9 
             else:
@@ -112,7 +112,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             foo.fc = 0.0
         # Mulched soil, including grain stubble
         if crop.class_number == 45:
-            if data.ctrl['refETType'] > 0:
+            if data.refet_type > 0:
                 # For ETr (Allen 3/2008)
                 kc_max = 0.85 
             else:
@@ -121,7 +121,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             foo.fc = 0.4
         # Dormant turf/sod (winter time)
         if crop.class_number == 46:
-            if data.ctrl['refETType'] > 0:    
+            if data.refet_type > 0:    
                 # For ETr (Allen 3/2008)
                 kc_max = 0.8
             else:
@@ -139,17 +139,17 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             if wscc == 1:    #' bare soil    #'note that these are ETr based.  Mult by 1.2 (plus adj?) for ETo base  *************
                 #' foo.fc is calculated below
 
-                if data.ctrl['refETType'] > 0:    #' Allen 3/08
+                if data.refet_type > 0:    #' Allen 3/08
                     kc_max = 0.9 #' for ETr
                 else:
                     kc_max = 1.1 #' for ETo  #'Allen 12/2007 **********
             if wscc == 2:    #' Mulched soil, including grain stubble
-                if data.ctrl['refETType'] > 0:   
+                if data.refet_type > 0:   
                     kc_max = 0.85 #' for ETr
                 else:
                     kc_max = 1.0  #' for ETo (0.85 * 1.2)  #'Allen 12/2007 ************
             if wscc == 3:    #' Dormant turf/sod (winter time)
-                if data.ctrl['refETType'] > 0:   
+                if data.refet_type > 0:   
                     kc_max = 0.8 #' for ETr
                 else:
                     kc_max = 0.95 #' for ETo (0.8 * 1.2)  #'Allen 12/2007  **********
@@ -379,7 +379,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     tew3use = foo.tew3 #' for stage 3 drying (cracking soils (not in Idaho))
     rew2use = foo.rew
     foo.etref_30 = max(0.1, foo.etref_30) #' mm/day  #'edited from ETr to ETref 12/26/2007
-    if data.ctrl['refETType'] > 0:   
+    if data.refet_type > 0:   
         etr_threshold = 4 #' for ETr basis
     else:
         etr_threshold = 5 #' for ETo basis #'added March 26, 2008 RGA
@@ -735,16 +735,16 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     irr_yester = foo.irr_simulated
     foo.irr_simulated = 0.0
     if foo.irr_flag:   
-        jd_to_start_irr = foo.jd_start_cycle + crop.days_after_planting_irrigation
-        if jd_to_start_irr > 365:
-            jd_to_start_irr -= 365
+        doy_to_start_irr = foo.doy_start_cycle + crop.days_after_planting_irrigation
+        if doy_to_start_irr > 365:
+            doy_to_start_irr -= 365
 
         # Following code was added and changed to prevent winter irrigations of winter grain. dlk 08/15/2012
-        crop_doy = foo_day.doy - foo.jd_start_cycle + 1
+        crop_doy = foo_day.doy - foo.doy_start_cycle + 1
         if crop_doy < 1:
             crop_doy += 365
         if (crop_doy >= crop.days_after_planting_irrigation and
-            foo_day.doy >= jd_to_start_irr and foo.in_season and
+            foo_day.doy >= doy_to_start_irr and foo.in_season and
             foo.dr > raw and foo.kcb > 0.22):   
             # No premature end for irrigations is used for Idaho CU comps.
             # Limit irrigation to periods when Kcb > 0.22 to preclude
@@ -752,7 +752,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             foo.irr_simulated = foo.dr
             foo.irr_simulated = max(foo.irr_simulated, foo.irr_min)
             #if debugFlag and crop.class_number = 7:   
-            #    PrintLine(lfNum, "Field corn irrigated- Date, Dr, RAW, Irr, DOY, JD to start Irr, Crop DOY" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & Dr & Chr(9) & raw & Chr(9) & simulated_irr & Chr(9) & doy & Chr(9) & jd_to_start_irr & Chr(9) & crop_doy)
+            #    PrintLine(lfNum, "Field corn irrigated- Date, Dr, RAW, Irr, DOY, JD to start Irr, Crop DOY" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & Dr & Chr(9) & raw & Chr(9) & simulated_irr & Chr(9) & doy & Chr(9) & doy_to_start_irr & Chr(9) & crop_doy)
 
             #if debugFlag and crop.class_number = 13:   
 

@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
+import logging
 import math
 import os
-from pprint import pprint
+import pprint
 import sys
 import time
 
 import numpy as np
 
+import crop_parameters
+import crop_coefficients
 import util
 
 class ETCell:
@@ -18,8 +21,16 @@ class ETCell:
 
     def __str__(self):
         """ """
-        s = '<ETCell %s, %s %s>' % (self.cell_id, self.cell_name, self.refET_id)
-        return s
+        return '<ETCell {0}, {1} {2}>'.format(
+            self.cell_id, self.cell_name, self.refET_id)
+
+    def static_crop_params(self, fn):
+        """ List of <CropParameter> instances """
+        self.crop_params = crop_parameters.read_crop_parameters(fn)
+    
+    def static_crop_coeffs(self, fn):
+        """ List of <CropCoeff> instances """
+        self.crop_coeffs = crop_coefficients.read_crop_coefs(fn)
 
     def init_properties_from_row(self, data):
         """ Parse a row of data from the ET cell properties file
@@ -47,26 +58,29 @@ class ETCell:
         #self.stn_hydrogroup = int(data[10])
         self.stn_hydrogroup = int(eval(data[10]))
         self.aridity_rating = float(data[11])
-        self.refET_path = data[12]
-        if len(data) == 14:       # CVP
-            self.area = data[13]
-        elif len(data) == 15:     # truckee
-            self.huc = data[13]
-            self.huc_name = data[14]
-        elif len(data) > 13:
-            self.cell_lat = float(data[13])
-            self.cell_lon = float(data[14])
-            self.cell_elev = float(data[15])
+        ##self.refET_path = data[12]
+        ##if len(data) == 14:       # CVP
+        ##    self.area = data[13]
+        ##elif len(data) == 15:     # truckee
+        ##    self.huc = data[13]
+        ##    self.huc_name = data[14]
+        ##elif len(data) > 13:
+        ##    self.cell_lat = float(data[13])
+        ##    self.cell_lon = float(data[14])
+        ##    self.cell_elev = float(data[15])
+        self.cell_lat = float(data[13])
+        self.cell_lon = float(data[14])
+        self.cell_elev = float(data[15])
 
-    def init_crops_from_row(self, data):
+    def init_crops_from_row(self, data, crop_numbers):
         """ Parse the row of data """
         self.irrigation_flag = int(data[3])
-        self.crop_flags = data[4:].astype(bool)
+        self.crop_flags = dict(zip(crop_numbers, data[4:].astype(bool)))
         self.ncrops = len(self.crop_flags)
 
     def init_cuttings_from_row(self, data):
         """ Parse the row of data """
-        self.cuttingsLat = float(data[2])
+        ##self.cuttingsLat = float(data[2])
         self.dairy_cuttings = int(data[3])
         self.beef_cuttings = int(data[4])
 
@@ -178,6 +192,160 @@ class ETCell:
              ##'Harg': zero_array,
              ##'Dates': np.asarray(date_str_list),
              'Dates': np.asarray(struct_time_list)}        
+
+    def process_climate(self, nsteps):
+        """ 
+        
+        compute long term averages (DAY LOOP)
+            adjust and check temperature data
+            process alternative TMax and TMin
+        fill in missing data with long term doy average (DAY LOOP)
+            Calculate an estimated depth of snow on ground using simple melt rate function))
+            compute main cumGDD for period of record for various bases for constraining earliest/latest planting or GU
+            only Tbase = 0 needs to be evaluated (used to est. GU for alfalfa, mint, hops)
+        compute long term mean cumGDD0 from sums (JDOY LOOP)
+
+        AltTMaxArray, AltTMinArray in code has to do with when future climate
+        gets so much warmer that annuals are starting too soon, in this case,
+        they used the historical, ie, AltTMaxArray, AltTMinArray == historical,
+        so IGNORE   
+
+        Also lots of missing data substitution stuff going on, ignore, this
+        should be taken care of outside of process
+        """
+        ##logging.debug(pprint.pformat(self.refet))
+
+        aridity_adj = [0., 0., 0., 0., 1., 1.5, 2., 3.5, 4.5, 3., 0., 0., 0.]
+
+        ## Hold onto original TMax value for computing RHmin later on (for Kco), 12/2007, Allen
+        tmax_array = np.copy(self.refet['TMax'])
+        tmin_array = np.copy(self.refet['TMin'])
+
+        ## Seems most/all of what goes on in day loop could be done with array math    
+        ## Maybe change later after validating code
+        #for i,ts in enumerate(self.refet['ts']):
+        for i,ts in enumerate(self.refet['Dates'][:nsteps]):
+            logging.debug((i,ts,type(ts)))
+
+            month = ts[1]
+            day = ts[2]
+
+            ## Compute long term averages
+            ## Adjust and check temperature data
+            ## Adjust T's downward if station is arid
+            if self.aridity_rating > 0:
+                # Interpolate value for aridity adjustment
+                moa_frac = month + (day - 15) / 30.4
+                moa_frac = min([max([moa_frac, 1]), 11])
+                #moa_base = Int(CDbl(moa_frac))
+                #moa_base, frac = math.modf(moa_frac)
+                moa_base = int(moa_frac)
+                arid_adj = (
+                    aridity_adj[moa_base] +
+                    (aridity_adj[moa_base + 1] - aridity_adj[moa_base]) *
+                    (moa_frac - moa_base))
+                logging.debug(tmax_array[i])
+                ##logging.debug('Tmax: {0}'.format(tmax[i]))
+                tmax_array[i] -= self.aridity_rating / 100. * arid_adj
+                tmin_array[i] -= self.aridity_rating / 100. * arid_adj
+                logging.debug((moa_frac, tmax_array[i]))
+
+                # Fill in missing data with long term doy average
+                # This should be done in separate process,
+                #   prior to any refet or cropet calcs (30 lines of code)
+
+        ## T30 stuff, done after temperature adjustments above
+        tmean_array = (tmax_array + tmin_array) * 0.5
+        t30_array = np.zeros(len(tmax_array)) 
+        nrecord_main_t30 = np.zeros(367)
+        main_t30_lt = np.zeros(367)
+        main_cgdd_0_lt = np.zeros(367)
+        nrecord_main_cgdd = np.zeros(367)
+
+        sd_array = np.copy(self.refet['SnowDepth'])
+        swe_array = np.copy(self.refet['Snow'])
+
+        ## Need to do precip conversion to mm, from hundreths of inches
+        precip_array = np.copy(self.refet['Precip']) * 25.4 / 100.
+
+        main_t30 = 0.0
+        snow_accum = 0.0
+        for i in range(len(self.refet['Dates'][:nsteps])):
+            doy = self.refet['Dates'][i][7] 
+
+            ## Calculate an estimated depth of snow on ground using simple melt rate function))
+            if len(sd_array) > 0:
+                snow = swe_array[i]
+                snow_depth = sd_array[i]
+                
+                ### [140610] TP, the ETo file has snow in hundreths, not tenths????
+                snow = snow / 10 * 25.4 #'tenths of inches to mm
+                swe_array[i] = snow
+                #snow = swe_array(sdays - 1)  # ???
+                snow_depth = snow_depth * 25.4 #' inches to mm
+                
+                ## Calculate an estimated depth of snow on ground using simple melt rate function))
+                snow_accum += snow * 0.5 #' assume a settle rate of 2 to 1
+                snow_melt = 4 * tmax_array[i] #' 4 mm/day melt per degree C
+                snow_melt = max(snow_melt, 0.0)
+                snow_accum = snow_accum - snow_melt
+                snow_accum = max(snow_accum, 0.0)
+                snow_depth = min(snow_depth, snow_accum)
+                sd_array[i] = snow_depth
+
+            if i > 29:
+                main_t30 = sum(tmean_array[i-29:i+1]) / 30
+            else:
+                main_t30 = (main_t30 * (i) + tmean_array[i]) / (i+1)
+            t30_array[i] = main_t30
+
+            ## Build cummulative over period of record
+            nrecord_main_t30[doy] += 1
+            main_t30_lt[doy] = (main_t30_lt[doy] * (nrecord_main_t30[doy] - 1) +
+                                main_t30) / nrecord_main_t30[doy] 
+
+            logging.debug((i, self.refet['Dates'][i], t30_array[i]))
+
+            ## Compute main cumgdd for period of record for various bases for
+            ##   constraining earliest/latest planting or GU
+            ## Only Tbase = 0 needs to be evaluated
+            ##   (used to est. GU for alfalfa, mint, hops)
+            if i == 0 or doy == 1: 
+                main_gdd_0 = 0.0
+
+            ## Tbase(ctCount) -- have no idea what ctCount value should be, since this
+            ## is before start of CropCycle & each crop has own Tbase value in
+            ## crop_parameters.py, use 0.0 for now, since appears may be ctCount
+            ##  Based on previous comment, assume Tbase = 0.0
+            tbase = 0.0
+            if tmean_array[i] > 0: #' simple method for all other crops
+                gdd = tmean_array[i] - tbase
+            else:
+                gdd = 0.0
+
+            main_gdd_0 = main_gdd_0 + gdd
+            main_cgdd_0_lt[doy] = main_cgdd_0_lt[doy] + main_gdd_0
+            nrecord_main_cgdd[doy] += 1
+
+        ## Compute long term mean cumGDD0 from sums
+        for doy in range(1,367):
+            if nrecord_main_cgdd[doy] > 0:
+                 main_cgdd_0_lt[doy] = main_cgdd_0_lt[doy] / nrecord_main_cgdd[doy]
+            else:
+                 main_cgdd_0_lt[doy] = 0.0
+
+        ## Keep refet values intact & return any 'modified' variables in new mapping 
+        self.climate = {}
+        self.climate['tmax_array'] = tmax_array
+        self.climate['tmin_array'] = tmin_array
+        self.climate['tmean_array'] = tmean_array
+        self.climate['t30_array'] = t30_array
+        self.climate['main_t30_lt'] = main_t30_lt
+        self.climate['main_cgdd_0_lt'] = main_cgdd_0_lt
+        self.climate['snow_depth'] = sd_array
+        self.climate['snow'] = swe_array
+        self.climate['precip'] = precip_array
+
 
 if __name__ == '__main__':
     ##project_ws = os.getcwd()

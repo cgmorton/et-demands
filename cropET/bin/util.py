@@ -35,14 +35,14 @@ def is_winter(data, foo_day):
     Returns:
         A boolean that is True if the input day is in a winter month
     """
-    if data.ctrl['CGDDMainDoy'] < 183:
-        # Northern hemisphere
+    if data.cgdd_main_doy < 183:
+        ## Northern hemisphere
         if foo_day.month < 4 or foo_day.month > 10:
             return True
         else:
             return False
     else:
-        # Southern hemisphere
+        ## Southern hemisphere
         if foo_day.month <= 10 and foo_day.month >= 4:
             return True 
         else:
@@ -81,10 +81,6 @@ def tdew_from_ea(ea):
         NumPy array of vapor pressures [kPa]
     """
     return (237.3 * np.log(ea / 0.6108)) / (17.27 - np.log(ea / 0.6108))
-
-#pDEBUG = True
-#fp = open('DEBUG.txt', 'w')
-
 
 class Output:
     name = None

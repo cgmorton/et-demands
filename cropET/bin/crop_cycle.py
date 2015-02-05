@@ -10,84 +10,71 @@ import numpy as np
 import crop_et_data
 import compute_crop_et
 from initialize_crop_cycle import InitializeCropCycle
-#import setup_crop
+##import setup_crop
 ##import util
 
-VERBOSE = True
-VERBOSE = False
 COMPARE = False
 COMPARE = True
 
 def crop_cycle(data, et_cell, nsteps, basin_id, OUT, odir=''):
     """ """
-    #' following is for one crop grown back to back over entire ETr sequence
-
-    # do bare soil first, before looping through crops
-    # current curve file has 60 curves, so 44 is not correct relative to coefficients
-    '''
-       ' start with crop type 44 (bare soil, winter mulch) and run through last crop first '<------ specific value for crop number
-       ' this is done to compute 'winter covers', which are bare soil, mulch and dormant turf,
-       ' before any crops are processed.  Bare soil is "crop" no. 44.
-    '''
-    # parameters in PMControl, these values are for klamath
-    # currently used to populate cropGDDTriggerDoy & cropGDDTriggerDoy in
-    # data.ctrl[] dictionary, so probably not needed here
-    #CGDDWinterDoy = 274
-    #CGDDMainDoy = 1
-
-    '''
-    ## no curve for bare soil
-    ctCount = 43  # bare soil
-    ctCount = 1  # bare soil
-    crop = data.crop_parameters[ctCount] 
-    print crop
-    pprint(vars(crop))
-    '''
+    ###' following is for one crop grown back to back over entire ETr sequence
+    ##
+    ### do bare soil first, before looping through crops
+    ### current curve file has 60 curves, so 44 is not correct relative to coefficients
+    ##'''
+    ##   ' start with crop type 44 (bare soil, winter mulch) and run through last crop first '<------ specific value for crop number
+    ##   ' this is done to compute 'winter covers', which are bare soil, mulch and dormant turf,
+    ##   ' before any crops are processed.  Bare soil is "crop" no. 44.
+    ##'''
+    ### parameters in PMControl, these values are for klamath
+    ### currently used to populate crop_gdd_trigger_doy in
+    ### data.ctrl[] dictionary, so probably not needed here
+    ###cgdd_winter_doy = 274
+    ###cgdd_main_doy = 1
+    ##
+    ##'''
+    #### no curve for bare soil
+    ##ctCount = 43  # bare soil
+    ##ctCount = 1  # bare soil
+    ##crop = et_cell.crop_params[ctCount] 
+    ##print crop
+    ##pprint(vars(crop))
+    ##'''
 
     logging.info(pprint.pformat(vars(et_cell)))
 
     ## crop loop through all crops, doesn't include bare soil??
-    for i, crop in enumerate(data.crop_parameters):
-        #print i, crop, crop.curve_name, et_cell.crop_flags[i]
+    for crop_num, crop in sorted(et_cell.crop_params.items()):
+        #print crop_num, crop, crop.curve_name, et_cell.crop_flags[crop_num]
 
-        #pprint(vars(crop))
-        # ' check to see if crop/landuse is at station
-        # If cropFlags(ETCellCount, ctCount) > 0 Then
-        if not et_cell.crop_flags[i]:
-            if VERBOSE: print 'NOT USED: ', i+1, crop, crop.class_number, crop.curve_name, et_cell.crop_flags[i]
+        ## Check to see if crop/landuse is at station
+        if not et_cell.crop_flags[crop_num]:
+            logging.debug(('NOT USED: ', crop_num, crop, crop.class_number,
+                           crop.curve_name, et_cell.crop_flags[crop_num]))
             continue
-        if VERBOSE: print i+1,crop, crop.curve_name, crop.crop_gdd_trigger_doy
-        ### for klamath_1:  3,4,11,13,16,17,21,30,44,45,46
-        ### other  6,7,10,19,22,23,25,27,29,33,61,62,63,64
-        #if i+1 not in (6,7,10,19,22,23,25,27,29,33,61,62,63,64):
-        #if i+1 not in (46,):
-        #    continue
+        logging.debug((crop_num, crop, crop.curve_name, crop.crop_gdd_trigger_doy))
 
-        # for Klamath_1, output file (Klamath_pmdata/ET/Klamath_1ETc_KL_2020S0GDD_S0.dat)
-        # shows 11 crops, but (txt_KlamathMetAndDepletionNodes/ETCellsCrops.txt) only flags 10
-
-        # InitializeCropCycle()
         # 'foo' is holder of all these global variables for now
         foo = InitializeCropCycle()
 
-        ## original has tons of i/o setup in here, we will write at end.
-        #pprint(vars(data.crop_coeffs[19]))
+        ## Original has tons of i/o setup in here, we will write at end.
+        #pprint(vars(et_cell.crop_coeffs[19]))
 
         ##### TP04 try to access directly or rename locally
         ##### this reassigns data to simpler names, etc
-        #' first time through for crop, load basic crop parameters and process climate data
-        #setup_crop.crop_load(data, crop, foo)
+        ## First time through for crop, load basic crop parameters and process climate data
         foo.crop_load(data, et_cell, crop)
 
-        # write data for crop
-        cropnn = crop.name.replace(' ','_').replace('/','_').replace('-','_')[:32]
+        ## Write data for crop
+        crop_nn = crop.name.replace(' ','_').replace('/','_').replace('-','_')[:32]
         if COMPARE: 
             if not odir:
                 ofn = 'cet/%s/py/%s_%s.%s' % (
-                    basin_id, et_cell.cell_id, crop.class_number, cropnn)
+                    basin_id, et_cell.cell_id, crop.class_number, crop_nn)
             else:
                 ofn = '%s/%s_%s.%s' % (
-                    odir, et_cell.cell_id, crop.class_number, cropnn)
+                    odir, et_cell.cell_id, crop.class_number, crop_nn)
             ofp = open(ofn, 'w')
             fmt = '%8s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
             header = (
@@ -102,25 +89,22 @@ def crop_cycle(data, et_cell, nsteps, basin_id, OUT, odir=''):
 class DayData:
     def __init__(self):
         """ """
-        ## Used  in compute_crop_gdd(), needs to be persistant during day loop
+        ## Used in compute_crop_gdd(), needs to be persistant during day loop
         self.etref_array = np.zeros(30)
 
 def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
     """ """
-    ## day loop
+    ## Day loop
     foo_day = DayData()
 
-    # originally in ProcessClimate() in vb code
-    if data.ctrl['refETType'] > 0:
+    ## Originally in ProcessClimate() in vb code
+    if data.refet_type > 0:
         refet_array = et_cell.refet['ASCEPMStdETr']
     else:
         refet_array = et_cell.refet['ASCEPMStdETo']
 
-    #for i,ts in enumerate(et_cell.refet['Dates'][:730]):
-    #for i,ts in enumerate(et_cell.refet['Dates'][:18]):
-    #for i,ts in enumerate(et_cell.refet['Dates'][:365]):
     for i, ts in enumerate(et_cell.refet['Dates'][:nsteps]):
-        if VERBOSE: print i, et_cell.refet['Dates'][i]
+        logging.debug((i, et_cell.refet['Dates'][i]))
         doy = ts[7]
         year = ts[0]
         month = ts[1]
@@ -132,13 +116,12 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         #ETr = et_cell.refet['ASCEPMStdETr'][i]
         eto = et_cell.refet['ASCEPMStdETo'][i]
         etref = refet_array[i]
+        logging.debug((doy, year, month, day, precip, wind, tdew, eto, etref))
 
-        if VERBOSE: print doy, year, month, day, precip, wind, tdew,
-        if VERBOSE: print eto, etref
 
         # in original there was 80 lines of alternative Tmax/Tmin for climate change scenarios
         '''
-         ' set TMax, TMin, TMean, T30, long-term T30, and long-term cumGDD
+         ' set TMax, TMin, TMean, T30, long-term T30, and long-term CGDD
          ' as a function of alternative TMax TMin option
          ' blank of zero is no use of alternative TMax and TMin data
          ' 1 is use of alternative TMax and TMin for annual crops only
@@ -152,11 +135,11 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         t30 = et_cell.climate['t30_array'][i]
         # Precip converted to mm in process_climate()
         precip = et_cell.climate['precip'][i]        
-        if VERBOSE: print tmax, tmin, tmean, t30
+        logging.debug((tmax, tmin, tmean, t30))
 
         ## Copies of these were made using loop
-        cumgdd_0lt = np.copy(et_cell.climate['maincumGDD0LT'])
-        t30_lt = np.copy(et_cell.climate['mainT30LT'])
+        cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
+        t30_lt = np.copy(et_cell.climate['main_t30_lt'])
 
         #' this is done before calling ETc
         #' determine if this is a valid day (for use in assessing alfalfa cuttings in that file)
@@ -167,7 +150,7 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         # variables set validDaysPerYear & expectedYear, but seem unused
         # except for printing ???
 
-        if VERBOSE: print crop, crop.curve_name, crop.curve_number
+        logging.debug((crop, crop.curve_name, crop.curve_number))
 
         ## At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
@@ -180,8 +163,8 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
                 foo.in_season, foo.dormant_setup_flag))
             foo.setup_dormant(data, et_cell, crop)
 
-        if VERBOSE: print 'in_season[%s], crop_setup_flag[%s], dormant_setup_flag[%s]' % (
-            foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag)
+        logging.debug(('in_season[%s], crop_setup_flag[%s], dormant_setup_flag[%s]' % (
+            foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag)))
 
         foo_day.sdays = i+1
         foo_day.doy = doy
@@ -197,7 +180,7 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
         foo_day.tmin = tmin
         foo_day.tmax = tmax
         foo_day.snow_depth = et_cell.climate['snow_depth'][i]
-        foo_day.cumgdd_0lt = cumgdd_0lt
+        foo_day.cgdd_0_lt = cgdd_0_lt
         #foo_day.t30_lt = t30_lt
         foo_day.t30 = t30
         foo_day.precip = precip
@@ -234,11 +217,11 @@ def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
 
         #pprint(vars(foo_day))
         #print len(foo_day.T30LT)
-        #pprint(et_cell.climate['mainT30LT'])
-        #pprint(et_cell.climate['maincumGDD0LT'])
+        #pprint(et_cell.climate['main_t30_lt'])
+        #pprint(et_cell.climate['main_cgdd_0_LT'])
         #pprint(vars(foo))
 
-        if VERBOSE: print 'ZZZ', i, et_cell.refet['Dates'][i]
+        logging.debug(('ZZZ', i, et_cell.refet['Dates'][i]))
     #print et_cell.num_crop_sequence
     #pprint(vars(data))
 

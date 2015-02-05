@@ -12,7 +12,7 @@ class InitializeCropCycle:
     aw = 0
     aw3 = 0.
     cn2 = 0.
-    cumgdd = 0.0
+    cgdd = 0.0
     cum_et = 0.
     cummevap = 0.
     cummevap1 = 0.
@@ -24,14 +24,14 @@ class InitializeCropCycle:
     dpe = 0.
     dpe_yest = 0.
     dr = 0.
-    #ei = 0
-    #ep = 0
+    ##ei = 0
+    ##ep = 0
     etc_act = 0.
     etc_pot = 0.
     etc_bas = 0.
     etref_30 = 0.                 #' thirty day mean ETref  ' added 12/2007
     fc = 0.
-    #few = 0
+    ##few = 0
     fw = 0.
     fw_spec = 0.
     fw_std = 0.
@@ -41,12 +41,12 @@ class InitializeCropCycle:
     hmax = 0.
     height = 0
     irr_auto = 0.
-    #irr_manual = 0
-    #irr_real = 0
-    #irr_special = 0
+    ##irr_manual = 0
+    ##irr_real = 0
+    ##irr_special = 0
     irr_simulated = 0.
     kc_act = 0.
-    #kc_pot = 0
+    ##kc_pot = 0
     kc_max = 0.
     kc_min = 0.
     kcb = 0.
@@ -54,20 +54,20 @@ class InitializeCropCycle:
     ke = 0.
     kei = 0
     kep = 0.
-    #kr = 0
+    ##kr = 0
     kr2 = 0.
     ks = 0.
-    #kt_prop = 1
+    ##kt_prop = 1
     kt_reducer = 1.
     mad = 0.
     mad_ini = 0.
     mad_mid = 0.0
     ppt_inf = 0.
     ppt_inf_yest = 0.
-    #ppt_net4 = 0
-    #ppt_net3 = 0
-    #ppt_net2 = 0
-    #ppt_net1 = 0
+    ##ppt_net4 = 0
+    ##ppt_net3 = 0
+    ##ppt_net2 = 0
+    ##ppt_net1 = 0
     rew = 0.
     tew = 0.
     tew2 = 0.
@@ -85,7 +85,7 @@ class InitializeCropCycle:
     lDoy = 0
     frost_flag = 0.
     penalty = 0.
-    cumgdd_penalty = 0.
+    cgdd_penalty = 0.
     l_cumgdd = 0.
     pressure = 0.0
     n_cumgdd = 0.
@@ -94,7 +94,7 @@ class InitializeCropCycle:
     #Kcmult = 1
     SRO = 0.
     Dpr = 0.
-    jd_start_cycle = 0
+    doy_start_cycle = 0
 
     real_start = False
     irr_flag = False
@@ -107,7 +107,7 @@ class InitializeCropCycle:
     # but needed for setup_dormant() below...
     totwatinZe = 0.0
 
-    cumgdd_at_planting = 0.0
+    cgdd_at_planting = 0.0
 
     ### TP added these
     # from modCropET.vb
@@ -142,8 +142,6 @@ class InitializeCropCycle:
     # Called in kcb_daily for startup/greenup type 1, 2, and 3 when startup conditions are met
     def setup_crop(self, crop):
         #' zr_dormant was never assigned a value - what's its purpose - dlk 10/26/2011 ???????????????????
-    
-        #Dim zr_dormant As Double = 0.0
         zr_dormant = 0.0
     
         #' setup_crop is called from crop_cycle if is_season is false and crop_setup_flag is true
@@ -187,26 +185,23 @@ class InitializeCropCycle:
             self.dr = (
                 self.dr + (taw3 - daw3) *
                 (self.zrn - zr_dormant) / (self.zrx - zr_dormant))
-        else:
-            if self.zrx > self.zrn:
-                # Was, until 5/9/07:
-                # Assume moisture right above zr_dormant is same as below
-                #dr = dr - (taw3 - daw3) * (zr_dormant - zrn) / (zrx - zrn) 
-                # Following added 5/9/07
-                # Enlarge depth of water
-                daw3 = (
-                    daw3 + (zr_dormant - self.zrn) / zr_dormant *
-                    (self.aw * zr_dormant - self.dr))
-                # Adjust dr in proportion to zrn / zdormant and increase daw3 and AW3
-                self.dr = self.dr * self.zrn / zr_dormant
-                # The denom is layer 3 depth at start of season
-                self.aw3 = daw3 / (self.zrx - self.zrn) 
-                if self.aw3 < 0.:
-                    self.aw3 = 0.
-                if self.aw3 > self.aw:
-                    self.aw3 = self.aw
-            else:
-                self.dr = self.dr
+        elif self.zrx > self.zrn:
+            # Was, until 5/9/07:
+            # Assume moisture right above zr_dormant is same as below
+            #dr = dr - (taw3 - daw3) * (zr_dormant - zrn) / (zrx - zrn) 
+            # Following added 5/9/07
+            # Enlarge depth of water
+            daw3 = (
+                daw3 + (zr_dormant - self.zrn) / zr_dormant *
+                (self.aw * zr_dormant - self.dr))
+            # Adjust dr in proportion to zrn / zdormant and increase daw3 and AW3
+            self.dr = self.dr * self.zrn / zr_dormant
+            # The denom is layer 3 depth at start of season
+            self.aw3 = daw3 / (self.zrx - self.zrn) 
+            if self.aw3 < 0.:
+                self.aw3 = 0.
+            if self.aw3 > self.aw:
+                self.aw3 = self.aw
         if self.dr < 0.:
             self.dr = 0.
         # Initialize rooting depth at beginning of time  <----DO??? Need recalc on Reserve?
@@ -233,11 +228,11 @@ class InitializeCropCycle:
         # kcb_mid is the maximum kcb found in the kcb table read into program
         # Following code was repaired to properly parse crop curve arrays on 7/31/2012.  dlk
         #print 'cCurveNo', crop.curve_number
-        #pprint(vars(data.crop_coeffs[cCurveNo]))
+        #pprint(vars(et_cell.crop_coeffs[cCurveNo]))
         self.kcb_mid = 0.
         ## Bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
         if crop.curve_number > 0:
-            self.kcb_mid = data.crop_coeffs[crop.curve_number].max_value(self.kcb_mid)
+            self.kcb_mid = et_cell.crop_coeffs[crop.curve_number].max_value(self.kcb_mid)
         #print 'initialize_crop_cycle', self.kcb_mid, cCurveNo
 
         # Available water in soil    
@@ -247,11 +242,11 @@ class InitializeCropCycle:
     
         # Setup curve number for antecedent II condition
         if et_cell.stn_hydrogroup == 1:   
-            self.cn2 = crop.curve_number_coarse_soil
-        if et_cell.stn_hydrogroup == 2:   
-            self.cn2 = crop.curve_number_medium_soil
-        if et_cell.stn_hydrogroup == 3:   
-            self.cn2 = crop.curve_number_fine_soil
+            self.cn2 = crop.cn_coarse_soil
+        elif et_cell.stn_hydrogroup == 2:   
+            self.cn2 = crop.cn_medium_soil
+        elif et_cell.stn_hydrogroup == 3:   
+            self.cn2 = crop.cn_fine_soil
         self.cn2_crop = self.cn2
     
         # Estimate readily evaporable water and total evaporable water from WHC
@@ -270,14 +265,26 @@ class InitializeCropCycle:
         self.kr2 = 0 #' Kr2Array(ctCount)'(no severely cracking clays in Idaho)
         self.fw_std = crop.crop_fw #' fwarray(ctCount)
     
-        # Irrigation flag
-        self.irr_flag = False #' no irrigations for this crop or station
-        if crop.irrigation_flag > 0:
+        ## Irrigation flag
+        ## CGM - How are these different?
+        ## For flag=1 or 2, turn irrigation on for a generally 'irrigated' region
+        ## For flag=3, turn irrigation on for specific irrigated crops even in nonirrigated region
+        ## Added Jan 2007 to force grain and turf irrigation in rainfed region
+        if crop.irrigation_flag >= 1:
             self.irr_flag = True #' turn irrigation on for a generally 'irrigated' region
-        if crop.irrigation_flag < 1:
-            self.irr_flag = False #' turn irrigation off even in irrigated region if this crop has no flag
-        if crop.irrigation_flag > 2:  #' added Jan 2007 to force grain and turf irrigation in rainfed region
-            self.irr_flag = True #' turn irrigation on for specific irrigated crops even in nonirrigated region if this crop has flag=3
+        ## Either no irrigations for this crop or station or 
+        ##   turn irrigation off even in irrigated region if this crop has no flag
+        else:
+            self.irr_flag = False #' no irrigations for this crop or station
+            
+        ## CGM - Original code for setting irrigation flag
+        ##self.irr_flag = False #' no irrigations for this crop or station
+        ##if crop.irrigation_flag > 0:
+        ##    self.irr_flag = True #' turn irrigation on for a generally 'irrigated' region
+        ##if crop.irrigation_flag < 1:
+        ##    self.irr_flag = False #' turn irrigation off even in irrigated region if this crop has no flag
+        ##if crop.irrigation_flag > 2:  #' added Jan 2007 to force grain and turf irrigation in rainfed region
+        ##    self.irr_flag = True #' turn irrigation on for specific irrigated crops even in nonirrigated region if this crop has flag=3
         self.setup_crop(crop)
 
     def setup_dormant(self, data, et_cell, crop):
@@ -304,21 +311,21 @@ class InitializeCropCycle:
         if wscc == 1:        #' bare soil
             self.kcb = 0.1   #' was 0.2
             self.fc = 0
-        if wscc == 2:        #' Mulched soil, including wheat stubble
+        elif wscc == 2:        #' Mulched soil, including wheat stubble
             self.kcb = 0.1   #' was 0.2
             self.fc = 0.4
-        if wscc == 3:        #' Dormant turf/sod (winter time)
+        elif wscc == 3:        #' Dormant turf/sod (winter time)
             self.kcb = 0.2   #' was 0.3
             self.fc = 0.7    #' was 0.6
 
         #' setup curve number for antecedent II condition for winter covers
-        #print wscc, data.crop_parameters[wscc+43-1] 
+        #print wscc, et_cell.crop_params[wscc+43-1] 
         if et_cell.stn_hydrogroup == 1:   
-            self.cn2 = data.crop_parameters[wscc+43-1].curve_number_coarse_soil
-        if et_cell.stn_hydrogroup == 2:   
-            self.cn2 = data.crop_parameters[wscc+43-1].curve_number_medium_soil
-        if et_cell.stn_hydrogroup == 3:   
-            self.cn2 = data.crop_parameters[wscc+43-1].curve_number_fine_soil
+            self.cn2 = et_cell.crop_params[wscc+43-1].cn_coarse_soil
+        elif et_cell.stn_hydrogroup == 2:   
+            self.cn2 = et_cell.crop_params[wscc+43-1].cn_medium_soil
+        elif et_cell.stn_hydrogroup == 3:   
+            self.cn2 = et_cell.crop_params[wscc+43-1].cn_fine_soil
 
         # Assume that 'rooting depth' for dormant surfaces is 0.1 or 0.15 m
         # This is depth that will be applied with a stress function to reduce kcb
@@ -335,10 +342,10 @@ class InitializeCropCycle:
         #' Add TAW - Dr that is in root zone below zr_dormant.
         #' Assume fully mixed root zone inclding zr_dormant part
 
+        #' potential water in root zone
         taw_root = self.aw * (self.zr) #' potential water in root zone
-        daw_root = taw_root - self.dr #' actual water in root zone based on Dr at end of season
-        if daw_root < 0: 
-            daw_root = 0
+        #' actual water in root zone based on Dr at end of season
+        daw_root = max(taw_root - self.dr, 0) 
         ze = 0.1 #' depth of evaporation layer   #' (This only works when ze < zr_dormant)
         if zr_dormant < self.zr:  #' reduce daw_root by water in  evap layer and rest of zrdormant and then proportion
 
@@ -380,11 +387,10 @@ class InitializeCropCycle:
         #' dr_below_Ze = (dr - de) #' / (zr - ze) #'mm/m
         #' If dr_below_ze < 0 Then dr_below_ze = 0
         #' dr = dr_below_ze * (zr_dormant - ze) / (zr - ze) + de  #'assume fully mixed profile below Ze
-
+            
         self.dr = self.aw * zr_dormant - totwatinzr_dormant
 
         #' set Zr for dormant season
-
         self.zr = zr_dormant
 
         #' This value for zr will hold constant all dormant season.  dp from zr will be
