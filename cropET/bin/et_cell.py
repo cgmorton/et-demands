@@ -84,7 +84,7 @@ class ETCell:
         self.dairy_cuttings = int(data[3])
         self.beef_cuttings = int(data[4])
 
-    def set_daily_refet_data(self, fn, skip_rows=2):
+    def set_daily_refet_data(self, fn, skip_rows=2, delimiter=' '):
         """Read the RefET data file for a single station
 
         Observed
@@ -105,12 +105,13 @@ class ETCell:
         Args:
             fn: string
             skip_rows: integer indicating the number of header rows to skip
+            delimiter: string used to separate values
         Returns:
             Dictionary of the NLDAS data, keys are the columns,
                 and values are numpy arrays of the data
         """
         
-        a = np.loadtxt(fn, dtype='str', skiprows=skip_rows)
+        a = np.loadtxt(fn, dtype='str', skiprows=skip_rows, delimiter=delimiter)
 
         ## May want to save the date field(s) as some point
         date_list = a[:,0].tolist()

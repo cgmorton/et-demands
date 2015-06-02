@@ -49,7 +49,10 @@ def main(basin_id, output_ws, refet_fmt, txt_ws,
         cell.static_crop_coeffs(os.path.join(txt_ws, 'CropCoefs.txt'))
     
         ## Need to pass elevation to calculate pressure, ea, and Tdew
-        cell.set_daily_nldas_data(refet_fmt % (cell.refET_id))
+        cell.set_daily_refet_data(
+            refet_fmt % (cell.refET_id), skip_rows=2, delimiter=',')
+        ##cell.set_daily_refet_data(refet_fmt % (cell.refET_id)\)
+        ##cell.set_daily_nldas_data(refet_fmt % (cell.refET_id))
 
         ## This impacts the long-term variables, like main_cgdd_0_lt & main_t30_lt
         if not nsteps:
@@ -65,8 +68,12 @@ def main(basin_id, output_ws, refet_fmt, txt_ws,
 if __name__ == '__main__':
     output_ws = os.path.join(os.getcwd(), 'cet')
     output_help = os.path.join('cwd', 'cet')
-    refet_fmt = os.path.join(os.getcwd(), r'pmdata\ETo\NLDAS4km_%s.csv')
-    refet_help = os.path.join('cwd', r'pmdata\ETo\NLDAS4km_%%s.csv')
+    ## What is the difference between refet_fmt and refet_help
+    refet_fmt = os.path.join(os.getcwd(), r'pmdata\ETo\%sE2.dat')
+    refet_help = os.path.join('cwd', r'pmdata\ETo\\%%sE2.dat')
+    ## NLDAS Defaults
+    ##refet_fmt = os.path.join(os.getcwd(), r'pmdata\ETo\NLDAS4km_%s.csv')
+    ##refet_help = os.path.join('cwd', r'pmdata\ETo\NLDAS4km_%%s.csv')
     text_ws = os.path.join(os.getcwd(), r'static')
     text_help = os.path.join('cwd', r'static')
     
