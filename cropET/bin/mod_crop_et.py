@@ -17,21 +17,25 @@ def main(basin_id, output_ws, refet_fmt, txt_ws,
     """ Main function for running the Crop ET model
 
     Args:
-        basin_id - String of the basin/project name
-        output_ws - Path/folder to save output file
-        refet_fmt - String format of the RefET data.  
-        txt_ws - Path/folder of the input static text file
-        nsteps - Integer indicating the number of time steps to process
-        ncells - Integer indicating the number of cells to process
+        basin_id (str) - basin/project name
+        output_ws (str) - folder path of the output file
+        refet_fmt (str) - format of the RefET data.  
+        txt_ws (str) - folder path of the input static text file
+        nsteps (int): number of time steps to process
+        ncells (int): number cells to process
         OUT - ?
+
     Returns:
         None
     """
+    logging.info('ET-Demands')
+    logging.debug('  Basin: {}'.format(basin_id))
 
     ## All data will be handled in this class
     data = crop_et_data.CropETData()
 
     ## Read in cell properties, crops and cuttings
+    logging.debug('  Static workspace: {}'.format(txt_ws))
     data.static_cell_properties(os.path.join(txt_ws, 'ETCellsProperties.txt'))
     data.static_cell_crops(os.path.join(txt_ws, 'ETCellsCrops.txt'))
     data.static_mean_cuttings(os.path.join(txt_ws, 'MeanCuttings.txt'))
@@ -49,9 +53,7 @@ def main(basin_id, output_ws, refet_fmt, txt_ws,
         cell.static_crop_coeffs(os.path.join(txt_ws, 'CropCoefs.txt'))
     
         ## Need to pass elevation to calculate pressure, ea, and Tdew
-        cell.set_daily_refet_data(
-            refet_fmt % (cell.refET_id), skip_rows=2, delimiter=',')
-        ##cell.set_daily_refet_data(refet_fmt % (cell.refET_id)\)
+        cell.set_daily_refet_data(refet_fmt % (cell.refET_id), skiprows=[1])
         ##cell.set_daily_nldas_data(refet_fmt % (cell.refET_id))
 
         ## This impacts the long-term variables, like main_cgdd_0_lt & main_t30_lt
@@ -90,7 +92,7 @@ if __name__ == '__main__':
         '--nsteps', default=0, metavar='N', type=int,
         help='Number of cells')
     parser.add_argument(
-        '-o', '--output',  metavar='PATH', default=output_ws,
+        '--output',  metavar='PATH', default=output_ws,
         help='Output workspace/path [%s]' % output_help)
     parser.add_argument(
         '--refet', metavar='FMT', default=refet_fmt, 
@@ -115,6 +117,15 @@ if __name__ == '__main__':
     OUT = util.Output(args.output, DEBUG=False)
     ##OUT = util.Output(args.output, debug_flag=args.verbose)
 
+    ## Convert relative paths to absolute paths
+    if args.output and os.path.isdir(os.path.abspath(args.output)):
+        args.output = os.path.abspath(args.output)
+    if args.refet and os.path.isfile(os.path.abspath(args.refet)):
+        args.refet = os.path.abspath(args.refet)
+    if args.text and os.path.isfile(os.path.abspath(args.text)):
+        args.text = os.path.abspath(args.text)
+
+    ##
     main(basin_id=args.basin_id, output_ws=args.output,
          refet_fmt=args.refet, txt_ws=args.text,
          nsteps=args.nsteps, ncells=args.ncells, OUT=OUT)

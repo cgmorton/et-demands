@@ -8,6 +8,7 @@ import sys
 import time
 
 import numpy as np
+import pandas as pd
 
 import crop_parameters
 import crop_coefficients
@@ -41,7 +42,7 @@ class ETCell:
         aridity_rating, refETPaths
 
         Args:
-            data: list of row values
+            data (list): row values
 
         """
         self.cell_id = data[0]
@@ -68,9 +69,11 @@ class ETCell:
         ##    self.cell_lat = float(data[13])
         ##    self.cell_lon = float(data[14])
         ##    self.cell_elev = float(data[15])
-        self.cell_lat = float(data[13])
-        self.cell_lon = float(data[14])
-        self.cell_elev = float(data[15])
+
+        ## DEADBEEF - For now assume station and cell have the same lat/lon/elev
+        ##self.cell_lat = float(data[13])
+        ##self.cell_lon = float(data[14])
+        ##self.cell_elev = float(data[15])
 
     def init_crops_from_row(self, data, crop_numbers):
         """ Parse the row of data """
@@ -84,51 +87,41 @@ class ETCell:
         self.dairy_cuttings = int(data[3])
         self.beef_cuttings = int(data[4])
 
-    def set_daily_refet_data(self, fn, skip_rows=2, delimiter=' '):
-        """Read the RefET data file for a single station
-
-        Observed
-        Station Coop No: 101       Lat:  39.44 Long: -118.81 Elev  3964 ft
-        Monthly Wind Station Id:1007 Newlands  Monthly Ko Station Id:1007 Newlands  Computed at 02:27:30 PM  Tuesday, Dec 20, 2011
-          mo  da  Yr  DoY   TMax   TMin  Precip  Snow  SDep EstRs EsWind EsTDew Penm48 PreTay ASCEr  ASCEg  85Harg
-                             C     C     In*100 In*100  In  MJ/m2   m/s    C    mm/day mm/day mm/day mm/day mm/day 
-           1   1  1950   1    12.7   -8.7    0     0     0    9.74   1.28  -7.7   0.98   0.16   1.85   1.11   1.19
-           1   2  1950   2    14.3   -6.6    0     0     0    9.67   1.28  -5.6   1.03   0.17   1.92   1.15   1.30
-           1   3  1950   3    -0.5  -19.8    0     0     0    9.74   1.28 -18.8   0.61   0.20   1.03   0.65   0.44
+    def set_daily_refet_data(self, fn, skiprows=[1]):
+        """Read the RefET data file for a single station using Pandas
 
         Klamath_pmdata/ETo/OR1571E2_KL_2020_S0.dat
-        Date    TMax    TMin    Precip  Snow    SDep    EstRs   EsWind  EsTDew  Penm48  PreTay  ASCEr   ASCEg   85Harg
-            C   C   In*100  In*100  In  MJ/m2   m/s C   mm/day  mm/day  mm/day  mm/day  mm/day
-        1/1/1950 -1.655943 -14.90594 7.034732 0 0 7.7162696684745 1.43687307834625 -13.12652 0.381984510542489 0.0587799121198262 0.665315332840188 0.401054956936277 0.386316892227767
-        1/2/1950 -1.825944 -13.92594 3.085409 0 0 7.42927547945495 1.43687307834625 -12.14653 0.3694645610536 0.0782057303930262 0.612602954878387 0.375671086093519 0.386741543162141
+        Example of data file:
+            Date TMax TMin Precip Snow SDep EstRs EsWind EsTDew Penm48 PreTay ASCEr ASCEg 85Harg
+                 C    C    In*100 In*100 In MJ/m2 m/s    C      mm/day mm/day mm/day mm/day mm/day
+            1/1/1950 -1.655943 -14.90594 7.0347 0 0 7.7163 1.4369 -13.12652 0.3820 0.05878 0.6653 0.4011 0.3863
+            1/2/1950 -1.825944 -13.92594 3.0854 0 0 7.4293 1.4369 -12.14653 0.3694 0.07820 0.6126 0.3757 0.3867
 
         Args:
-            fn: string
-            skip_rows: integer indicating the number of header rows to skip
-            delimiter: string used to separate values
+            fn (str): file path to the RefET data file
+            skiprows (list): collection of row numbers to skip in header
+
         Returns:
-            Dictionary of the NLDAS data, keys are the columns,
+            Dictionary of the RefET data, keys are the columns,
                 and values are numpy arrays of the data
         """
-        
-        a = np.loadtxt(fn, dtype='str', skiprows=skip_rows, delimiter=delimiter)
-
-        ## May want to save the date field(s) as some point
-        date_list = a[:,0].tolist()
-        a = a[:,1:].astype(float)
+        eto_pd = pd.read_csv(fn, skiprows=skiprows)
 
         # time.struct_time(tm_year=1950, tm_mon=1, tm_mday=3, tm_hour=0, tm_min=0,
         # tm_sec=0, tm_wday=1, tm_yday=3, tm_isdst=-1)
-        struct_time_list = [time.strptime(s, "%m/%d/%Y") for s in date_list]
-        
+        struct_time_array = np.array([
+            time.strptime(s, "%m/%d/%Y") for s in eto_pd['Date'].tolist()])
+        ##date_array = np.array(eto_pd['Date'])
+
         self.refet = {
-             'TMax': a[:,0], 'TMin': a[:,1],
-             'Precip': a[:,2], 'Snow': a[:,3], 'SnowDepth': a[:,4],
-             'EstRs': a[:,5], 'Wind': a[:,6], 'TDew': a[:,7],
-             'ASCEPMStdETr': a[:,10], 'ASCEPMStdETo': a[:,11],
-             ##'Penman':  a[:,8], 'PreTay': a[:,9], 'Harg': a[:,12],
-             ##'Dates': np.asarray(date_list),
-             'Dates': np.asarray(struct_time_list)}
+             'TMax': eto_pd['TMax'], 'TMin': eto_pd['TMin'],
+             'Precip': eto_pd['Precip'], 'Snow': eto_pd['Snow'], 
+             'SnowDepth': eto_pd['SDep'], 'Rs': eto_pd['EstRs'], 
+             'Wind': eto_pd['EsWind'], 'TDew': eto_pd['EsTDew'],
+             'ASCEPMStdETr': eto_pd['ASCEr'], 'ASCEPMStdETo': eto_pd['ASCEg'],
+             'Dates': struct_time_array}
+             ##'Penman':  a['Penm48'], 'PreTay': a['PreTay'], 'Harg': a['85Harg'],
+             ##'Dates': date_array,
 
     def set_daily_nldas_data(self, fn):
         """Read the NLDAS data rod CSV file for a single station
@@ -148,7 +141,8 @@ class ETCell:
             ETo__2m_mm_day1,ETr__2mmm_day1
 
         Args:
-            fn: string
+            fn (str): file path to the NLDAS data file
+
         Returns:
             Dictionary of the NLDAS data, keys are the columns,
                 and values are numpy arrays of the data
