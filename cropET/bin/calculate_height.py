@@ -1,6 +1,7 @@
-from pprint import pprint
+import logging
+##from pprint import pprint
 
-def calculate_height(crop, foo, OUT):
+def calculate_height(crop, foo):
     """Determine height of crop based on Kc and height limits"""
     height_min = crop.height_initial
     height_max = crop.height_maximum
@@ -19,10 +20,12 @@ def calculate_height(crop, foo, OUT):
     else:
         foo.hcrop = height_min
 
-    s = ('1calculate_height(): unadj_height %s  kcb %s  kcmin %s  '+
-         'kcb_mid %s hmin %s  hmax %s\n')
-    t = (foo.height, foo.kcb, foo.kc_min, foo.kcb_mid, height_min, height_max)
-    OUT.debug(s % t)
+    logging.debug(
+        ('calculate_height(): unadj_height %s  kcb %s  kcmin %s  kcb_mid %s') %
+        (foo.height, foo.kcb, foo.kc_min, foo.kcb_mid))
+    logging.debug(
+        ('calculate_height(): hmin %s  hmax %s') %
+        (height_min, height_max))
 
     foo.height = min(max(height_min, max(height_prev, foo.height)), height_max)
     #print crop, height_min, height_max, foo.kcb, foo.kc_min, foo.kcb_mid, foo.height

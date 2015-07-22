@@ -106,6 +106,7 @@ class ETCell:
                 and values are numpy arrays of the data
         """
         eto_pd = pd.read_csv(fn, skiprows=skiprows)
+        ##logging.debug(list(eto_pd.columns.values))
 
         # time.struct_time(tm_year=1950, tm_mon=1, tm_mday=3, tm_hour=0, tm_min=0,
         # tm_sec=0, tm_wday=1, tm_yday=3, tm_isdst=-1)
@@ -149,7 +150,7 @@ class ETCell:
         """
 
         a = np.genfromtxt(fn, delimiter=',', names=True)
-        ##print a.dtype.names
+        ##logging.debug(a.dtype.names)
      
         date_str_list = ['{0}/{1}/{2}'.format(int(m),int(d),int(y))
                          for y, m, d in zip(a['Year'], a['Month'], a['Day'])]
@@ -220,8 +221,6 @@ class ETCell:
         ## Maybe change later after validating code
         #for i,ts in enumerate(self.refet['ts']):
         for i,ts in enumerate(self.refet['Dates'][:nsteps]):
-            logging.debug((i,ts,type(ts)))
-
             month = ts[1]
             day = ts[2]
 
@@ -232,18 +231,15 @@ class ETCell:
                 # Interpolate value for aridity adjustment
                 moa_frac = month + (day - 15) / 30.4
                 moa_frac = min([max([moa_frac, 1]), 11])
-                #moa_base = Int(CDbl(moa_frac))
+                #moa_base = int(CDbl(moa_frac))
                 #moa_base, frac = math.modf(moa_frac)
                 moa_base = int(moa_frac)
                 arid_adj = (
                     aridity_adj[moa_base] +
                     (aridity_adj[moa_base + 1] - aridity_adj[moa_base]) *
                     (moa_frac - moa_base))
-                logging.debug(tmax_array[i])
-                ##logging.debug('Tmax: {0}'.format(tmax[i]))
                 tmax_array[i] -= self.aridity_rating / 100. * arid_adj
                 tmin_array[i] -= self.aridity_rating / 100. * arid_adj
-                logging.debug((moa_frac, tmax_array[i]))
 
                 # Fill in missing data with long term doy average
                 # This should be done in separate process,
@@ -298,8 +294,6 @@ class ETCell:
             nrecord_main_t30[doy] += 1
             main_t30_lt[doy] = (main_t30_lt[doy] * (nrecord_main_t30[doy] - 1) +
                                 main_t30) / nrecord_main_t30[doy] 
-
-            logging.debug((i, self.refet['Dates'][i], t30_array[i]))
 
             ## Compute main cumgdd for period of record for various bases for
             ##   constraining earliest/latest planting or GU

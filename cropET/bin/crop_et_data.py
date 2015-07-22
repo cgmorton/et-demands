@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
+import logging
 import os
 from pprint import pprint
 import sys
@@ -42,8 +43,9 @@ class CropETData():
         This function will build the ETCell objects and must be run first.
 
         Args:
-            fn: file path  of the ET cell properties text file
-            delimiter: string of the file delimiter value
+            fn (str): file path of the ET cell properties text file
+            delimiter (str): file delimiter (i.e. space, comma, tab, etc.)
+            
         Returns:
             None
         """
@@ -63,8 +65,9 @@ class CropETData():
         """Extract the ET cell crop data from the text file
 
         Args:
-            fn: file path  of the ET cell crops text file
-            delimiter: string of the file delimiter value
+            fn (str): file path  of the ET cell crops text file
+            delimiter (str): file delimiter (i.e. space, comma, tab, etc.)
+            
         Returns:
             None
         """
@@ -90,9 +93,10 @@ class CropETData():
         """Extract the mean cutting data from the text file
 
         Args:
-            fn: file path of the mean cuttings text file
-            delimiter: string of the file delimiter value
-            skip_rows: integer indicating the number of header rows to skip
+            fn (str): file path of the mean cuttings text file
+            delimiter (str): file delimiter (i.e. space, comma, tab, etc.)
+            skip_rows (str): number of header rows to skip
+            
         Returns:
             None
         """
@@ -102,7 +106,6 @@ class CropETData():
         for i, line in enumerate(a):
             row = line.split(delimiter)
             cell_id = row[1]
-            #print cell_id
             if cell_id not in self.et_cells.keys():
                 logging.error(
                     'read_mean_cuttings(), cell_id %s not found' % cell_id)

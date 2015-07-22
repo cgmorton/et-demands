@@ -1,6 +1,8 @@
-def runoff(foo, foo_day, OUT):
+import logging
+
+def runoff(foo, foo_day):
     """Curve number method for computing runoff."""
-    ## print 'in runoff()...'
+    logging.debug('\nin runoff()')
 
     ## Bring in CNII for antecedent condition II from crop-soil combination
     ## Check to insure CNII is within limits
@@ -33,30 +35,34 @@ def runoff(foo, foo_day, OUT):
                 ((foo.depl_surface - AWCIII) * CNI +
                  (AWCI - foo.depl_surface) * CNIII) / (AWCI - AWCIII))
     foo.s = 250 * (100 / cn - 1)
-    s = 'runoff():a cn %s  depl_surface %s  AWCIII %s  CNI %s  AWCI %s  CNIII %s\n'
-    t = (cn, foo.depl_surface, AWCIII, CNI, AWCI, CNIII) 
-    OUT.debug(s % t)
+    logging.debug(
+        ('runoff(): cn %.6f  depl_surface %s  AWCIII %.6f  ') %
+        (cn, foo.depl_surface, AWCIII) )
+    logging.debug(
+        ('runoff(): CNI %.6f  AWCI %.6f  CNIII %.6f') %
+        (CNI, AWCI, CNIII) )
 
     ## If irrigations are automatically scheduled, base runoff on an average of
     ##   conditions for prior four days to smooth results.
-    OUT.debug('runoff():b SRO %s  irr_flag %s  S %s\n' % (
-        foo.SRO, foo.irr_flag, foo.s))
+    logging.debug('runoff(): SRO %s  irr_flag %s  S %.6f' % (
+        foo.sro, foo.irr_flag, foo.s))
     if foo.irr_flag:    
         # Initial abstraction
         ppt_net4 = max(foo_day.precip - 0.2 * foo.S4, 0)
         ppt_net3 = max(foo_day.precip - 0.2 * foo.S3, 0)
         ppt_net2 = max(foo_day.precip - 0.2 * foo.S2, 0)
         ppt_net1 = max(foo_day.precip - 0.2 * foo.S1 , 0)
-        foo.SRO = 0.25 * (
+        foo.sro = 0.25 * (
             ppt_net4 ** 2 / (foo_day.precip + 0.8 * foo.S4) +
             ppt_net3 ** 2 / (foo_day.precip + 0.8 * foo.S3) +
             ppt_net2 ** 2 / (foo_day.precip + 0.8 * foo.S2) +
             ppt_net1 ** 2 / (foo_day.precip + 0.8 * foo.S1))
-        s = ('runoff():c SRO %s  Pnet4 %s  S4 %s  Pnet3 %s  S3 %s  '+
-             'Pnet2 %s  S2 %s  Pnet1 %s  S1 %s\n')
-        t = (foo.SRO, ppt_net4, foo.S4, ppt_net3, foo.S3,
-             ppt_net2, foo.S2, ppt_net1, foo.S1)
-        OUT.debug(s % t)
+        logging.debug(
+            ('runoff(): SRO %s  Pnet4 %.6f  S4 %s  Pnet3 %.6f  S3 %s') %
+            (foo.sro, ppt_net4, foo.S4, ppt_net3, foo.S3))
+        logging.debug(
+            ('runoff(): Pnet2 %.6f  S2 %s  Pnet1 %.6f  S1 %s') %
+            (ppt_net2, foo.S2, ppt_net1, foo.S1))
 
         foo.S4 = foo.S3
         foo.S3 = foo.S2
@@ -65,5 +71,5 @@ def runoff(foo, foo_day, OUT):
     else:
         # Non-irrigated runoff
         # Initial abstraction
-        Pnet = max(foo_day.precip - 0.2 * foo.S, 0)
-        foo.SRO = Pnet * Pnet / (foo_day.precip + 0.8 * foo.S)
+        ppt_net = max(foo_day.precip - 0.2 * foo.S, 0)
+        foo.sro = ppt_net * ppt_net / (foo_day.precip + 0.8 * foo.S)

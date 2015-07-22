@@ -5,7 +5,7 @@ def aFNEs(t):
     """ Tetens (1930) equation for sat. vap pressure, kPa, (T in C)
 
     Args:
-        t: a float or int of the temperature [C]
+        t (float): temperature [C]
         
     Returns:
         A float of the saturated vapor pressure [kPa]
@@ -17,7 +17,7 @@ def aFNEsIce(t):
     """ Murray (1967) equation for sat. vap pressure over ice, kPa, (T in C)
 
     Args:
-        t: a float or int of the temperature [C]
+        t (float): temperature [C]
         
     Returns:
         A float of the saturated vapor pressure over ice [kPa]
@@ -29,8 +29,8 @@ def is_winter(data, foo_day):
     """Determine if the input day is in a winter month
 
     Args:
-        data: ?
-        day: ?
+        data (): ?
+        foo_day (): ?
         
     Returns:
         A boolean that is True if the input day is in a winter month
@@ -81,23 +81,3 @@ def tdew_from_ea(ea):
         NumPy array of vapor pressures [kPa]
     """
     return (237.3 * np.log(ea / 0.6108)) / (17.27 - np.log(ea / 0.6108))
-
-class Output:
-    name = None
-
-    def __init__(self, pth='tmp', DEBUG=False):
-        """ """
-        self.pth = pth
-        self.DEBUG = DEBUG
-        if DEBUG:
-            self.dfp = open('%s/DEBUG.txt' % pth, 'w')
-        
-    def debug(self, s=''):
-        """ """
-        if self.DEBUG:
-            self.dfp.write(s)
-
-    def write(self, s=''):
-        """ """
-        self.fp.write(s)
-

@@ -92,13 +92,13 @@ class InitializeCropCycle:
     nPL_EC = 0.
     #tei = 0
     #Kcmult = 1
-    SRO = 0.
+    sro = 0.
     Dpr = 0.
     doy_start_cycle = 0
 
     real_start = False
     irr_flag = False
-    in_season = False            #' false if outside season, true if inside
+    in_season = False             #' false if outside season, true if inside
     dormant_setup_flag = False
     crop_setup_flag = True        #' flag to setup crop parameter information
     cycle = 1.

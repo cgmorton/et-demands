@@ -1,5 +1,7 @@
+import datetime
+import logging
 import math
-from pprint import pprint
+##from pprint import pprint
 import sys
 
 import compute_crop_gdd
@@ -9,37 +11,26 @@ import kcb_daily
 import runoff
 import util
 
-def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
+def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
     """crop et computations"""
-
-    #print 'in compute_crop_et()'
-
-    #pprint(vars(et_cell))
-    #pprint(vars(crop))
-    #pprint(vars(foo))
+    logging.debug('\nin compute_crop_et()')
 
     #' determine if within a new growing period, etc.
     #' update 30 day mean air temperature (t30) and cumulative growing degree days (CGDD)
     #compute_crop_gdd()
 
-    s = 'compute_crop_et() for %s crop %s %s %s %s\n' %  (
-        et_cell.cell_id, crop.class_number, crop.name.replace(' ','_'),
-        foo_day.doy, foo_day.date)
-    OUT.debug(s)
-
-    compute_crop_gdd.compute_crop_gdd(data, crop, foo, foo_day, OUT)
-    s = '3compute_crop_et():a jdStartCycle %s cgdd %s GDD %s TMean %s\n' % (
-        foo.doy_start_cycle, foo.cgdd, foo.gdd, foo_day.tmean)
-    OUT.debug(s)
-
+    compute_crop_gdd.compute_crop_gdd(data, crop, foo, foo_day)
+    logging.debug(
+        'compute_crop_et():  jdStartCycle %s  CGDD %.6f  GDD %.6f  TMean %.6f' %
+        (foo.doy_start_cycle, foo.cgdd, foo.gdd, foo_day.tmean))
 
     #' calculate height of vegetation.  Call was moved up to this point 12/26/07 for use in adj. Kcb and kc_max
-    calculate_height.calculate_height(crop, foo, OUT)
+    calculate_height.calculate_height(crop, foo)
 
     #' interpolate Kcb and make climate adjustment (for ETo basis)
 
     #If Not kcb_daily(t30):    Return False
-    kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, OUT)
+    kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day)
     #pprint(vars(crop))
     #pprint(vars(et_cell))
 
@@ -47,7 +38,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
 
     #If crop.class_number < 55 or crop.class_number > 57:    #' <------ specific value for crop number
     ### return here if open water
-    #print type(crop.class_number), crop.class_number
+    #logging.debug(type(crop.class_number), crop.class_number)
     if crop.class_number in [55,56,57]:
         return 
 
@@ -161,8 +152,9 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     #' override Kcb assigned from KcbDaily if nongrowing season and not water
     if (not foo.in_season and
         (crop.class_number < 55 or crop.class_number > 57)):    
-        OUT.debug('3compute_crop_et():b0  Kcb %s  Kcb_wscc %s  wscc %s\n' % (
-            foo.kcb, foo.kcb_wscc[wscc], wscc))
+        logging.debug(
+            'compute_crop_et():  Kcb %s  Kcb_wscc %s  wscc %s' % (
+                foo.kcb, foo.kcb_wscc[wscc], wscc))
         foo.kcb = foo.kcb_wscc[wscc] 
 
     #' if yearOfCalcs < 1952:    PrintLine(lfNum, "Initial kcb" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & Kcb)
@@ -195,11 +187,9 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
                     foo.fc = 0.99 
             else:
                 foo.fc = 0.001
-
-    # 
-    s = '3compute_crop_et():b kc_max %s  Kcmin %s  Kcb %s  InSeason %s\n' % (
-        kc_max, foo.kc_min, foo.kcb, foo.in_season)
-    OUT.debug(s)
+    logging.debug(
+        'compute_crop_et(): kc_max %s  Kcmin %s  Kcb %s  InSeason %s' % (
+        kc_max, foo.kc_min, foo.kcb, foo.in_season))
 
 
     # Estimate infiltrating precipitation
@@ -210,17 +200,17 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     if foo_day.precip > 0:   
         # Compute weighted depletion of surface from irr and precip areas
         foo.depl_surface = foo.wtirr * foo.de + (1 - foo.wtirr) * foo.dep
-        runoff.runoff(foo, foo_day, OUT)
+        runoff.runoff(foo, foo_day)
         foo.ppt_inf = foo_day.precip - foo.SRO
         #if foo.SRO > 0.01:   
             #' Debug.Writeline "P and SRO "; P; SRO
             #' return false
-
-    s = ('3compute_crop_et():c p_inf_yest %s  p_inf %s  runoff().SRO %s  '+
-         'precip %s  depl_surface %s  wtirr %s  de %s  dep %s\n')
-    t = (foo.ppt_inf_yest, foo.ppt_inf, foo.SRO, foo_day.precip, foo.depl_surface,
-         foo.wtirr, foo.de, foo.dep)
-    OUT.debug(s % t)
+    logging.debug(
+        ('compute_crop_et(): p_inf_yest %s  p_inf %.6f  SRO %s  precip %.6f') %
+        (foo.ppt_inf_yest, foo.ppt_inf, foo.SRO, foo_day.precip))
+    logging.debug(
+        ('compute_crop_et(): depl_surface %s  wtirr %s  de %s  dep %s') %
+        (foo.depl_surface, foo.wtirr, foo.de, foo.dep))
 
     # Compare precipitation and irrigation to determine value for fw
 
@@ -248,7 +238,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     ## both versions tested values ~1e-15, which were being passed through
     ## and would happen inconsistently between py/vb versions
     watinZe = foo.tew - foo.de
-    OUT.debug('3compute_crop_et():d0 TEW %s  De %s  watinZe %s\n' % (
+    logging.debug('compute_crop_et(): TEW %.6f  De %.6f  watinZe %.6f' % (
         foo.tew, foo.de, watinZe))
 
     #if watinZe <= 0.:    
@@ -256,20 +246,20 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
         watinZe = 0.001
     if watinZe > foo.tew:    
         watinZe = foo.tew
-    OUT.debug('3compute_crop_et():d1 tew %s  de %s  watinZe %s\n' % (
+    logging.debug('compute_crop_et(): TEW %.6f  De %.6f  watinZe %.6f' % (
         foo.tew, foo.de, watinZe))
 
     # Find current water in fwp portion of Ze layer
     # the use of 'fewp' (precip) fraction of surface
     watinZep = foo.tew - foo.dep #' follows Allen et al. 2005 (ASCE JIDE) extensions
-    OUT.debug('3compute_crop_et():d0p tew %s  dep %s  watinZep %s\n' % (
+    logging.debug('compute_crop_et(): TEW %.6f  Dep %.6f  watinZep %.6f' % (
         foo.tew, foo.dep, watinZep))
     #if watinZep <= 0.:    
     if round(watinZep,6) <= 0.:    
         watinZep = 0.001
     if watinZep > foo.tew:    
         watinZep = foo.tew
-    OUT.debug('3compute_crop_et():d1p tew %s  dep %s  watinZep %s\n' % (
+    logging.debug('compute_crop_et(): TEW %.6f  Dep %.6f  watinZep %.6f' % (
         foo.tew, foo.dep, watinZep))
 
     # Fraction of ground that is both exposed and wet
@@ -289,10 +279,15 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     # (corrected)
     foo.totwatinZe = (watinZe * few + watinZep * fewp) / (few + fewp)
 
-    s = '3compute_crop_et():d fwi %s stn_whc %s  AW %s  TEW %s  Dep %s  De %s  watinZe %s  watinZep %s  fewp %s  totwatinZe %s\n'
-    t = (foo.fwi, et_cell.stn_whc, foo.aw, foo.tew, foo.dep, foo.de, watinZe,
-         watinZep, fewp, foo.totwatinZe)
-    OUT.debug(s % t)
+    logging.debug(
+        ('compute_crop_et(): fwi %s stn_whc %.6f  AW %.6f  TEW %.6f') %
+        (foo.fwi, et_cell.stn_whc, foo.aw, foo.tew))
+    logging.debug(
+        ('compute_crop_et(): Dep %.6f  De %.6f  watinZe %.6f') %
+        (foo.dep, foo.de, watinZe))
+    logging.debug(
+        ('compute_crop_et(): watinZep %.6f  fewp %s  totwatinZe %.6f') %
+        (watinZep, fewp, foo.totwatinZe))
 
     #' TEW is total evaporable water (end of 2nd or 3rd stage)
     #' REW is readily evaporable water (end of stage 1)
@@ -330,19 +325,19 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     if foo.fwi > 0.0001:
         #' fw changed to fwi 8/10/06
         foo.de = foo.de - foo.ppt_inf - foo.irr_simulated / foo.fwi + dpe 
-        OUT.debug('3compute_crop_et():da De %s\n' % (foo.de))
+        logging.debug('compute_crop_et(): De %.6f' % (foo.de))
     else:
         #' fw changed to fwi 8/10/06
         foo.de = foo.de - foo.ppt_inf - foo.irr_simulated / 1 + dpe 
-        OUT.debug('3compute_crop_et():db De %s\n' % (foo.de))
+        logging.debug('compute_crop_et(): De %.6f' % (foo.de))
 
     if foo.de < 0:
         foo.de = 0.0
-        OUT.debug('3compute_crop_et():dc De %s\n' % (foo.de))
+        logging.debug('compute_crop_et(): De %.6f' % (foo.de))
     if foo.de > foo.tew:
         # Use TEW rather than TEW2use to conserve De
         foo.de = foo.tew 
-        OUT.debug('3compute_crop_et():dd De %s\n' % (foo.de))
+        logging.debug('compute_crop_et(): De %.6f' % (foo.de))
 
     # Update depletion of few beyond that wetted by irrigation
     foo.dep = foo.dep - foo.ppt_inf + dpe_yest
@@ -393,9 +388,9 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             # Was 0.7 until 4/16/08
             rew2use = 0.8 * tew2use 
 
-    s = '3compute_crop_et():e TEW2 %s  ETref30 %s  etr_threshold %s\n'
+    s = 'compute_crop_et(): TEW2 %.6f  ETref30 %.6f  etr_threshold %s'
     t = (foo.tew2, foo.etref_30, etr_threshold)
-    OUT.debug(s % t)
+    logging.debug(s % t)
 
     if foo.de <= rew2use:   
         kr = 1
@@ -432,15 +427,18 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
         foo.wtirr = few * watinZe / (few * watinZe + fewp * watinZep)
     else:
         foo.wtirr = few * watinZe
-
-    if foo.wtirr < 0.:    
-        foo.wtirr = 0.
-    if foo.wtirr > 1.:    
-        foo.wtirr = 1.
-
-    s = '3compute_crop_et():m few %s  watinZe %s  fewp %s  watinZep %s  wtirr %s\n'
-    t = (few, watinZe, fewp, watinZep, foo.wtirr)
-    OUT.debug(s % t)
+    foo.wtirr = min([max([foo.wtirr, 0]), 1])
+    ##DEADBEEF
+    ##if foo.wtirr < 0.:    
+    ##    foo.wtirr = 0.
+    ##if foo.wtirr > 1.:    
+    ##    foo.wtirr = 1.
+    logging.debug(
+        ('compute_crop_et(): few %.6f  watinZe %.6f  fewp %s') %
+        (few, watinZe, fewp))
+    logging.debug(
+        ('compute_crop_et(): watinZep %.6f  wtirr %.6f') %
+        (watinZep, foo.wtirr))
 
     #' Ke = Kr * (kc_max - foo.kcb) #' this was generic for irr + precip
     #' IF Ke > few * kc_max THEN Ke = few * kc_max
@@ -515,24 +513,33 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
 
     # ETref is defined (to ETo or ETr) in CropCycle sub #'Allen 12/26/2007
     foo.etc_act = kc_act * foo_day.etref
+    print('ETa 1', kc_act, foo_day.etref, foo.etc_act)
     foo.etc_pot = kc_pot * foo_day.etref
     foo.etc_bas = foo.kcb * foo_day.etref
 
     de_last = 0  ## Used below here
 
-    s = ('3compute_crop_et():f Kcmult %s  few %s  fewp %s  Kei %s  kep %s  '+
-         'ks %s  Kr %s  krp %s  wtirr %s  De %s  Dep %s\n')
-    t = (kc_mult, few, fewp, kei, kep, ks, kr, krp, foo.wtirr, foo.de, foo.dep)
-    OUT.debug(s % t)
-    s = ('3compute_crop_et():g Delast %s  Dep %s  tew2use %s  rew2use %s  '+
-         'ETref %s  raw %s  Zr %s\n')
-    t = (de_last, foo.dep, tew2use, rew2use, foo_day.etref, raw, foo.zr)
-    OUT.debug(s % t)
-    s = ('3compute_crop_et():h Kcb %s  kc_pot %s  kc_act %s  ETcbas %s  '+
-         'ETcpot %s  ETcact %s  Dr %s  Pinf %s\n')
-    t = (foo.kcb, kc_pot, kc_act, foo.etc_bas, foo.etc_pot,
-         foo.etc_act, foo.dr, foo.ppt_inf)
-    OUT.debug(s % t)
+    logging.debug(
+        ('compute_crop_et(): Kcmult %s  few %s  fewp %s  Kei %.6f  Kep %s') %
+        (kc_mult, few, fewp, kei, kep))
+    logging.debug(
+        ('compute_crop_et(): Ks %s  Kr %.6f  krp %s  wtirr %.6f  De %.6f') %
+        (ks, kr, krp, foo.wtirr, foo.de))
+    logging.debug(
+        ('compute_crop_et(): Delast %s  Dep %s  tew2use %.6f  rew2use %.6f') %
+        (de_last, foo.dep, tew2use, rew2use))
+    logging.debug(
+        ('compute_crop_et(): ETref %.6f  RAW %.6f  Zr %s') %
+        (foo_day.etref, raw, foo.zr))
+    logging.debug(
+        ('compute_crop_et(): Kcb %s  Kc_pot %.6f  Kc_act %.6f') %
+        (foo.kcb, kc_pot, kc_act))
+    logging.debug(
+        ('compute_crop_et(): ETcbas %.6f  ETcpot %.6f  ETcact %.6f') %
+        (foo.etc_bas, foo.etc_pot, foo.etc_act))
+    logging.debug(
+        ('compute_crop_et(): Dr %.6f  Pinf %.6f') %
+        (foo.dr, foo.ppt_inf))
 
     e = ke * foo_day.etref
     ei = kei * foo_day.etref
@@ -601,13 +608,13 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     #' (Pinf, irr and DPe were subtracted or added earlier)
 
     foo.de = de_last + ei / few + tei
-    OUT.debug('3compute_crop_et():de De %s\n' % (foo.de))
+    logging.debug('compute_crop_et(): De %.6f' % (foo.de))
 
     # This next section modified 2/21/08 to keep a days potential E from exceeding 
     # Evaporable water available (for coarse soils).  Allen and Huntington
     if foo.de < 0:   
         foo.de = 0.0
-        OUT.debug('3compute_crop_et():df De %s\n' % (foo.de))
+        logging.debug('compute_crop_et(): De %.6f' % (foo.de))
     if foo.de > foo.tew:
         #' use tew here rather than tew2use to allow de to remain at tew #'''  probably not.  if Delast <= 0:    Delast = 0
         potential_e = foo.de - de_last
@@ -621,10 +628,13 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
         ei = ei * e_factor
         tei = tei * e_factor
         foo.de = de_last + ei / few + tei #' recalculate
-        OUT.debug('3compute_crop_et():dg De %s\n' % (foo.de))
+        logging.debug('compute_crop_et(): De %.6f' % (foo.de))
         if foo.de > foo.tew + 0.2:   
             #PrintLine(lfNum, "Problem in keeping de water balance within tew.  de, tew, ei, tei, e_factor = " & Chr(9) & De & Chr(9) & TEW & Chr(9) & Ei & Chr(9) & tei & Chr(9) & e_factor)
-            print "Problem in keeping De water balance within TEW.  de, tew, Ei, tei,e_factor = ", de, tew, ei, tei, e_factor
+            logging.warning(
+                ('Problem in keeping De water balance within TEW.'+
+                 'De, TEW, Ei, tei, e_factor = {} {} {} {} {}').format(
+                     de, tew, ei, tei, e_factor))
             return
 
     foo.dep = dep_last + ep / fewp + tep
@@ -649,7 +659,10 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             #PrintLine(lfNum, "Problem in keeping De water balance within TEW.  De, TEW,Ei, tei,e_factor = " & Chr(9) & De & Chr(9) & TEW & Chr(9) & Ei & Chr(9) & tei & Chr(9) & e_factor)
             #if not batchFlag:    MsgBox("Problem in keeping De water balance within TEW.  De, TEW,Ei, tei,e_factor = " & Chr(9) & De & Chr(9) & TEW & Chr(9) & Ei & Chr(9) & tei & Chr(9) & e_factor)
             #Exit Function
-            print "Problem in keeping De water balance within TEW.  De, TEW,Ei, tei,e_factor = ..."
+            logging.warning(
+                ('Problem in keeping De water balance within TEW.  '+
+                 'De, TEW, Ei, tei, e_factor = {} {} {} {} {}').format(
+                     de, tew, ei, tei, e_factor))
             return
 
 
@@ -673,18 +686,19 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
         #PrintLine(lfNum, "kcmult > 1.")
         #if not batchFlag:    MsgBox("kcmult > 1.")
         #Exit Function
-        print "kcmult > 1."
+        logging.warning("kcmult > 1.")
         return
 
     if ks > 1:   
         #PrintLine(lfNum, "ks > 1.")
         #if not batchFlag:    MsgBox("ks > 1.")
         #Exit Function
-        print "ks > 1."
+        logging.warning("ks > 1.")
         return
 
     kc_act = kc_mult * ks * foo.kcb + ke
     foo.etc_act = kc_act * foo_day.etref
+    print('ETa 2', kc_act, foo_day.etref, foo.etc_act)
     # Note that etc_act will be checked later against Dr and TAW
     kc_pot = foo.kcb + ke
 
@@ -720,10 +734,12 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     #' water balance for Zr root zone (includes Ze layer)
     #' Initial calculation for Dr
 
-    s = ('3compute_crop_et():i dr %s  etc_act %s  p_inf %s  '+
-         'irr_real %s  irr_manual %s  irr_special %s\n')
-    t = (foo.dr, foo.etc_act, foo.ppt_inf, irr_real, irr_manual, irr_special)
-    OUT.debug(s % t)
+    logging.debug(
+        ('compute_crop_et(): Dr %.6f  etc_act %.6f  p_inf %.6f') %
+        (foo.dr, foo.etc_act, foo.ppt_inf))
+    logging.debug(
+        ('compute_crop_et(): irr_real %s  irr_manual %s  irr_special %s') %
+        (irr_real, irr_manual, irr_special))
 
     foo.dr = foo.dr + foo.etc_act - foo.ppt_inf - irr_real - irr_manual - irr_special
 
@@ -757,8 +773,9 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             #if debugFlag and crop.class_number = 13:   
 
     # Update Dr
-    OUT.debug('3compute_crop_et():j dr %s  simulated_irr %s\n' % (
-        foo.dr, foo.irr_simulated))
+    logging.debug(
+        'compute_crop_et(): Dr %.6f  simulated_irr %s' %
+        (foo.dr, foo.irr_simulated))
     foo.dr = foo.dr - foo.irr_simulated
 
     # Total irrigation for today
@@ -788,7 +805,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
             foo.dpr = 0.0
 
     # Final update to dr (depletion of root zone)
-    OUT.debug('3compute_crop_et():k Dr %s  Dpr %s\n' % (foo.dr, foo.dpr))
+    logging.debug('compute_crop_et(): Dr %.6f  Dpr %s' % (foo.dr, foo.dpr))
     foo.dr += foo.dpr
 
     # 4/16/08.  if dr > taw, assume it is because we have overshot E+T on this day.
@@ -796,19 +813,22 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
     # In that case, dr may be computed (incidentally) as an increasing value
     # since there is no irrigation, but no stress either
     # (i.e., wetlands, cottonwoods, etc.)  (Nuts!)
-    OUT.debug('3compute_crop_et():l Dr %s  TAW %s  Invoke_Stress %s\n' % (
-        foo.dr, taw, crop.invoke_stress))
-    if crop.invoke_stress > 0.5:   
-        if foo.dr > taw:   
-            foo.etc_act = foo.etc_act - (foo.dr - taw)
-            # Since we overshot, then just give remaining water to etc_act
-            foo.etc_act = max(foo.etc_act, 0)
+    logging.debug(
+        'compute_crop_et(): Dr %.6f  TAW %.6f  Invoke_Stress %s' %
+        (foo.dr, taw, crop.invoke_stress))
+    if crop.invoke_stress > 0.5 and foo.dr > taw:
+        # Since we overshot, then just give remaining water to etc_act
+        foo.etc_act -= (foo.dr - taw)
+        print('ETa 3', kc_act, foo_day.etref, foo.etc_act)
+        foo.etc_act = max(foo.etc_act, 0)
+        print('ETa 4', foo.etc_act)
 
-            # Calc new kc_act
-            if foo_day.etref > 0.1:    
-                kc_act = foo.etc_act / foo_day.etref
-            # Limit depletion to total available water
-            foo.dr = taw 
+        # Calc new kc_act
+        if foo_day.etref > 0.1:    
+            kc_act = foo.etc_act / foo_day.etref
+        # Limit depletion to total available water
+        foo.dr = taw 
+    raw_input('ENTER')
 
     # Update average Avail. Water in soil layer below current root depth
     #   and above maximum root depth.  Add gross deep percolation to it.
@@ -856,4 +876,4 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day, OUT):
 
     # Get setup for next time step.
     if foo.in_season:    
-        grow_root.grow_root(crop, foo, OUT)
+        grow_root.grow_root(crop, foo)

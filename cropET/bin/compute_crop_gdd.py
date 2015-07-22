@@ -1,14 +1,15 @@
-from pprint import pprint
+import logging
+##from pprint import pprint
 
 import util
 
-def compute_crop_gdd(data, crop, foo, foo_day, OUT):
+def compute_crop_gdd(data, crop, foo, foo_day):
     """Compute crop growing degree days
 
     Following rhmin and u2 was moved here to be hit for each crop type.  June 2, 2009 Allen
     # 12/2007, calculate rhmin and u2 for use in computing Kcmax and Kcbo for ETo based ETc
     """
-    #print 'in ComputeCropGDD()'
+    logging.debug('\nin compute_crop_gdd()')
     #pprint(vars(foo_day))
 
     #TMaxOriginal = originalTMax(sdays - 1)
@@ -65,14 +66,14 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
             foo.real_start = False   #' April 12, 2009 rga
             foo.in_season = False    #' July 30, 20120 dlk
         foo.lDoy = foo_day.doy
-
-    s = ('0compute_crop_gdd(): ETref30 %s  sdays %s  ETref %s  etref_lost %s '+
-         'doy_start_cycle %s  crop_curve_number %s  crop_class_num %s  '+
-         'in_season %s\n')
-    t = (foo.etref_30, foo_day.sdays, foo_day.etref, etref_lost,
-         foo.doy_start_cycle, crop.curve_number, crop.class_number,
-         foo.in_season) 
-    OUT.debug(s % t)
+    logging.debug(
+        ('compute_crop_gdd(): ETref30 %.6f  sdays %s  ETref %.6f  etref_lost %s') %
+        (foo.etref_30, foo_day.sdays, foo_day.etref, etref_lost))
+    logging.debug(
+        ('compute_crop_gdd(): doy_start_cycle %s  crop_curve_number %s  '+
+         'crop_class_num %s') %
+        (foo.doy_start_cycle, crop.curve_number, crop.class_number))
+    logging.debug('compute_crop_gdd(): in_season %s' % (foo.in_season))
 
     # Calculate CGDD since trigger date
 
@@ -143,6 +144,4 @@ def compute_crop_gdd(data, crop, foo, foo_day, OUT):
             foo.gdd = foo_day.tmean - crop.tbase
             foo.cgdd = foo.cgdd + foo.gdd
 
-    s = '0compute_crop_gdd(): gdd %s  cgdd %s\n'
-    t = (foo.gdd, foo.cgdd) 
-    OUT.debug(s % t)
+    logging.debug('compute_crop_gdd(): GDD %.6f  CGDD %.6f' % (foo.gdd, foo.cgdd))

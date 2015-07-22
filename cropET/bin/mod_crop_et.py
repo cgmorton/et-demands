@@ -12,8 +12,7 @@ import crop_et_data
 import crop_cycle
 import util
 
-def main(basin_id, output_ws, refet_fmt, txt_ws,
-         nsteps=0, ncells=0, OUT=None):
+def main(basin_id, output_ws, refet_fmt, txt_ws, nsteps=0, ncells=0):
     """ Main function for running the Crop ET model
 
     Args:
@@ -23,7 +22,6 @@ def main(basin_id, output_ws, refet_fmt, txt_ws,
         txt_ws (str) - folder path of the input static text file
         nsteps (int): number of time steps to process
         ncells (int): number cells to process
-        OUT - ?
 
     Returns:
         None
@@ -64,7 +62,7 @@ def main(basin_id, output_ws, refet_fmt, txt_ws,
         cell.process_climate(nsteps)
 
         ## Run the model
-        crop_cycle.crop_cycle(data, cell, nsteps, basin_id, OUT, output_ws)
+        crop_cycle.crop_cycle(data, cell, nsteps, basin_id, output_ws)
 
 
 if __name__ == '__main__':
@@ -110,13 +108,6 @@ if __name__ == '__main__':
         help="Print info level comments")
     args = parser.parse_args()
 
-    ## Set logging verbosity level
-    logging.basicConfig(level=args.log_level, format='%(message)s')
-
-    ## Output control
-    OUT = util.Output(args.output, DEBUG=False)
-    ##OUT = util.Output(args.output, debug_flag=args.verbose)
-
     ## Convert relative paths to absolute paths
     if args.output and os.path.isdir(os.path.abspath(args.output)):
         args.output = os.path.abspath(args.output)
@@ -125,7 +116,22 @@ if __name__ == '__main__':
     if args.text and os.path.isfile(os.path.abspath(args.text)):
         args.text = os.path.abspath(args.text)
 
+    ## Log to file in debug mode
+    if args.log_level == logging.DEBUG:
+        ## Create File Logger
+        logging.basicConfig(
+            level = logging.DEBUG, format='%(message)s', filemode='w', 
+            filename = os.path.join(args.output, 'debug.txt'))
+        ## Create Display Logger
+        log_console = logging.StreamHandler()
+        log_console.setLevel(args.log_level)
+        log_console.setFormatter(logging.Formatter('%(message)s'))
+        logging.getLogger('').addHandler(log_console)
+    else:
+        logging.basicConfig(level=args.log_level, format='%(message)s')
+
     ##
     main(basin_id=args.basin_id, output_ws=args.output,
          refet_fmt=args.refet, txt_ws=args.text,
-         nsteps=args.nsteps, ncells=args.ncells, OUT=OUT)
+         nsteps=args.nsteps, ncells=args.ncells)
+         ##nsteps=args.nsteps, ncells=args.ncells, OUT=OUT)
