@@ -1,15 +1,12 @@
 import datetime
 import logging
-##from pprint import pprint
 import sys
 
 import open_water_evap
 
 def kcb_daily(data, et_cell, crop, foo, foo_day):
     """Compute basal ET."""
-    logging.debug('\nin kcb_daily()')
-    #print crop
-    #pprint(vars(crop))
+    ##logging.debug('kcb_daily()')
 
     # Following two variables are used in one equation each but are never assigned a value - dlk - ?
     bcuttings = 0
@@ -135,15 +132,19 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 longtermpl, t30_lt[0], t30_lt[1]))
 
             if longtermpl > 0:
-                if foo_day.doy > longtermpl+40:  #' check if getting too late in season
-                    if not foo.real_start:        #' season hasn't started yet
-                        foo.doy_start_cycle = foo_day.doy #' longtermpl + 40 'it is unseasonably warm (too warm). Delay start ' set to Doy on 4/29/09 (nuts)
+                #' check if getting too late in season
+                if foo_day.doy > longtermpl+40: 
+                    #' season hasn't started yet
+                    if not foo.real_start:        
+                        #' longtermpl + 40 'it is unseasonably warm (too warm). Delay start ' set to Doy on 4/29/09 (nuts)
+                        foo.doy_start_cycle = foo_day.doy 
                         logging.debug('kcb_daily(): doy_start_cycle %s' % (
                             foo.doy_start_cycle))
                         foo.real_start = True    #' Harleys Rule
                         #PrintLine(lfNum, "exceeded 40 days past longterm T30 turnon")
 
-            if not foo.real_start:     #' start of season has not yet been determined.  Look for it in normal fashion:
+            #' start of season has not yet been determined.  Look for it in normal fashion:
+            if not foo.real_start:     
                 if foo_day.t30 > crop.t30_for_pl_or_gu_or_cgdd:     #' 'JH,RGA 4/13/09
                     if longtermpl > 0:    
                         if foo_day.doy < longtermpl - 40:     #' use +/- 40 days from longterm as constraint

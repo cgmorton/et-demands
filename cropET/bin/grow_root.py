@@ -1,7 +1,8 @@
+import logging
 import math
 
-def grow_root(crop, foo, OUT):
-    """Determine depth of root zone."""
+def grow_root(crop, foo):
+    """Determine depth of root zone"""
                                 
     # dlk - 10/31/2011 - added zero value tests        
     fractime = 0
@@ -30,15 +31,20 @@ def grow_root(crop, foo, OUT):
         # AM3 is mean moisture of maxrootzone - Zr layer
         foo.dr += delta_zr * (foo.aw - foo.aw3)
 
-    s = (
-        '4grow_root(): zr %s  fractime %s  zrx %s  zrn %s  dr %s  '+
-        'delta_zr %s  aw %s  aw3 %s  n_cumgdd %s  nPL_EC %s  '+
-        'end_of_root... %s  crop_curve_type %s\n')
-    t = (
-        foo.zr, fractime, foo.zrx, foo.zrn, foo.dr, delta_zr, foo.aw, foo.aw3,
-        foo.n_cumgdd, foo.nPL_EC, crop.end_of_root_growth_fraction_time,
-        crop.curve_type) 
-    OUT.debug(s % t)
+    logging.debug(
+        ('grow_root(): zr %s  fractime %s  zrx %s  zrn %s  dr %s  '+
+         'delta_zr %s  aw %s  aw3 %s  n_cumgdd %s  nPL_EC %s  '+
+         'end_of_root... %s  crop_curve_type %s\n') %
+        (foo.zr, fractime, foo.zrx, foo.zrn, foo.dr, delta_zr, foo.aw, foo.aw3,
+         foo.n_cumgdd, foo.nPL_EC, crop.end_of_root_growth_fraction_time,
+         crop.curve_type) )
+    logging.debug(
+        ('grow_root(): zr %s  fractime %s  zrx %s  zrn %s  dr %s  '+
+         'delta_zr %s  aw %s  aw3 %s  n_cumgdd %s  nPL_EC %s  '+
+         'end_of_root... %s  crop_curve_type %s\n') %
+        (foo.zr, fractime, foo.zrx, foo.zrn, foo.dr, delta_zr, foo.aw, foo.aw3,
+         foo.n_cumgdd, foo.nPL_EC, crop.end_of_root_growth_fraction_time,
+         crop.curve_type) )
                 
     # Also keep zr from #'shrinking' (for example, with multiple alfalfa cycles    
     if foo.zr < lZr:    

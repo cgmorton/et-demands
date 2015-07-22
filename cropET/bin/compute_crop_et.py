@@ -1,7 +1,6 @@
 import datetime
 import logging
 import math
-##from pprint import pprint
 import sys
 
 import compute_crop_gdd
@@ -13,7 +12,7 @@ import util
 
 def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
     """crop et computations"""
-    logging.debug('\nin compute_crop_et()')
+    ##logging.debug('compute_crop_et()')
 
     #' determine if within a new growing period, etc.
     #' update 30 day mean air temperature (t30) and cumulative growing degree days (CGDD)
@@ -79,9 +78,9 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
 
     if crop.class_number == 44:    #' bare soil  #.  changed Jan. 2007 for add. crop cats.
         foo.fc = 0.0
-    if crop.class_number == 45:    #' Mulched soil, including grain stubble  #.
+    elif crop.class_number == 45:    #' Mulched soil, including grain stubble  #.
         foo.fc = 0.4
-    if crop.class_number == 46:    #' Dormant turf/sod (winter time)  #.
+    elif crop.class_number == 46:    #' Dormant turf/sod (winter time)  #.
         foo.fc = 0.7 #' was 0.6
 
     # kc_max and foo.fc for wintertime land use (Nov-Mar)
@@ -102,7 +101,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
                 kc_max = 1.1 
             foo.fc = 0.0
         # Mulched soil, including grain stubble
-        if crop.class_number == 45:
+        elif crop.class_number == 45:
             if data.refet_type > 0:
                 # For ETr (Allen 3/2008)
                 kc_max = 0.85 
@@ -111,7 +110,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
                 kc_max = 1.0  
             foo.fc = 0.4
         # Dormant turf/sod (winter time)
-        if crop.class_number == 46:
+        elif crop.class_number == 46:
             if data.refet_type > 0:    
                 # For ETr (Allen 3/2008)
                 kc_max = 0.8
@@ -129,17 +128,16 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
 
             if wscc == 1:    #' bare soil    #'note that these are ETr based.  Mult by 1.2 (plus adj?) for ETo base  *************
                 #' foo.fc is calculated below
-
                 if data.refet_type > 0:    #' Allen 3/08
                     kc_max = 0.9 #' for ETr
                 else:
                     kc_max = 1.1 #' for ETo  #'Allen 12/2007 **********
-            if wscc == 2:    #' Mulched soil, including grain stubble
+            elif wscc == 2:    #' Mulched soil, including grain stubble
                 if data.refet_type > 0:   
                     kc_max = 0.85 #' for ETr
                 else:
                     kc_max = 1.0  #' for ETo (0.85 * 1.2)  #'Allen 12/2007 ************
-            if wscc == 3:    #' Dormant turf/sod (winter time)
+            elif wscc == 3:    #' Dormant turf/sod (winter time)
                 if data.refet_type > 0:   
                     kc_max = 0.8 #' for ETr
                 else:
@@ -153,7 +151,7 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
     if (not foo.in_season and
         (crop.class_number < 55 or crop.class_number > 57)):    
         logging.debug(
-            'compute_crop_et():  Kcb %s  Kcb_wscc %s  wscc %s' % (
+            'compute_crop_et(): Kcb %.6f  Kcb_wscc %s  wscc %s' % (
                 foo.kcb, foo.kcb_wscc[wscc], wscc))
         foo.kcb = foo.kcb_wscc[wscc] 
 
@@ -196,20 +194,20 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
     # Yesterday's infiltration
     foo.ppt_inf_yest = foo.ppt_inf 
     foo.ppt_inf = 0.0
-    foo.SRO = 0.0
+    foo.sro = 0.0
     if foo_day.precip > 0:   
         # Compute weighted depletion of surface from irr and precip areas
         foo.depl_surface = foo.wtirr * foo.de + (1 - foo.wtirr) * foo.dep
         runoff.runoff(foo, foo_day)
-        foo.ppt_inf = foo_day.precip - foo.SRO
-        #if foo.SRO > 0.01:   
+        foo.ppt_inf = foo_day.precip - foo.sro
+        #if foo.sro > 0.01:   
             #' Debug.Writeline "P and SRO "; P; SRO
             #' return false
     logging.debug(
         ('compute_crop_et(): p_inf_yest %s  p_inf %.6f  SRO %s  precip %.6f') %
-        (foo.ppt_inf_yest, foo.ppt_inf, foo.SRO, foo_day.precip))
+        (foo.ppt_inf_yest, foo.ppt_inf, foo.sro, foo_day.precip))
     logging.debug(
-        ('compute_crop_et(): depl_surface %s  wtirr %s  de %s  dep %s') %
+        ('compute_crop_et(): depl_surface %.6f  wtirr %.6f  de %.6f  dep %.6f') %
         (foo.depl_surface, foo.wtirr, foo.de, foo.dep))
 
     # Compare precipitation and irrigation to determine value for fw
@@ -513,7 +511,6 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
 
     # ETref is defined (to ETo or ETr) in CropCycle sub #'Allen 12/26/2007
     foo.etc_act = kc_act * foo_day.etref
-    print('ETa 1', kc_act, foo_day.etref, foo.etc_act)
     foo.etc_pot = kc_pot * foo_day.etref
     foo.etc_bas = foo.kcb * foo_day.etref
 
@@ -698,7 +695,6 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
 
     kc_act = kc_mult * ks * foo.kcb + ke
     foo.etc_act = kc_act * foo_day.etref
-    print('ETa 2', kc_act, foo_day.etref, foo.etc_act)
     # Note that etc_act will be checked later against Dr and TAW
     kc_pot = foo.kcb + ke
 
@@ -819,16 +815,13 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
     if crop.invoke_stress > 0.5 and foo.dr > taw:
         # Since we overshot, then just give remaining water to etc_act
         foo.etc_act -= (foo.dr - taw)
-        print('ETa 3', kc_act, foo_day.etref, foo.etc_act)
         foo.etc_act = max(foo.etc_act, 0)
-        print('ETa 4', foo.etc_act)
 
         # Calc new kc_act
         if foo_day.etref > 0.1:    
             kc_act = foo.etc_act / foo_day.etref
         # Limit depletion to total available water
         foo.dr = taw 
-    raw_input('ENTER')
 
     # Update average Avail. Water in soil layer below current root depth
     #   and above maximum root depth.  Add gross deep percolation to it.

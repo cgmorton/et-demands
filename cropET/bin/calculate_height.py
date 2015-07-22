@@ -1,13 +1,10 @@
 import logging
-##from pprint import pprint
 
 def calculate_height(crop, foo):
     """Determine height of crop based on Kc and height limits"""
     height_min = crop.height_initial
     height_max = crop.height_maximum
     height_prev = foo.height
-
-    #pprint(vars(crop))
 
     # hcrop = hmin + (kcb - kcb_min) / (kcb_mid - kc_min) * (hmax - hmin) <----- previous (2000) and with error (Kcbmin vs Kcmin)
     # kcb_mid is maximum kcb found in kcb table read into program

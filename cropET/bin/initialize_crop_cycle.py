@@ -72,11 +72,11 @@ class InitializeCropCycle:
     tew = 0.
     tew2 = 0.
     tew3 = 0.
-    S = 0.
-    S1 = 0.
-    S2 = 0.
-    S3 = 0.
-    S4 = 0.
+    s = 0.
+    s1 = 0.
+    s2 = 0.
+    s3 = 0.
+    s4 = 0.
     zrn = 0.
     zrx = 0.
     z = 0.

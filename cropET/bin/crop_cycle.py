@@ -42,16 +42,21 @@ def crop_cycle(data, et_cell, nsteps, basin_id, output_ws=''):
     ##print crop
     ##pprint(vars(crop))
     ##'''
-    logging.debug('\nin crop_cycle()')
-    ##logging.debug(pprint.pformat(vars(et_cell)))
+    
+    ##logging.debug('in crop_cycle()')
 
     ## crop loop through all crops, doesn't include bare soil??
     for crop_num, crop in sorted(et_cell.crop_params.items()):
-        logging.debug('  Crop:  {0} {1}'.format(crop_num, crop))
-        logging.debug('  Curve: {0} {1}'.format(
-            crop.curve_number, crop.curve_name))
-        logging.debug('  Class: {}'.format(crop.class_number))
-        logging.debug('  Flag:  {}'.format(et_cell.crop_flags[crop_num]))
+        logging.debug('crop_day_loop():  Crop %s %s' % (crop_num, crop))
+        logging.debug(
+            'crop_day_loop():  Curve %s %s  Class %s  Flag %s' %
+            (crop.curve_number, crop.curve_name,
+             crop.class_number, et_cell.crop_flags[crop_num]))
+        ##logging.debug('  Crop:  {0} {1}'.format(crop_num, crop))
+        ##logging.debug('  Curve: {0} {1}'.format(
+        ##    crop.curve_number, crop.curve_name))
+        ##logging.debug('  Class: {}'.format(crop.class_number))
+        ##logging.debug('  Flag:  {}'.format(et_cell.crop_flags[crop_num]))
 
         ## Check to see if crop/landuse is at station
         if not et_cell.crop_flags[crop_num]:
@@ -73,19 +78,26 @@ def crop_cycle(data, et_cell, nsteps, basin_id, output_ws=''):
             ##crop_nn = re.sub('[-"().,/~]', ' ', crop.name.lower())
             ##crop_nn = ' '.join(crop_nn.strip().split()).replace(' ', '_')
             ####crop_nn = crop.name.replace(' ','_').replace('/','_').replace('-','_')[:32]
-            output_name = '%s_%s.dat' % (et_cell.cell_id, crop.class_number)
             ##output_name = '%s_%s.%s' % (et_cell.cell_id, crop.class_number, crop_nn)
+
+            output_name = '%s_%s.dat' % (et_cell.cell_id, crop.class_number)
             if output_ws:
                 output_path = os.path.join(output_ws, output_name)
             else:
                 output_path = os.path.join('cet', basin_id, 'py', output_name)
-            fmt = '%8s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
+            fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
             header = (
-                '#   Date','DOY','PMETo','Pr.mm','T30',
-                'ETact','ETpot','ETbas', 'Irrn','Seasn','Runof','DPerc')
+                '#     Date','DOY','PMETo','Pr.mm','T30','ETact',
+                'ETpot','ETbas', 'Irrn','Seasn','Runof','DPerc')
+            ## DEADBEEF - Should the file be kept open and the file object
+            ##   passed to crop_day_loop() instead?
             with open(output_path, 'w') as output_f:
                 output_f.write(fmt % header)
-        crop_day_loop(data, et_cell, crop, foo, output_path, nsteps)
+        else:
+            output_path = None
+
+        ##        
+        crop_day_loop(data, et_cell, crop, foo, nsteps, output_path)
 
 
 class DayData:
@@ -94,7 +106,7 @@ class DayData:
         ## Used in compute_crop_gdd(), needs to be persistant during day loop
         self.etref_array = np.zeros(30)
 
-def crop_day_loop(data, et_cell, crop, foo, output_path, nsteps):
+def crop_day_loop(data, et_cell, crop, foo, nsteps, output_path):
     """
 
     Args:
@@ -102,15 +114,13 @@ def crop_day_loop(data, et_cell, crop, foo, output_path, nsteps):
         et_cell ():
         crop ():
         foo ():
-        output_path ():
-        nsteps ():
+        nsteps (int):
+        output_path (str): file path
 
     Returns:
-
+        None
     """
-    logging.debug('\nin crop_day_loop()')
-
-    ## Day loop
+    ##logging.debug('crop_day_loop()')
     foo_day = DayData()
 
     ## Originally in ProcessClimate() in vb code
@@ -123,7 +133,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_path, nsteps):
         ts_date = datetime.date(*ts[:3])
         ts_doy = int(ts_date.strftime('%j'))
         ##doy = ts[7]
-        logging.debug('crop_day_loop(): DOY %s  Date %s' % (ts_doy, ts_date))
+        logging.debug('\ncrop_day_loop(): DOY %s  Date %s' % (ts_doy, ts_date))
 
         precip = et_cell.refet['Precip'][i]
         wind = et_cell.refet['Wind'][i]
@@ -132,7 +142,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_path, nsteps):
         eto = et_cell.refet['ASCEPMStdETo'][i]
         etref = refet_array[i]
         logging.debug(
-            'crop_day_loop(): PPT %s  Wind %s  Tdew %s' % (precip, wind, tdew))
+            'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f' % (precip, wind, tdew))
         logging.debug(
             'crop_day_loop(): ETo %.6f  ETref %.6f' % (eto, etref))
 
@@ -153,7 +163,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_path, nsteps):
         # Precip converted to mm in process_climate()
         precip = et_cell.climate['precip'][i]        
         logging.debug(
-            'crop_day_loop(): tmax %s  tmin %s  tmean %s  t30 %s' %
+            'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
             (tmax, tmin, tmean, t30))
 
         ## Copies of these were made using loop
@@ -202,7 +212,6 @@ def crop_day_loop(data, et_cell, crop, foo, output_path, nsteps):
         #foo_day.t30_lt = t30_lt
         foo_day.t30 = t30
         foo_day.precip = precip
-        #pprint(vars(foo_day))
         #print et_cell.climate.keys()
 
         ## Calculate Kcb, Ke, ETc
@@ -213,19 +222,22 @@ def crop_day_loop(data, et_cell, crop, foo, output_path, nsteps):
         ## Write vb-like output file for comparison
         if COMPARE: 
             tup = (ts_date, ts_doy, etref, precip, t30, foo.etc_act, foo.etc_pot,
-                   foo.etc_bas, foo.irr_simulated, foo.in_season, foo.SRO,
+                   foo.etc_bas, foo.irr_simulated, foo.in_season, foo.sro,
                    foo.Dpr)
-            fmt = '%8s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
+            fmt = '%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
             with open(output_path, 'a') as output_f:
                 output_f.write(fmt % tup)
 
         ## Write final output file variables to DEBUG file
         logging.debug(
-            ('crop_day_loop(): ETref %s  Precip %s  T30 %s  ETact %s'+
-             'ETpot %s  ETbas %s  Irrn %s  Season %s  Runoff %s  '+
-             'DPerc %s\n') %
-            (etref, precip, t30, foo.etc_act, foo.etc_pot, foo.etc_bas, 
-             foo.irr_simulated, foo.in_season, foo.SRO, foo.Dpr))
+            ('crop_day_loop(): ETref  %.6f  Precip %.6f  T30 %.6f') %
+            (etref, precip, t30))
+        logging.debug(
+            ('crop_day_loop(): ETact  %.6f  ETpot %.6f   ETbas %.6f') %
+            (foo.etc_act, foo.etc_pot, foo.etc_bas))
+        logging.debug(
+            ('crop_day_loop(): Runoff %.6f  DPerc %.6f') %
+            (foo.sro, foo.Dpr))
 
 def main():
     """ """

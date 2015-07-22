@@ -1,5 +1,4 @@
 import logging
-##from pprint import pprint
 
 import util
 
@@ -9,8 +8,7 @@ def compute_crop_gdd(data, crop, foo, foo_day):
     Following rhmin and u2 was moved here to be hit for each crop type.  June 2, 2009 Allen
     # 12/2007, calculate rhmin and u2 for use in computing Kcmax and Kcbo for ETo based ETc
     """
-    logging.debug('\nin compute_crop_gdd()')
-    #pprint(vars(foo_day))
+    ##logging.debug('compute_crop_gdd()')
 
     #TMaxOriginal = originalTMax(sdays - 1)
     if foo_day.tdew < -90 or foo_day.tmax_original < -90:
