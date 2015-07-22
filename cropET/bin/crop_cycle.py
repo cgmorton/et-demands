@@ -2,7 +2,6 @@
 import datetime
 import logging
 import math
-import pprint
 import os
 import re
 import sys
@@ -28,26 +27,22 @@ def crop_cycle(data, et_cell, nsteps, basin_id, output_ws=''):
     ##   ' this is done to compute 'winter covers', which are bare soil, mulch and dormant turf,
     ##   ' before any crops are processed.  Bare soil is "crop" no. 44.
     ##'''
-    ### parameters in PMControl, these values are for klamath
-    ### currently used to populate crop_gdd_trigger_doy in
-    ### data.ctrl[] dictionary, so probably not needed here
-    ###cgdd_winter_doy = 274
-    ###cgdd_main_doy = 1
-    ##
-    ##'''
     #### no curve for bare soil
     ##ctCount = 43  # bare soil
     ##ctCount = 1  # bare soil
-    ##crop = et_cell.crop_params[ctCount] 
-    ##print crop
-    ##pprint(vars(crop))
-    ##'''
     
     ##logging.debug('in crop_cycle()')
 
     ## crop loop through all crops, doesn't include bare soil??
     for crop_num, crop in sorted(et_cell.crop_params.items()):
-        logging.debug('crop_day_loop():  Crop %s %s' % (crop_num, crop))
+        ## Check to see if crop/landuse is at station
+        if not et_cell.crop_flags[crop_num]:
+            logging.debug('Crop %s %s' % (crop_num, crop))
+            logging.debug('  NOT USED')
+            continue
+        else:
+            logging.info('Crop %s %s' % (crop_num, crop))
+            
         logging.debug(
             'crop_day_loop():  Curve %s %s  Class %s  Flag %s' %
             (crop.curve_number, crop.curve_name,
@@ -58,10 +53,6 @@ def crop_cycle(data, et_cell, nsteps, basin_id, output_ws=''):
         ##logging.debug('  Class: {}'.format(crop.class_number))
         ##logging.debug('  Flag:  {}'.format(et_cell.crop_flags[crop_num]))
 
-        ## Check to see if crop/landuse is at station
-        if not et_cell.crop_flags[crop_num]:
-            logging.debug('    NOT USED')
-            continue
         logging.debug('  GDD trigger DOY: {}'.format(crop.crop_gdd_trigger_doy))
 
         # 'foo' is holder of all these global variables for now
@@ -88,16 +79,19 @@ def crop_cycle(data, et_cell, nsteps, basin_id, output_ws=''):
             fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
             header = (
                 '#     Date','DOY','PMETo','Pr.mm','T30','ETact',
-                'ETpot','ETbas', 'Irrn','Seasn','Runof','DPerc')
+                'ETpot','ETbas','Irrn','Seasn','Runof','DPerc')
             ## DEADBEEF - Should the file be kept open and the file object
             ##   passed to crop_day_loop() instead?
-            with open(output_path, 'w') as output_f:
-                output_f.write(fmt % header)
+            output_f = open(output_path, 'w')
+            output_f.write(fmt % header)
         else:
-            output_path = None
+            output_f = None
 
-        ##        
-        crop_day_loop(data, et_cell, crop, foo, nsteps, output_path)
+        ##
+        crop_day_loop(data, et_cell, crop, foo, nsteps, output_f)
+
+        if COMPARE: 
+            output_f.close()
 
 
 class DayData:
@@ -106,7 +100,7 @@ class DayData:
         ## Used in compute_crop_gdd(), needs to be persistant during day loop
         self.etref_array = np.zeros(30)
 
-def crop_day_loop(data, et_cell, crop, foo, nsteps, output_path):
+def crop_day_loop(data, et_cell, crop, foo, nsteps, output_f):
     """
 
     Args:
@@ -115,7 +109,7 @@ def crop_day_loop(data, et_cell, crop, foo, nsteps, output_path):
         crop ():
         foo ():
         nsteps (int):
-        output_path (str): file path
+        output_f (): 
 
     Returns:
         None
@@ -133,6 +127,7 @@ def crop_day_loop(data, et_cell, crop, foo, nsteps, output_path):
         ts_date = datetime.date(*ts[:3])
         ts_doy = int(ts_date.strftime('%j'))
         ##doy = ts[7]
+        ##logging.info('crop_day_loop(): DOY %s  Date %s' % (ts_doy, ts_date))
         logging.debug('\ncrop_day_loop(): DOY %s  Date %s' % (ts_doy, ts_date))
 
         precip = et_cell.refet['Precip'][i]
@@ -225,8 +220,7 @@ def crop_day_loop(data, et_cell, crop, foo, nsteps, output_path):
                    foo.etc_bas, foo.irr_simulated, foo.in_season, foo.sro,
                    foo.Dpr)
             fmt = '%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
-            with open(output_path, 'a') as output_f:
-                output_f.write(fmt % tup)
+            output_f.write(fmt % tup)
 
         ## Write final output file variables to DEBUG file
         logging.debug(
@@ -242,9 +236,6 @@ def crop_day_loop(data, et_cell, crop, foo, nsteps, output_path):
 def main():
     """ """
     pass
-    # _test() loads the data for Klamath
-    #data = cropet_data._test()
-    #pprint(data.refet)
 
 if __name__ == '__main__':
     main()

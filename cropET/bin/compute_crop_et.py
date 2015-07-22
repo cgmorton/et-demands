@@ -30,8 +30,6 @@ def compute_crop_et(t30, data, et_cell, crop, foo, foo_day):
 
     #If Not kcb_daily(t30):    Return False
     kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day)
-    #pprint(vars(crop))
-    #pprint(vars(et_cell))
 
     #' Jump to end if open water (crops numbers 55 through 57 are open water)
 

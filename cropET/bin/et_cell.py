@@ -292,8 +292,9 @@ class ETCell:
 
             ## Build cummulative over period of record
             nrecord_main_t30[doy] += 1
-            main_t30_lt[doy] = (main_t30_lt[doy] * (nrecord_main_t30[doy] - 1) +
-                                main_t30) / nrecord_main_t30[doy] 
+            main_t30_lt[doy] = (
+                (main_t30_lt[doy] * (nrecord_main_t30[doy] - 1) + main_t30) /
+                nrecord_main_t30[doy] )
 
             ## Compute main cumgdd for period of record for various bases for
             ##   constraining earliest/latest planting or GU
@@ -312,14 +313,14 @@ class ETCell:
             else:
                 gdd = 0.0
 
-            main_gdd_0 = main_gdd_0 + gdd
-            main_cgdd_0_lt[doy] = main_cgdd_0_lt[doy] + main_gdd_0
+            main_gdd_0 += gdd
+            main_cgdd_0_lt[doy] += main_gdd_0
             nrecord_main_cgdd[doy] += 1
 
         ## Compute long term mean cumGDD0 from sums
         for doy in range(1,367):
             if nrecord_main_cgdd[doy] > 0:
-                 main_cgdd_0_lt[doy] = main_cgdd_0_lt[doy] / nrecord_main_cgdd[doy]
+                 main_cgdd_0_lt[doy] /= nrecord_main_cgdd[doy]
             else:
                  main_cgdd_0_lt[doy] = 0.0
 
