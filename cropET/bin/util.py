@@ -1,3 +1,4 @@
+import datetime
 import math
 import numpy as np
 
@@ -81,3 +82,26 @@ def tdew_from_ea(ea):
         NumPy array of vapor pressures [kPa]
     """
     return (237.3 * np.log(ea / 0.6108)) / (17.27 - np.log(ea / 0.6108))
+
+def valid_date(input_date):
+    """Check that a date string is ISO format (YYYY-MM-DD)
+
+    This function is used to check the format of dates entered as command
+      line arguments.
+    DEADBEEF - It would probably make more sense to have this function 
+      parse the date using dateutil parser (http://labix.org/python-dateutil)
+      and return the ISO format string
+
+    Args:
+        input_date: string
+    Returns:
+        string 
+    Raises:
+        ArgParse ArgumentTypeError
+    """
+    try:
+        input_dt = datetime.datetime.strptime(input_date, "%Y-%m-%d")
+        return input_date
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(input_date)
+        raise argparse.ArgumentTypeError(msg)
