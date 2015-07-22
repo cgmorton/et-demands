@@ -2,6 +2,8 @@ import datetime
 import logging
 import sys
 
+import numpy as np
+
 import open_water_evap
 
 def kcb_daily(data, et_cell, crop, foo, foo_day):
@@ -36,18 +38,26 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
         #' cgdd
 
         # Only allow start flag to begin if < July 15 to prevent GU in fall after freezedown
-        if foo_day.doy < crop.crop_gdd_trigger_doy + 195:
+        if foo_day.doy < (crop.crop_gdd_trigger_doy + 195):
             #' before finding date of startup using normal cgdd, determine if it is after latest
             #' allowable start by checking to see if pl or gu need to be constrained based on long term means
             #' estimate date based on long term mean:
             #' prohibit specifying start of season as long term less 40 days when it is before that date.
-
+            
             foo_day.cgdd_0_lt[0] = foo_day.cgdd_0_lt[1]
-            longtermpl = 0
-            for doy in range(1,367):
-                if (foo_day.cgdd_0_lt[doy] > crop.t30_for_pl_or_gu_or_cgdd and
-                    foo_day.cgdd_0_lt[doy-1] < crop.t30_for_pl_or_gu_or_cgdd):
-                    longtermpl = doy
+            try:
+                longtermpl = int(np.diff(
+                    foo_day.cgdd_0_lt >
+                    crop.t30_for_pl_or_gu_or_cgdd).nonzero()[0]) + 1
+            except:
+                logging.error('Error finding DOY index')
+                longtermpl = 0
+            ##for doy in range(1,367):
+            ##    if (foo_day.cgdd_0_lt[doy] > crop.t30_for_pl_or_gu_or_cgdd and
+            ##        foo_day.cgdd_0_lt[doy-1] < crop.t30_for_pl_or_gu_or_cgdd):
+            ##        longtermpl = doy
+            ##        ## DEADBEEF - Stop after after a value is found?
+            ##        ##break
 
             # Check if getting too late in season
             # Season hasn't started yet
