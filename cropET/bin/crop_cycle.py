@@ -11,13 +11,16 @@ import numpy as np
 import crop_et_data
 import compute_crop_et
 from initialize_crop_cycle import InitializeCropCycle
-##import setup_crop
+import util
 
-##COMPARE = False
-COMPARE = True
+class DayData:
+    def __init__(self):
+        """ """
+        ## Used in compute_crop_gdd(), needs to be persistant during day loop
+        self.etref_array = np.zeros(30)
 
-def crop_cycle(data, et_cell, nsteps, basin_id, output_ws=''):
-    """ """
+def crop_cycle(data, et_cell, start_dt, end_dt, basin_id, output_ws):
+    """"""
     ## Following is for one crop grown back to back over entire ETr sequence
     ##
     ## do bare soil first, before looping through crops
@@ -55,52 +58,31 @@ def crop_cycle(data, et_cell, nsteps, basin_id, output_ws=''):
 
         logging.debug('  GDD trigger DOY: {}'.format(crop.crop_gdd_trigger_doy))
 
-        # 'foo' is holder of all these global variables for now
+        ## 'foo' is holder of all these global variables for now
         foo = InitializeCropCycle()
 
-        ##### TP04 try to access directly or rename locally
-        ##### this reassigns data to simpler names, etc
         ## First time through for crop, load basic crop parameters and process climate data
         foo.crop_load(data, et_cell, crop)
 
-        ## Write data for crop
-        if COMPARE: 
-            ## DEADBEEF - Don't include crop name in file name
-            ##crop_nn = re.sub('[-"().,/~]', ' ', crop.name.lower())
-            ##crop_nn = ' '.join(crop_nn.strip().split()).replace(' ', '_')
-            ####crop_nn = crop.name.replace(' ','_').replace('/','_').replace('-','_')[:32]
-            ##output_name = '%s_%s.%s' % (et_cell.cell_id, crop.class_number, crop_nn)
+        ## Open output file for each crop and write header
+        output_name = '%s_%s.dat' % (et_cell.cell_id, crop.class_number)
+        output_path = os.path.join(output_ws, output_name)
+        fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
+        header = (
+            '#     Date','DOY','PMETo','Pr.mm','T30','ETact',
+            'ETpot','ETbas','Irrn','Seasn','Runof','DPerc')
+        output_f = open(output_path, 'w')
+        output_f.write(fmt % header)
 
-            output_name = '%s_%s.dat' % (et_cell.cell_id, crop.class_number)
-            if output_ws:
-                output_path = os.path.join(output_ws, output_name)
-            else:
-                output_path = os.path.join('cet', basin_id, 'py', output_name)
-            fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
-            header = (
-                '#     Date','DOY','PMETo','Pr.mm','T30','ETact',
-                'ETpot','ETbas','Irrn','Seasn','Runof','DPerc')
-            ## DEADBEEF - Should the file be kept open and the file object
-            ##   passed to crop_day_loop() instead?
-            output_f = open(output_path, 'w')
-            output_f.write(fmt % header)
-        else:
-            output_f = None
+        ## 
+        crop_day_loop(
+            data, et_cell, crop, foo, start_dt, end_dt, output_f)
 
-        ##
-        crop_day_loop(data, et_cell, crop, foo, nsteps, output_f)
+        ## Close output file
+        output_f.close()
 
-        if COMPARE: 
-            output_f.close()
-
-
-class DayData:
-    def __init__(self):
-        """ """
-        ## Used in compute_crop_gdd(), needs to be persistant during day loop
-        self.etref_array = np.zeros(30)
-
-def crop_day_loop(data, et_cell, crop, foo, nsteps, output_f):
+def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
+                  output_f=None):
     """
 
     Args:
@@ -109,6 +91,8 @@ def crop_day_loop(data, et_cell, crop, foo, nsteps, output_f):
         crop ():
         foo ():
         nsteps (int):
+        start_dt (date):
+        end_dt (date):
         output_f (): 
 
     Returns:
@@ -123,115 +107,113 @@ def crop_day_loop(data, et_cell, crop, foo, nsteps, output_f):
     else:
         refet_array = et_cell.refet['ASCEPMStdETo']
 
-    for i, ts in enumerate(et_cell.refet['Dates'][:nsteps]):
-        ts_date = datetime.date(*ts[:3])
-        ts_doy = int(ts_date.strftime('%j'))
-        ##doy = ts[7]
-        ##logging.info('crop_day_loop(): DOY %s  Date %s' % (ts_doy, ts_date))
-        logging.debug('\ncrop_day_loop(): DOY %s  Date %s' % (ts_doy, ts_date))
+    ## Build a mask of valid dates
+    date_mask = (
+        (et_cell.refet['Dates'] >= start_dt) and
+        (et_cell.refet['Dates'] <= end_dt))
+ 
+    for i, step_dt in enumerate(et_cell.refet['Dates']):
+        step_doy = int(step_dt.strftime('%j'))
+        logging.debug('\ncrop_day_loop(): DOY %s  Date %s' % (step_doy, step_dt))
+        if not date_mask[i]:
+            continue
+        ##if start_dt is not None and step_dt < start_dt:
+        ##    continue
+        ##elif end_dt is not None and step_dt > end_dt:
+        ##    continue
 
-        precip = et_cell.refet['Precip'][i]
-        wind = et_cell.refet['Wind'][i]
-        tdew = et_cell.refet['TDew'][i]
-        #etr = et_cell.refet['ASCEPMStdETr'][i]
-        eto = et_cell.refet['ASCEPMStdETo'][i]
-        etref = refet_array[i]
+        ## Log RefET values at time step 
         logging.debug(
-            'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f' % (precip, wind, tdew))
+            'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f' % 
+            (et_cell.refet['Precip'][i], et_cell.refet['Wind'][i], 
+             et_cell.refet['TDew'][i]))
         logging.debug(
-            'crop_day_loop(): ETo %.6f  ETref %.6f' % (eto, etref))
+            'crop_day_loop(): ETo %.6f  ETr %.6f  ETref %.6f' % 
+            (et_cell.refet['ASCEPMStdETo'][i], et_cell.refet['ASCEPMStdETr'][i], 
+             refet_array[i]))
 
-        # in original there was 80 lines of alternative Tmax/Tmin for climate change scenarios
-        '''
-         ' set TMax, TMin, TMean, T30, long-term T30, and long-term CGDD
-         ' as a function of alternative TMax TMin option
-         ' blank of zero is no use of alternative TMax and TMin data
-         ' 1 is use of alternative TMax and TMin for annual crops only
-         ' 2 is use of alternative TMax and TMin for perennial crops only
-         ' 3 is use of alternative TMax and TMin for all crops 
-        '''
-        # ' default is no use of alternative TMax and TMin
-        tmax = et_cell.climate['tmax_array'][i]
-        tmin = et_cell.climate['tmin_array'][i]
-        tmean = et_cell.climate['tmean_array'][i]
-        t30 = et_cell.climate['t30_array'][i]
-        # Precip converted to mm in process_climate()
-        precip = et_cell.climate['precip'][i]        
+        ## Log climate values at time step         
         logging.debug(
             'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
-            (tmax, tmin, tmean, t30))
-
-        ## Copies of these were made using loop
-        cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
-        t30_lt = np.copy(et_cell.climate['main_t30_lt'])
-
-        #' this is done before calling ETc
-        #' determine if this is a valid day (for use in assessing alfalfa cuttings in that file)
-        #' use ETref to determine
-
-        # some stuff here left out
-        ### TP05 this has to do with printing output or mysterious shit I don't understand....skip for now
-        # variables set validDaysPerYear & expectedYear, but seem unused
-        # except for printing ???
+            (et_cell.climate['tmax_array'][i], et_cell.climate['tmin_array'][i], 
+             et_cell.climate['tmean_array'][i], et_cell.climate['t30_array'][i]))
+        logging.debug(
+            'crop_day_loop(): precip %.6f' % et_cell.climate['precip'][i])
 
         ## At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
             foo.setup_crop(crop)
 
         ## At end of season for each crop, set up for nongrowing and dormant season
-        #foo.dormant_setup_flag = True   # for testing SetupDormant()
         if not foo.in_season and foo.dormant_setup_flag:
             logging.debug(
-                'crop_day_loop(): in_season[%s] dormant_setup_flag[%s]' % (
-                foo.in_season, foo.dormant_setup_flag))
+                'crop_day_loop(): in_season[%s]  crop_setup[%s]  dormant_setup[%s]' % 
+                (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
             foo.setup_dormant(data, et_cell, crop)
         logging.debug(
-            'crop_day_loop(): in_season[%s]  crop_setup_flag[%s]  dormant_setup_flag[%s]' % (
-            foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
+            'crop_day_loop(): in_season[%s]  crop_setup[%s]  dormant_setup[%s]' % 
+            (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
 
-        foo_day.sdays = i+1
-        foo_day.doy = ts_doy
-        foo_day.year = ts_date.year
-        foo_day.month = ts_date.month
-        foo_day.day = ts_date.day
+        foo_day.sdays = i + 1
+        foo_day.doy = step_doy
+        foo_day.year = step_dt.year
+        foo_day.month = step_dt.month
+        foo_day.day = step_dt.day
         foo_day.date = et_cell.refet['Dates'][i]
-        foo_day.tmax_original = et_cell.refet['TMax'][i]
-        foo_day.tdew = tdew
-        foo_day.wind = wind
-        foo_day.etref = etref
-        foo_day.tmean = tmean
-        foo_day.tmin = tmin
-        foo_day.tmax = tmax
+        foo_day.tmax_orig = et_cell.refet['TMax'][i]
+        foo_day.tdew = et_cell.refet['TDew'][i]
+        foo_day.wind = et_cell.refet['Wind'][i]
+        ## DEADBEEF - Why have 2 wind variables that are the same?
+        ##   U2 is at 2m, but wind doesn't have a height passed in
+        foo_day.u2 = foo_day.wind 
+        foo_day.etref = refet_array[i]
+        foo_day.tmean = et_cell.climate['tmean_array'][i]
+        foo_day.tmin = et_cell.climate['tmin_array'][i]
+        foo_day.tmax = et_cell.climate['tmax_array'][i]
         foo_day.snow_depth = et_cell.climate['snow_depth'][i]
-        foo_day.cgdd_0_lt = cgdd_0_lt
-        #foo_day.t30_lt = t30_lt
-        foo_day.t30 = t30
-        foo_day.precip = precip
-        #print et_cell.climate.keys()
+        foo_day.t30 = et_cell.climate['t30_array'][i]
+        foo_day.precip = et_cell.climate['precip'][i]
 
+        ## DEADBEEF - Why make copies?
+        foo_day.cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
+        #foo_day.t30_lt = np.copy(et_cell.climate['main_t30_lt'])
+
+        ## Compute RH from Tdew
+        ## DEADBEEF - Why would tdew or tmax_original be < -90?
+        if foo_day.tdew < -90 or foo_day.tmax_orig < -90:
+            foo_day.rh_min = 30.0
+        else:
+            es_tdew = util.aFNEs(foo_day.tdew)
+            # For now do not consider SVP over ice
+            # (it was not used in ETr or ETo computations, anyway)
+            es_tmax = util.aFNEs(foo_day.tmax_orig) 
+            foo_day.rh_min = min(es_tdew / es_tmax * 100, 100)
+                
         ## Calculate Kcb, Ke, ETc
         #If Not compute_crop_et(T30) Then Return False
         compute_crop_et.compute_crop_et(
-            t30, data, et_cell, crop, foo, foo_day)
+            data, et_cell, crop, foo, foo_day)
+
+        ## Compute NIWR at daily time step and write out
 
         ## Write vb-like output file for comparison
-        if COMPARE: 
-            tup = (ts_date, ts_doy, etref, precip, t30, foo.etc_act, foo.etc_pot,
-                   foo.etc_bas, foo.irr_simulated, foo.in_season, foo.sro,
-                   foo.Dpr)
+        if output_f:
+            tup = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
+                   foo_day.t30, foo.etc_act, foo.etc_pot,
+                   foo.etc_bas, foo.irr_sim, foo.in_season, foo.sro, foo.dpr)
             fmt = '%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
             output_f.write(fmt % tup)
 
         ## Write final output file variables to DEBUG file
         logging.debug(
             ('crop_day_loop(): ETref  %.6f  Precip %.6f  T30 %.6f') %
-            (etref, precip, t30))
+            (foo_day.etref, foo_day.precip, foo_day.t30))
         logging.debug(
             ('crop_day_loop(): ETact  %.6f  ETpot %.6f   ETbas %.6f') %
             (foo.etc_act, foo.etc_pot, foo.etc_bas))
         logging.debug(
-            ('crop_day_loop(): Runoff %.6f  DPerc %.6f') %
-            (foo.sro, foo.Dpr))
+            ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f') %
+            (foo.irr_sim, foo.sro, foo.dpr))
 
 def main():
     """ """

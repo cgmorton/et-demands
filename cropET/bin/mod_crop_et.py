@@ -12,8 +12,8 @@ import crop_et_data
 import crop_cycle
 import util
 
-def main(basin_id, output_ws, refet_fmt, txt_ws, nsteps=0, ncells=0,
-         start_date='1950-01-01', end_date='1999-12-31'):
+def main(basin_id, output_ws, refet_fmt, txt_ws, ncells=0,
+         start_date=None, end_date=None):
     """ Main function for running the Crop ET model
 
     Args:
@@ -32,11 +32,17 @@ def main(basin_id, output_ws, refet_fmt, txt_ws, nsteps=0, ncells=0,
     logging.info('ET-Demands')
     logging.debug('  Basin: {}'.format(basin_id))
 
+    ##
+    if not output_ws:
+        output_ws = os.path.join(os.getcwd(), 'cet', basin_id, 'py', output_name)
+    if not os.path.isdir(output_ws):
+        os.mkdir(output_ws)
+
     ## If a date is not set, process 1950-1999
-    try: start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-    except: start_dt = datetime.datetime(1950,1,1)
-    try: end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-    except: end_dt = datetime.datetime(1999,12,31)
+    try: start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+    except: start_dt = datetime.date(1950,1,1)
+    try: end_dt = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+    except: end_dt = datetime.date(1999,12,31)
     logging.info('  Start date: {0}'.format(start_dt))
     logging.info('  End date:   {0}'.format(end_dt))
 
@@ -65,15 +71,12 @@ def main(basin_id, output_ws, refet_fmt, txt_ws, nsteps=0, ncells=0,
         cell.set_daily_refet_data(refet_fmt % (cell.refET_id), skiprows=[1])
         ##cell.set_daily_nldas_data(refet_fmt % (cell.refET_id))
 
-        ## This impacts the long-term variables, like main_cgdd_0_lt & main_t30_lt
-        if not nsteps:
-            nsteps = len(cell.refet['Dates'])  # full period of refet
-
         ## Process climate arrays
-        cell.process_climate(nsteps)
+        cell.process_climate(start_dt, end_dt)
 
         ## Run the model
-        crop_cycle.crop_cycle(data, cell, nsteps, basin_id, output_ws)
+        crop_cycle.crop_cycle(
+            data, cell, start_dt, end_dt, basin_id, output_ws)
 
 def parse_args():
     output_ws = os.path.join(os.getcwd(), 'cet')
@@ -97,9 +100,6 @@ def parse_args():
         help='basin ID')
     parser.add_argument(
         '--ncells', default=0, metavar='N', type=int,
-        help='Number of cells')
-    parser.add_argument(
-        '--nsteps', default=0, metavar='N', type=int,
         help='Number of cells')
     parser.add_argument(
         '--output',  metavar='PATH', default=output_ws,
@@ -134,6 +134,7 @@ def parse_args():
         args.text = os.path.abspath(args.text)
     return args
 
+################################################################################
 if __name__ == '__main__':
     args = parse_args()
 
@@ -148,7 +149,7 @@ if __name__ == '__main__':
         log_file.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(log_file)
         ## Force console logger to INFO if DEBUG
-        args.log_level = logging.INFO
+        ##args.log_level = logging.INFO
     else:
         logger.setLevel(args.log_level)
     ## Create console logger
@@ -159,6 +160,5 @@ if __name__ == '__main__':
 
     ##
     main(basin_id=args.basin_id, output_ws=args.output,
-         refet_fmt=args.refet, txt_ws=args.text,
-         nsteps=args.nsteps, ncells=args.ncells,
+         refet_fmt=args.refet, txt_ws=args.text, ncells=args.ncells,
          start_date=args.start, end_date=args.end)

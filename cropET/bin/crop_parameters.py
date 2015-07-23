@@ -23,14 +23,14 @@ class CropParameters:
         self.days_after_planting_irrigation = int(v[3])
         self.crop_fw = int(v[4])
         self.winter_surface_cover_class = int(v[5])
-        self.crop_kc_max = float(v[6])
+        self.kc_max = float(v[6])
         self.mad_initial = int(v[7])
         self.mad_midseason = int(v[8])
         self.rooting_depth_initial = float(v[9])
-        self.rooting_depth_maximum = float(v[10])
+        self.rooting_depth_max = float(v[10])
         self.end_of_root_growth_fraction_time = float(v[11])
         self.height_initial = float(v[12])
-        self.height_maximum = float(v[13])
+        self.height_max = float(v[13])
         ## [140822] changed for RioGrande
         self.curve_number = int(v[14])
         self.curve_name = str(v[15]).replace('"', '').strip()
@@ -67,9 +67,9 @@ class CropParameters:
         """ """
         #' setup curve number for antecedent II condition for winter covers
         #wscc = self.winter_surface_cover_class
-        #self.curve_number_coarse_soil_winter = int(v[29])
-        #self.curve_number_medium_soil_winter = int(v[30])
-        #self.curve_number_fine_soil_winter   = int(v[31])
+        #self.cn_coarse_soil_winter = int(v[29])
+        #self.cn_medium_soil_winter = int(v[30])
+        #self.cn_fine_soil_winter   = int(v[31])
 
 
 def read_crop_parameters(fn):

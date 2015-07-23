@@ -5,26 +5,11 @@ import util
 def compute_crop_gdd(data, crop, foo, foo_day):
     """Compute crop growing degree days
 
-    Following rhmin and u2 was moved here to be hit for each crop type.  June 2, 2009 Allen
-    # 12/2007, calculate rhmin and u2 for use in computing Kcmax and Kcbo for ETo based ETc
     """
     ##logging.debug('compute_crop_gdd()')
 
-    #TMaxOriginal = originalTMax(sdays - 1)
-    if foo_day.tdew < -90 or foo_day.tmax_original < -90:
-        foo_day.rhmin = 30.0
-    else:
-        es_tdew = util.aFNEs(foo_day.tdew)
-        # For now do not consider SVP over ice
-        # (it was not used in ETr or ETo computations, anyway)
-        es_tmax = util.aFNEs(foo_day.tmax_original) 
-        foo_day.rhmin = min(es_tdew / es_tmax * 100, 100)
-
-    # Wind at 2 m height
-    foo_day.u2 = foo_day.wind 
-
-    # Calculate 30 day ETr each year
-    # Shift entries in 30 day array to add today's ETref
+    ## Calculate 30 day ETr each year
+    ## Shift entries in 30 day array to add today's ETref
     etref_lost = 0.0
     if foo_day.sdays > 30:
         #ETreflost = ETref_array(1)
@@ -65,7 +50,7 @@ def compute_crop_gdd(data, crop, foo, foo_day):
             foo.in_season = False    #' July 30, 20120 dlk
         foo.lDoy = foo_day.doy
     logging.debug(
-        ('compute_crop_gdd(): ETref30 %.6f  sdays %s  ETref %.6f  etref_lost %s') %
+        ('compute_crop_gdd(): ETref30 %.6f  sdays %s  ETref %.6f  ETref_lost %.6f') %
         (foo.etref_30, foo_day.sdays, foo_day.etref, etref_lost))
     logging.debug(
         ('compute_crop_gdd(): doy_start_cycle %s  crop_curve_number %s  '+

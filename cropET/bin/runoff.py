@@ -44,7 +44,7 @@ def runoff(foo, foo_day):
 
     ## If irrigations are automatically scheduled, base runoff on an average of
     ##   conditions for prior four days to smooth results.
-    logging.debug('runoff(): SRO %s  irr_flag %s  S %.6f' % (
+    logging.debug('runoff(): SRO %.6f  irr_flag %s  S %.6f' % (
         foo.sro, foo.irr_flag, foo.s))
     if foo.irr_flag:    
         # Initial abstraction
@@ -58,11 +58,12 @@ def runoff(foo, foo_day):
             ppt_net2 ** 2 / (foo_day.precip + 0.8 * foo.s2) +
             ppt_net1 ** 2 / (foo_day.precip + 0.8 * foo.s1))
         logging.debug(
-            ('runoff(): SRO %.6f  Pnet4 %.6f  S4 %s  Pnet3 %.6f  S3 %s') %
-            (foo.sro, ppt_net4, foo.s4, ppt_net3, foo.s3))
+            ('runoff(): Pnet4 %.6f  S4 %.6f  Pnet3 %.6f  S3 %.6f') %
+            (ppt_net4, foo.s4, ppt_net3, foo.s3))
         logging.debug(
-            ('runoff(): Pnet2 %.6f  S2 %s  Pnet1 %.6f  S1 %s') %
+            ('runoff(): Pnet2 %.6f  S2 %.6f  Pnet1 %.6f  S1 %.6f') %
             (ppt_net2, foo.s2, ppt_net1, foo.s1))
+        logging.debug('runoff(): SRO %.6f' % foo.sro)
 
         foo.s4 = foo.s3
         foo.s3 = foo.s2

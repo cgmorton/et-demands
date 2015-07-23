@@ -16,7 +16,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
 
     # Determine if inside or outside growing period
     # Procedure for deciding start and return false of season.
-    cCurveNo = crop.curve_number
+    curve_number = crop.curve_number
 
     # Determination of start of season was rearranged April 12 2009 by R.Allen
     # To correct computation error in limiting first and latest starts of season 
@@ -46,23 +46,23 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             
             foo_day.cgdd_0_lt[0] = foo_day.cgdd_0_lt[1]
             try:
-                longtermpl = int(np.diff(
+                longterm_pl = int(np.diff(
                     foo_day.cgdd_0_lt >
                     crop.t30_for_pl_or_gu_or_cgdd).nonzero()[0]) + 1
             except:
                 logging.error('Error finding DOY index')
-                longtermpl = 0
+                longterm_pl = 0
             ##for doy in range(1,367):
             ##    if (foo_day.cgdd_0_lt[doy] > crop.t30_for_pl_or_gu_or_cgdd and
             ##        foo_day.cgdd_0_lt[doy-1] < crop.t30_for_pl_or_gu_or_cgdd):
-            ##        longtermpl = doy
+            ##        longterm_pl = doy
             ##        ## DEADBEEF - Stop after after a value is found?
             ##        ##break
 
             # Check if getting too late in season
             # Season hasn't started yet
-            # was longtermpl + 40 ----4/30/2009
-            if (longtermpl > 0 and foo_day.doy > longtermpl + 40 and
+            # was longterm_pl + 40 ----4/30/2009
+            if (longterm_pl > 0 and foo_day.doy > longterm_pl + 40 and
                 not foo.real_start):      
                 foo.doy_start_cycle = foo_day.doy 
                 foo.real_start = True
@@ -76,9 +76,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
 
                 #' This is modeled startup day, but check to see if it is too early
                 #' use +/- 40 days from longterm as constraint
-                if longtermpl > 0 and foo_day.doy < longtermpl - 40:    
+                if longterm_pl > 0 and foo_day.doy < longterm_pl - 40:    
                     foo.real_start = False #' too early to start season
-                    foo.doy_start_cycle = longtermpl - 40
+                    foo.doy_start_cycle = longterm_pl - 40
                     if foo.doy_start_cycle < 1:     
                         foo.doy_start_cycle += 365
                 else:
@@ -104,8 +104,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                     if foo.doy_start_cycle < 1:     
                         foo.doy_start_cycle += 365
             logging.debug(
-                'kcb_daily(): InSeason %s  longtermpl %s  doy %s  doy_start_cycle %s' %
-                (foo.in_season, longtermpl, foo_day.doy, foo.doy_start_cycle))
+                'kcb_daily(): InSeason %s  longterm_pl %s  doy %s  doy_start_cycle %s' %
+                (foo.in_season, longterm_pl, foo_day.doy, foo.doy_start_cycle))
             logging.debug(
                 'kcb_daily(): t30_for_pl_or_gu_or_cgdd %s' %
                 (crop.t30_for_pl_or_gu_or_cgdd))
@@ -130,23 +130,23 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
 
             t30_lt = et_cell.climate['main_t30_lt']
             t30_lt[0] = t30_lt[1]
-            longtermpl = 0
+            longterm_pl = 0
             for jDoy in range(1,367):
-                if longtermpl < 1:
+                if longterm_pl < 1:
                     #' line added 4/29/09 to keep from multiple longterm start dates.  duh.
                     #if foo_day.t30LT[jDoy] > crop.t30_for_pl_or_gu_or_cgdd and foo_day.t30LT[jDoy-1] < crop.t30_for_pl_or_gu_or_cgdd:
                     if (t30_lt[jDoy] > crop.t30_for_pl_or_gu_or_cgdd and
                         t30_lt[jDoy-1] <= crop.t30_for_pl_or_gu_or_cgdd):
-                        longtermpl = jDoy
-            logging.debug('kcb_daily(): longtermpl %s  t30_lt(0) %s  t30_lt(1) %s' % (
-                longtermpl, t30_lt[0], t30_lt[1]))
+                        longterm_pl = jDoy
+            logging.debug('kcb_daily(): longterm_pl %s  t30_lt(0) %s  t30_lt(1) %s' % (
+                longterm_pl, t30_lt[0], t30_lt[1]))
 
-            if longtermpl > 0:
+            if longterm_pl > 0:
                 #' check if getting too late in season
-                if foo_day.doy > longtermpl+40: 
+                if foo_day.doy > longterm_pl+40: 
                     #' season hasn't started yet
                     if not foo.real_start:        
-                        #' longtermpl + 40 'it is unseasonably warm (too warm). Delay start ' set to Doy on 4/29/09 (nuts)
+                        #' longterm_pl + 40 'it is unseasonably warm (too warm). Delay start ' set to Doy on 4/29/09 (nuts)
                         foo.doy_start_cycle = foo_day.doy 
                         logging.debug('kcb_daily(): doy_start_cycle %s' % (
                             foo.doy_start_cycle))
@@ -156,10 +156,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             #' start of season has not yet been determined.  Look for it in normal fashion:
             if not foo.real_start:     
                 if foo_day.t30 > crop.t30_for_pl_or_gu_or_cgdd:     #' 'JH,RGA 4/13/09
-                    if longtermpl > 0:    
-                        if foo_day.doy < longtermpl - 40:     #' use +/- 40 days from longterm as constraint
+                    if longterm_pl > 0:    
+                        if foo_day.doy < longterm_pl - 40:     #' use +/- 40 days from longterm as constraint
                             foo.real_start = False #' too early to start season
-                            foo.doy_start_cycle = longtermpl - 40
+                            foo.doy_start_cycle = longterm_pl - 40
                             logging.debug('kcb_daily(): doy_start_cycle %s' % (
                                 foo.doy_start_cycle))
                             if foo.doy_start_cycle < 1:     
@@ -207,7 +207,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 foo_day.t30, crop.t30_for_pl_or_gu_or_cgdd, crop.date_of_pl_or_gu))
             logging.debug('kcb_daily(): InSeason %s' % (foo.in_season))
     
-            # print 'in kcbDaily().CASE 2', crop.crop_gdd_trigger_doy, longtermpl, foo.doy_start_cycle, foo_day.doy
+            # print 'in kcbDaily().CASE 2', crop.crop_gdd_trigger_doy, longterm_pl, foo.doy_start_cycle, foo_day.doy
 
     #### Flag_for_means_to_estimate_pl_or_gu Case 3 #########
     #Case 3
@@ -275,7 +275,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
         #### crop.curve_type Case 1 ####
         #    Select Case Crop_curve_type(ctCount)
         if crop.curve_type == 1:
-        #Case 1  #' NCGDD
+        #Case 1  #' Ncgdd
             #' normalized cumulative growing degree days
     
             if foo.doy_start_cycle == foo_day.doy:     
@@ -313,11 +313,11 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                     if crop.class_number == 2:                             #' dairy hay.  Determine which of three kcb curves to use
                         #if foo.cycle < et_cell.dairyCuttings + 0.01 - 1:     #' this could be - 2 if at least one, and sometimes two final cycles are desired
                         if foo.cycle < dcuttings + 0.01 - 1:     #' this could be - 2 if at least one, and sometimes two final cycles are desired
-                            cCurveNo = crop.curve_number + 1 #' increment alfalfa curve to intermediate cycle
+                            curve_number = crop.curve_number + 1 #' increment alfalfa curve to intermediate cycle
                         else: #' R.Allen 4/1/08
-                            cCurveNo = crop.curve_number + 2 #' increment alfalfa curve to fall/winter cycle
-                        logging.debug('kcb_daily(): dairyCuttings %s  cycle %s  Crop_curve_number %s  cCurveNo %s' % (
-                            dcuttings, foo.cycle, crop.curve_number, cCurveNo))
+                            curve_number = crop.curve_number + 2 #' increment alfalfa curve to fall/winter cycle
+                        logging.debug('kcb_daily(): dairyCuttings %s  cycle %s  Crop_curve_number %s  curve_number %s' % (
+                            dcuttings, foo.cycle, crop.curve_number, curve_number))
 
                     #' typical and beef hay.  Determine which of three kcb curves to use
                     if (crop.class_number == 1 or crop.class_number == 3 or
@@ -325,48 +325,48 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                          crop.curve_name.upper() == "ALFALFA 1ST CYCLE")):
                         #if foo.cycle < et_cell.beefCuttings + 0.01 - 1:     #' this could be - 2 if at least one, and sometimes two final cycles are desired
                         if foo.cycle < bcuttings + 0.01 - 1:     #' this could be - 2 if at least one, and sometimes two final cycles are desired
-                            cCurveNo = crop.curve_number + 1 #' increment alfalfa curve to intermediate cycle
+                            curve_number = crop.curve_number + 1 #' increment alfalfa curve to intermediate cycle
                         else:
-                            cCurveNo = crop.curve_number + 2 #' increment alfalfa curve to fall/winter cycle
-                        logging.debug('kcb_daily(): beefCuttings %s  cycle %s  Crop_curve_number %s  cCurveNo %s' % (
-                            bcuttings, foo.cycle, crop.curve_number, cCurveNo))
+                            curve_number = crop.curve_number + 2 #' increment alfalfa curve to fall/winter cycle
+                        logging.debug('kcb_daily(): beefCuttings %s  cycle %s  Crop_curve_number %s  curve_number %s' % (
+                            bcuttings, foo.cycle, crop.curve_number, curve_number))
     
                 #' If ctCount = 2 and cycle > 3:     'dairy alfalfa 
-                #'  ccurveno = Crop_curve_number(ctCount) + 2  'end cycle (going into fall/winter)
+                #'  curve_number = Crop_curve_number(ctCount) + 2  'end cycle (going into fall/winter)
                 #' End If
                 #' If ctCount = 3 and cycle > 2:     'beef alfalfa 
-                #'  ccurveno = Crop_curve_number(ctCount) + 2  'end cycle (going into fall/winter)
+                #'  curve_number = Crop_curve_number(ctCount) + 2  'end cycle (going into fall/winter)
                 #' End If
-                #' Debug.Writeline "cycle, cgdd_efc, cumGDD_term, ccurveno "; cycle, cgdd_efc, cumGDD_term, ccurveno
+                #' Debug.Writeline "cycle, cgdd_efc, cumGDD_term, curve_number "; cycle, cgdd_efc, cumGDD_term, curve_number
                 #' return false
 
             if cgdd_in_season < cgdd_efc:    
                 # print 'kcbDaily:in cgdd_in_season < cgdd_efc'
-                foo.ncumGDD = cgdd_in_season / cgdd_efc
-                int_cgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.ncumGDD * 10))
-                #kcb = cropco_val(cCurveNo, int_cgdd) + (foo.ncumGDD * 10 - int_cgdd) * (cropco_val(cCurveNo, int_cgdd + 1) - cropco_val(cCurveNo, int_cgdd))
+                foo.n_cgdd = cgdd_in_season / cgdd_efc
+                int_cgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_cgdd * 10))
+                #kcb = cropco_val(curve_number, int_cgdd) + (foo.n_cgdd * 10 - int_cgdd) * (cropco_val(curve_number, int_cgdd + 1) - cropco_val(curve_number, int_cgdd))
                 foo.kcb = (
-                    et_cell.crop_coeffs[cCurveNo].data[int_cgdd] +
-                    (foo.ncumGDD * 10 - int_cgdd) *
-                    (et_cell.crop_coeffs[cCurveNo].data[int_cgdd+1] -
-                     et_cell.crop_coeffs[cCurveNo].data[int_cgdd]))
+                    et_cell.crop_coeffs[curve_number].data[int_cgdd] +
+                    (foo.n_cgdd * 10 - int_cgdd) *
+                    (et_cell.crop_coeffs[curve_number].data[int_cgdd+1] -
+                     et_cell.crop_coeffs[curve_number].data[int_cgdd]))
                 logging.debug(
-                    'kcb_daily(): Kcb %s  ncumGDD %s  int_cgdd %s' %
-                    (foo.kcb, foo.ncumGDD, int_cgdd))
+                    'kcb_daily(): Kcb %.6f  ncumGDD %s  int_cgdd %s' %
+                    (foo.kcb, foo.n_cgdd, int_cgdd))
                 logging.debug(
                     'kcb_daily(): cgdd_in_season %s  cgdd_efc %s' %
                     (cgdd_in_season, cgdd_efc))
                 logging.debug(
-                    'kcb_daily(): cumGDD %s  cgdd_at_planting %s' %
+                    'kcb_daily(): cumGDD %.6f  cgdd_at_planting %.6f' %
                     (foo.cgdd, foo.cgdd_at_planting))
                 foo.mad = foo.mad_ini #' set management allowable depletion also
                 #If int_cgdd Mod 10 = 0:    
-                    #' Debug.Writeline "DoY, foo.ncumGDD kcb "; DoY, foo.ncumGDD, kcb
+                    #' Debug.Writeline "DoY, foo.n_cgdd kcb "; DoY, foo.n_cgdd, kcb
                     #' return false
             else:
                 if cgdd_in_season < cgdd_term:     #' function is same as for < EFC
                     # print 'kcbDaily:in cgdd_in_season < cumGDD_term'
-                    foo.ncumGDD = cgdd_in_season / cgdd_efc #' use ratio of cumGDD for EFC
+                    foo.n_cgdd = cgdd_in_season / cgdd_efc #' use ratio of cumGDD for EFC
     
                     #' increase ncumGDD term in SW Idaho to stretch kcb curve during late season
                     #' use value of cropFlags, if greater than 1 as scaler
@@ -376,30 +376,30 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                     #If cropFlags(ETCellCount, ctCount) > 1:    
                     #    ncumGDD = ncumGDD / cropFlags(ETCellCount, ctCount) #' reduce ncumGDD to make curve stretch longer
                     #End If
-                    if foo.ncumGDD < 1:     
-                        foo.ncumGDD = 1 #' keep from going back into dev. period
-                    int_cgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.ncumGDD * 10))
+                    if foo.n_cgdd < 1:     
+                        foo.n_cgdd = 1 #' keep from going back into dev. period
+                    int_cgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_cgdd * 10))
                     foo.mad = foo.mad_mid
-                    lentry = et_cell.crop_coeffs[cCurveNo].lentry
+                    lentry = et_cell.crop_coeffs[curve_number].lentry
                     if int_cgdd < lentry:     #' more entries in kcb array
-                        #kcb = cropco_val(cCurveNo, int_cgdd) + (ncumGDD * 10 - int_cgdd) * (cropco_val(cCurveNo, int_cgdd + 1) - cropco_val(cCurveNo, int_cgdd))
+                        #kcb = cropco_val(curve_number, int_cgdd) + (ncumGDD * 10 - int_cgdd) * (cropco_val(curve_number, int_cgdd + 1) - cropco_val(curve_number, int_cgdd))
                         foo.kcb = (
-                            et_cell.crop_coeffs[cCurveNo].data[int_cgdd] +
-                            (foo.ncumGDD * 10 - int_cgdd) *
-                            (et_cell.crop_coeffs[cCurveNo].data[int_cgdd+1] -
-                             et_cell.crop_coeffs[cCurveNo].data[int_cgdd]))
+                            et_cell.crop_coeffs[curve_number].data[int_cgdd] +
+                            (foo.n_cgdd * 10 - int_cgdd) *
+                            (et_cell.crop_coeffs[curve_number].data[int_cgdd+1] -
+                             et_cell.crop_coeffs[curve_number].data[int_cgdd]))
                         logging.debug(
-                            'kcb_daily(): Kcb %s  int_cgdd %s  cCurveNo %s  lentry %s' %
-                            (foo.kcb, int_cgdd, cCurveNo, lentry))
+                            'kcb_daily(): Kcb %s  int_cgdd %s  curve_number %s  lentry %s' %
+                            (foo.kcb, int_cgdd, curve_number, lentry))
                         #If ctCount = 7:     
-                        #    #' Debug.Writeline "after EFC, DoY foo.ncumGDD, int_cgdd, kcb "; DoY, ncumGDD, int_cgdd, kcb
+                        #    #' Debug.Writeline "after EFC, DoY foo.n_cgdd, int_cgdd, kcb "; DoY, ncumGDD, int_cgdd, kcb
                         #    #' return false
                     else:
                         #' hold kcb equal to last entry until either cumGDD_termination is exceeded or killing frost
-                        foo.kcb = et_cell.crop_coeffs[cCurveNo].data[lentry]
+                        foo.kcb = et_cell.crop_coeffs[curve_number].data[lentry]
                         logging.debug(
-                            'kcb_daily(): Kcb %s  int_cgdd %s  cCurveNo %s  lentry %s' %
-                            (foo.kcb, int_cgdd, cCurveNo, lentry))
+                            'kcb_daily(): Kcb %s  int_cgdd %s  curve_number %s  lentry %s' %
+                            (foo.kcb, int_cgdd, curve_number, lentry))
 
                 else:
                     #' end of season by exceeding cumGDD for termination.  set flag to 0
@@ -425,12 +425,12 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                         foo.cgdd_at_planting = foo.cgdd #' set basis for next cycle
     
                         #' Following 2 lines added July 13, 2009 by RGA to reset alfalfa height to minimum each new cycle
-                        foo.Hcrop = foo.hmin
+                        foo.height = foo.height_min
     
                         #' and to set kcb to initial kcb value for first day following cutting.
     
-                        #kcb = cropco_val(cCurveNo, 0)
-                        foo.kcb = et_cell.crop_coeffs[cCurveNo].data[0]
+                        #kcb = cropco_val(curve_number, 0)
+                        foo.kcb = et_cell.crop_coeffs[curve_number].data[0]
                         logging.debug(
                             'kcb_daily(): Kcb %s  cgdd_at_planting %s' %
                             (foo.kcb, foo.cgdd_at_planting))
@@ -465,9 +465,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 days_into_season = days_into_season + 365
             if crop.time_for_efc < 1:     
                 crop.time_for_efc = 1 #' deal with values of zero or null - added Dec. 29, 2011, rga
-            foo.nPL_EC = days_into_season / crop.time_for_efc
-            npl_ec100 = foo.nPL_EC * 100
-            if foo.nPL_EC < 1:    
+            foo.n_pl_ec = days_into_season / crop.time_for_efc
+            npl_ec100 = foo.n_pl_ec * 100
+            if foo.n_pl_ec < 1:    
                 foo.mad = foo.mad_ini
             else:
                 foo.mad = foo.mad_mid
@@ -479,16 +479,16 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 npl_ec100, crop.time_for_harvest, abs(crop.time_for_harvest)))
             #if npl_ec100 <= abs(crop.time_for_harvest):    
             if round(npl_ec100,4) <= abs(crop.time_for_harvest):    
-                logging.debug('kcb_daily(): nPL_EC0 %s  max_lines_in_crop_curve_table %s' % (
-                    foo.nPL_EC, foo.max_lines_in_crop_curve_table))
-                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1., int(foo.nPL_EC * 10.))
+                logging.debug('kcb_daily(): n_pl_ec0 %s  max_lines_in_crop_curve_table %s' % (
+                    foo.n_pl_ec, foo.max_lines_in_crop_curve_table))
+                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1., int(foo.n_pl_ec * 10.))
                 foo.kcb = (
-                    et_cell.crop_coeffs[cCurveNo].data[int_PL_EC] +
-                    (foo.nPL_EC * 10 - int_PL_EC) *
-                    (et_cell.crop_coeffs[cCurveNo].data[int_PL_EC+1] -
-                     et_cell.crop_coeffs[cCurveNo].data[int_PL_EC]))
-                logging.debug('kcb_daily():6 Kcb %s  int_PL_EC %s  nPL_EC %s' % (
-                    foo.kcb, int_PL_EC, foo.nPL_EC))
+                    et_cell.crop_coeffs[curve_number].data[int_PL_EC] +
+                    (foo.n_pl_ec * 10 - int_PL_EC) *
+                    (et_cell.crop_coeffs[curve_number].data[int_PL_EC+1] -
+                     et_cell.crop_coeffs[curve_number].data[int_PL_EC]))
+                logging.debug('kcb_daily():6 Kcb %s  int_PL_EC %s  n_pl_ec %s' % (
+                    foo.kcb, int_PL_EC, foo.n_pl_ec))
                 logging.debug('kcb_daily():6 days_into_season %s  time_for_EFC %s' % (
                     days_into_season, crop.time_for_efc))
             else:
@@ -516,18 +516,18 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 days_into_season += 365
             if crop.time_for_efc < 1:     
                 crop.time_for_efc = 1 #' deal with values of zero or null - added Dec. 29, 2011, rga
-            foo.nPL_EC = days_into_season / crop.time_for_efc
-            if foo.nPL_EC < 1:    
-                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(foo.nPL_EC * 10.))
-                #kcb = cropco_val(cCurveNo, int_PL_EC) + (nPL_EC * 10 - int_PL_EC) _
-                #    * (cropco_val(cCurveNo, int_PL_EC + 1) - cropco_val(cCurveNo, int_PL_EC))
+            foo.n_pl_ec = days_into_season / crop.time_for_efc
+            if foo.n_pl_ec < 1:    
+                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_pl_ec * 10.))
+                #kcb = cropco_val(curve_number, int_PL_EC) + (n_pl_ec * 10 - int_PL_EC) _
+                #    * (cropco_val(curve_number, int_PL_EC + 1) - cropco_val(curve_number, int_PL_EC))
                 foo.kcb = (
-                    et_cell.crop_coeffs[cCurveNo].data[int_PL_EC] +
-                    (foo.nPL_EC * 10 - int_PL_EC) *
-                    (et_cell.crop_coeffs[cCurveNo].data[int_PL_EC+1] -
-                     et_cell.crop_coeffs[cCurveNo].data[int_PL_EC]))
-                logging.debug('kcb_daily(): Kcb %s  nPL_EC %s  max_lines_in_crop_curve_table %s  int_PL_EC %s' % (
-                    foo.kcb, foo.nPL_EC, foo.max_lines_in_crop_curve_table, int_PL_EC))
+                    et_cell.crop_coeffs[curve_number].data[int_PL_EC] +
+                    (foo.n_pl_ec * 10 - int_PL_EC) *
+                    (et_cell.crop_coeffs[curve_number].data[int_PL_EC+1] -
+                     et_cell.crop_coeffs[curve_number].data[int_PL_EC]))
+                logging.debug('kcb_daily(): Kcb %s  n_pl_ec %s  max_lines_in_crop_curve_table %s  int_PL_EC %s' % (
+                    foo.kcb, foo.n_pl_ec, foo.max_lines_in_crop_curve_table, int_PL_EC))
                 foo.mad = foo.mad_ini
             else:
                 foo.mad = foo.mad_mid
@@ -539,13 +539,13 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 if DaysafterEFC <= abs(crop.time_for_harvest):    
                     nDaysafterEFC = DaysafterEFC / 10 + 11 #' start at array index = 11 for 0 days into full cover
                     int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(nDaysafterEFC))
-                    #kcb = cropco_val(cCurveNo, int_PL_EC) + (nDaysafterEFC - int_PL_EC) _
-                    #    * (cropco_val(cCurveNo, int_PL_EC + 1) - cropco_val(cCurveNo, int_PL_EC))
+                    #kcb = cropco_val(curve_number, int_PL_EC) + (nDaysafterEFC - int_PL_EC) _
+                    #    * (cropco_val(curve_number, int_PL_EC + 1) - cropco_val(curve_number, int_PL_EC))
                     foo.kcb = (
-                        et_cell.crop_coeffs[cCurveNo].data[int_PL_EC] +
+                        et_cell.crop_coeffs[curve_number].data[int_PL_EC] +
                         (nDaysafterEFC - int_PL_EC) *
-                        (et_cell.crop_coeffs[cCurveNo].data[int_PL_EC+1] -
-                         et_cell.crop_coeffs[cCurveNo].data[int_PL_EC]))
+                        (et_cell.crop_coeffs[curve_number].data[int_PL_EC+1] -
+                         et_cell.crop_coeffs[curve_number].data[int_PL_EC]))
                     logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
                 else:
                     #' beyond stated end of season
@@ -598,18 +598,18 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             days_into_season = float(foo_day.doy - foo.doy_start_cycle)
             if days_into_season < 1:     
                 days_into_season += 365
-            foo.nPL_EC = days_into_season / length_of_season
-            if foo.nPL_EC < 0.5:     #' assume season is split 50/50 for stress sensitivities for type 4
+            foo.n_pl_ec = days_into_season / length_of_season
+            if foo.n_pl_ec < 0.5:     #' assume season is split 50/50 for stress sensitivities for type 4
                 foo.mad = foo.mad_ini
             else:
                 foo.mad = foo.mad_mid
 
-            if foo.nPL_EC <= 1:    
-                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(foo.nPL_EC * 10))
+            if foo.n_pl_ec <= 1:    
+                int_PL_EC = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_pl_ec * 10))
                 foo.kcb = (
-                    cropco_val(cCurveNo, int_PL_EC) +
-                    (foo.nPL_EC * 10 - int_PL_EC) *
-                    (cropco_val(cCurveNo, int_PL_EC + 1) - cropco_val(cCurveNo, int_PL_EC)))
+                    cropco_val(curve_number, int_PL_EC) +
+                    (foo.n_pl_ec * 10 - int_PL_EC) *
+                    (cropco_val(curve_number, int_PL_EC + 1) - cropco_val(curve_number, int_PL_EC)))
                 logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
             else:
                 # Beyond end of season
@@ -792,17 +792,14 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
         #' ETr basis, therefore, no adjustment to kcb
         pass
     else:
-        logging.debug('kcb_daily(): Kcb0 %s  U2 %.6f  RHmin %.6f  Height %s' % (
-            foo.kcb, foo_day.u2, foo_day.rhmin, foo.height))
+        logging.debug(
+            'kcb_daily(): Kcb0 %.6f  U2 %.6f  RHmin %.6f  Height %.6f' % 
+            (foo.kcb, foo_day.u2, foo_day.rh_min, foo.height))
         #' ******'12/26/07
         foo.kcb = (
-            foo.kcb + (0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rhmin - 45)) *
+            foo.kcb + (0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rh_min - 45)) *
             (foo.height / 3) ** 0.3) 
         logging.debug('kcb_daily(): Kcb %.6f' % (foo.kcb))
-    # Set up as yesterday's cummulative GDD for tommorrow
-    foo.lcumGDD = foo.cgdd
+    # Set up as yesterday's cumulative GDD for tomorrow
+    foo.l_cgdd = foo.cgdd
     
-    #if debugFlag and ctCount = debugCrop and dailyDates(sdays - 1) = debugDate:    
-    #    PrintLine(lfNum, ETCellIDs(ETCellCount) & Chr(9) & "kcb, etc in kcb_daily" & Chr(9) & getDmiDate(dailyDates(sdays - 1)) & Chr(9) & "crop no" & Chr(9) & ctCount)
-    #    PrintLine(lfNum, "kcb" & Chr(9) & kcb & Chr(9) & "hcrop" & Chr(9) & Hcrop & Chr(9) & "cgdd" & Chr(9) & cgdd)
-    #Return True

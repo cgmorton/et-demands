@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import datetime
 import logging
 import math
 import os
@@ -105,22 +106,30 @@ class ETCell:
             Dictionary of the RefET data, keys are the columns,
                 and values are numpy arrays of the data
         """
-        eto_pd = pd.read_csv(fn, skiprows=skiprows)
-        ##logging.debug(list(eto_pd.columns.values))
+        data_pd = pd.read_csv(fn, skiprows=skiprows)
+        ##logging.debug(list(data_pd.columns.values))
 
-        # time.struct_time(tm_year=1950, tm_mon=1, tm_mday=3, tm_hour=0, tm_min=0,
-        # tm_sec=0, tm_wday=1, tm_yday=3, tm_isdst=-1)
-        struct_time_array = np.array([
-            time.strptime(s, "%m/%d/%Y") for s in eto_pd['Date'].tolist()])
-        ##date_array = np.array(eto_pd['Date'])
-
+        dt_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
+        ##date_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
+        
+        ## time.struct_time(tm_year=1950, tm_mon=1, tm_mday=3, tm_hour=0, tm_min=0,
+        ## tm_sec=0, tm_wday=1, tm_yday=3, tm_isdst=-1)
+        ##struct_time_array = np.array([
+        ##    time.strptime(s, "%m/%d/%Y") for s in data_pd['Date'].tolist()])
+ 
         self.refet = {
-             'TMax': eto_pd['TMax'], 'TMin': eto_pd['TMin'],
-             'Precip': eto_pd['Precip'], 'Snow': eto_pd['Snow'], 
-             'SnowDepth': eto_pd['SDep'], 'Rs': eto_pd['EstRs'], 
-             'Wind': eto_pd['EsWind'], 'TDew': eto_pd['EsTDew'],
-             'ASCEPMStdETr': eto_pd['ASCEr'], 'ASCEPMStdETo': eto_pd['ASCEg'],
-             'Dates': struct_time_array}
+             'TMax': np.array(data_pd['TMax']), 
+             'TMin': np.array(data_pd['TMin']),
+             'Precip': np.array(data_pd['Precip']), 
+             'Snow': np.array(data_pd['Snow']), 
+             'SnowDepth': np.array(data_pd['SDep']), 
+             'Rs': np.array(data_pd['EstRs']), 
+             'Wind': np.array(data_pd['EsWind']), 
+             'TDew': np.array(data_pd['EsTDew']),
+             'ASCEPMStdETr': np.array(data_pd['ASCEr']), 
+             'ASCEPMStdETo': np.array(data_pd['ASCEg']),
+             'Dates': dt_array}
+             ##'Dates': struct_time_array}
              ##'Penman':  a['Penm48'], 'PreTay': a['PreTay'], 'Harg': a['85Harg'],
              ##'Dates': date_array,
 
@@ -149,47 +158,51 @@ class ETCell:
                 and values are numpy arrays of the data
         """
 
-        a = np.genfromtxt(fn, delimiter=',', names=True)
+        data_array = np.genfromtxt(fn, delimiter=',', names=True)
         ##logging.debug(a.dtype.names)
      
-        date_str_list = ['{0}/{1}/{2}'.format(int(m),int(d),int(y))
-                         for y, m, d in zip(a['Year'], a['Month'], a['Day'])]
-        struct_time_list = [time.strptime(s, "%m/%d/%Y") for s in date_str_list]
+        dt_array = np.array([
+            datetime.date(y, m, d) for y, m, d in zip(a['Year'], a['Month'], a['Day'])])
+        ##date_str_list = ['{0}/{1}/{2}'.format(int(m),int(d),int(y))
+        ##                 for y, m, d in zip(a['Year'], a['Month'], a['Day'])]
+        ##struct_time_list = [time.strptime(s, "%m/%d/%Y") for s in date_str_list]
 
         ## Convert temperatures from K to C
-        a['TmaxK'] -= 273.15
-        a['TminK'] -= 273.15
+        data_array['TmaxK'] -= 273.15
+        data_array['TminK'] -= 273.15
 
         ## Convert W/m2 to MJ/m2
-        a['Solar_Radiation_W_m2'] *= 0.0864
+        data_array['Solar_Radiation_W_m2'] *= 0.0864
 
         ## Scale wind from 10m to 2m
-        a['Wind__10m_m_s1'] *= 4.87 / math.log(67.8 * 10 - 5.42)
+        data_array['Wind__10m_m_s1'] *= 4.87 / math.log(67.8 * 10 - 5.42)
 
         ## Calculate Tdew from specific humidity
         ## Convert station elevation from feet to meters
         pair = util.pair_func(0.3048 * self.stn_elev)
-        ea = util.ea_from_q(pair, a['Specific_Humiditykg_kg1'])
+        ea = util.ea_from_q(pair, data_array['Specific_Humiditykg_kg1'])
         tdew = util.tdew_from_ea(ea)
 
-        zero_array = np.zeros(a['TmaxK'].shape, dtype=np.float32)
+        zero_array = np.zeros(data_array['TmaxK'].shape, dtype=np.float32)
         self.refet = {
-             'TMax': a['TmaxK'], 'TMin': a['TminK'],
-             'Precip': a['Precipitation_mm'],                     
+             'TMax': data_array['TmaxK'], 
+             'TMin': data_array['TminK'],
+             'Precip': data_array['Precipitation_mm'],                     
              'Snow': zero_array,
              'SnowDepth': zero_array,
-             'EstRs': a['Solar_Radiation_W_m2'],                     
-             'Wind': a['Wind__10m_m_s1'],
+             'EstRs': data_array['Solar_Radiation_W_m2'],                     
+             'Wind': data_array['Wind__10m_m_s1'],
              'TDew' : tdew,
-             'ASCEPMStdETr': a['ETr__2mmm_day1'],
-             'ASCEPMStdETo': a['ETo__2m_mm_day1'],                     
+             'ASCEPMStdETr': data_array['ETr__2mmm_day1'],
+             'ASCEPMStdETo': data_array['ETo__2m_mm_day1'],    
+             'Dates': dt_array}          
+             ##'Dates': np.asarray(date_str_list)}
+             ##'Dates': np.asarray(struct_time_list)}     
              ##'Penman' : zero_array,                     
              ##'PreTay' : zero_array,
              ##'Harg': zero_array,
-             ##'Dates': np.asarray(date_str_list),
-             'Dates': np.asarray(struct_time_list)}        
-
-    def process_climate(self, nsteps):
+             
+    def process_climate(self, start_dt=None, end_dt=None):
         """ 
         
         compute long term averages (DAY LOOP)
@@ -217,19 +230,23 @@ class ETCell:
         tmax_array = np.copy(self.refet['TMax'])
         tmin_array = np.copy(self.refet['TMin'])
 
-        ## Seems most/all of what goes on in day loop could be done with array math    
+        ## Seems most/all of what goes on in day loop could be done with array math
         ## Maybe change later after validating code
+        ##month_array = np.array([step_dt.month for step_dt in self.refet['Dates']])
+        ##day_array = np.array([step_dt.day for step_dt in self.refet['Dates']])
+        
         #for i,ts in enumerate(self.refet['ts']):
-        for i,ts in enumerate(self.refet['Dates'][:nsteps]):
-            month = ts[1]
-            day = ts[2]
-
+        for i, step_dt in enumerate(self.refet['Dates']):
+            if start_dt is not None and step_dt < start_dt:
+                continue
+            elif end_dt is not None and step_dt > end_dt:
+                continue
             ## Compute long term averages
             ## Adjust and check temperature data
             ## Adjust T's downward if station is arid
             if self.aridity_rating > 0:
                 # Interpolate value for aridity adjustment
-                moa_frac = month + (day - 15) / 30.4
+                moa_frac = step_dt.month + (step_dt.day - 15) / 30.4
                 moa_frac = min([max([moa_frac, 1]), 11])
                 #moa_base = int(CDbl(moa_frac))
                 #moa_base, frac = math.modf(moa_frac)
@@ -261,8 +278,12 @@ class ETCell:
 
         main_t30 = 0.0
         snow_accum = 0.0
-        for i in range(len(self.refet['Dates'][:nsteps])):
-            doy = self.refet['Dates'][i][7] 
+        for i, step_dt in enumerate(self.refet['Dates']):
+            if start_dt is not None and step_dt < start_dt:
+                continue
+            elif end_dt is not None and step_dt > end_dt:
+                continue
+            doy = int(step_dt.strftime('%j'))
 
             ## Calculate an estimated depth of snow on ground using simple melt rate function))
             if len(sd_array) > 0:
@@ -290,13 +311,13 @@ class ETCell:
                 main_t30 = (main_t30 * (i) + tmean_array[i]) / (i+1)
             t30_array[i] = main_t30
 
-            ## Build cummulative over period of record
+            ## Build cumulative over period of record
             nrecord_main_t30[doy] += 1
             main_t30_lt[doy] = (
                 (main_t30_lt[doy] * (nrecord_main_t30[doy] - 1) + main_t30) /
                 nrecord_main_t30[doy] )
 
-            ## Compute main cumgdd for period of record for various bases for
+            ## Compute main cgdd for period of record for various bases for
             ##   constraining earliest/latest planting or GU
             ## Only Tbase = 0 needs to be evaluated
             ##   (used to est. GU for alfalfa, mint, hops)
