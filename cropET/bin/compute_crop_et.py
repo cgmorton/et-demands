@@ -381,8 +381,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
             else:
                 kr = 0.0
 
-    #' portion of surface that has been wetted by precipitation
-
+    ## Portion of surface that has been wetted by precipitation
     if foo.dep <= rew2use:   
         krp = 1
     else:
@@ -399,13 +398,12 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     #' Kelimit = (few + fewp) * kc_max
     #' find weighting factor based on water in Ze layer in irrig. wetted and precip wetted
 
-    #' following conditional added July 2006 for when denominator is zero
-
+    ## following conditional added July 2006 for when denominator is zero
     if (few * watinZe + fewp * watinZep) > 0.0001:   
         foo.wtirr = few * watinZe / (few * watinZe + fewp * watinZep)
     else:
         foo.wtirr = few * watinZe
-    foo.wtirr = min([max([foo.wtirr, 0]), 1])
+    foo.wtirr = min(max(foo.wtirr, 0), 1)
     ##DEADBEEF
     ##if foo.wtirr < 0.:    
     ##    foo.wtirr = 0.
@@ -431,15 +429,15 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         kep = 0.0
     ke = kei + kep
 
-    # Transpiration coefficient for moisture stress
+    ## Transpiration coefficient for moisture stress
     taw = foo.aw * foo.zr
     if taw < 0.001:
         taw = 0.001
-    # mad is set to mad_ini or mad_mid in kcb_daily sub.
+    ## MAD is set to mad_ini or mad_mid in kcb_daily sub.
     raw = foo.mad * taw / 100
 
-    # Remember to check reset of AD and RAW each new crop season.  #####
-    # AD is allowable depletion
+    ## Remember to check reset of AD and RAW each new crop season.  #####
+    ## AD is allowable depletion
     if foo.dr > raw:   
         ks = (taw - foo.dr) / (taw - raw)
     else:
@@ -447,20 +445,18 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     if ks < 0:    
         ks = 0.0
 
-    #' check to see if stress flag is turned off.
-
-    if crop.invoke_stress < 1:   
-        ks = 1 #' no stress if flag = 0 #'used to be irrigtypeflag=2
-
-    if crop.invoke_stress == 1:   
+    ## Check to see if stress flag is turned off.
+    if crop.invoke_stress < 1:
+        #' no stress if flag = 0 #'used to be irrigtypeflag=2
+        ks = 1 
+    elif crop.invoke_stress == 1:   
         # Unrecoverable stress.  No greenup after this.
         if ks < 0.05 and foo.in_season and foo.kcb > 0.3:
             foo.stress_event = True
         if foo.stress_event:   
             ks = 0.0
 
-    #' calculate Kc during snow cover
-
+    ## Calculate Kc during snow cover
     kc_mult = 1
     if foo_day.snow_depth > 0.01:   
         # Radiation term for reducing Kc to actCount for snow albedo
@@ -521,7 +517,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     # transpiration proportioning
 
     ## TP ze never initialized, assume 0.0 value
-    ## also used in SetupDormant(), but value set explicity...wonder if was meant to be global????
+    ## also used in SetupDormant(), but value set explicitly...wonder if was meant to be global????
     ze = 0.0   # I added this line
     if ze < 0.0001:    
         ze = 0.0001
@@ -833,6 +829,13 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         # No layer present, thus, aw3 is meaningless
         foo.aw3 = 0
 
+    ## Compute NIWR (ET - precip + runoff + deep percolation)
+    ## Don't include deep percolation when irrigating
+    if foo.irr_sim > 0:
+        foo.niwr = foo.etc_act - (foo_day.precip - foo.sro)
+    else:
+        foo.niwr = foo.etc_act - (foo_day.precip - foo.sro - foo.dpr)
+        
     # Note, at end of season (harvest or death), aw3 and zr need to be reset
     #   according to dr at that time and zr for dormant season.
     # This is done in setup_dormant().

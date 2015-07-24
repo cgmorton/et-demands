@@ -639,8 +639,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                     logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
                 foo.T2Days = foo.T2Days + 1
 
-        ## Determine if killing frost to cut short - begin to check after August 1.
-        ## If doy > 212:    
+        ## Determine if killing frost to cut short - begin to check after August 1.   
         if foo_day.doy > (crop.gdd_trigger_doy  + 211):    
             ## All crops besides covers
             if ((foo_day.tmin < crop.killing_frost_temperature) and
@@ -675,10 +674,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 ##    #output_str = output_str & DFormat(DoY, " #####")
                 ##    #PrintLine(cb2FNum, output_str)
 
-            ## End of year, no killing frost on alfalfa, but print cycle information to file
-            elif (crop.class_number == 2 or crop.class_number == 3 or
-                  (crop.class_number > 3 and
-                   crop.curve_name.upper() == "ALFALFA 1ST CYCLE") and
+            ## End of year, no killing frost on alfalfa
+            elif (((crop.class_number == 2 or crop.class_number == 3) or
+                   (crop.class_number > 3 and 
+                   crop.curve_name.upper() == "ALFALFA 1ST CYCLE")) and
                   foo.in_season and foo_day.month == 12 and foo_day.day == 31):     
                 logging.info("No killing frost in year %s" % (foo_day.year))
 
@@ -790,5 +789,5 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
         logging.debug('kcb_daily(): Kcb %.6f' % (foo.kcb))
 
     ## Set up as yesterday's cumulative GDD for tomorrow
-    foo.l_cgdd = foo.cgdd
+    foo.cgdd_prev = foo.cgdd
     

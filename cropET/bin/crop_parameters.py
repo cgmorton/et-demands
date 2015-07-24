@@ -53,10 +53,10 @@ class CropParameters:
         self.cgdd_winter_doy = 274
         self.cgdd_main_doy = 1
         if self.curve_name == 'Winter Wheat':
-            self.crop_gdd_trigger_doy = self.cgdd_winter_doy
+            self.gdd_trigger_doy = self.cgdd_winter_doy
             self.season = 'winter'
         else:
-            self.crop_gdd_trigger_doy = self.cgdd_main_doy
+            self.gdd_trigger_doy = self.cgdd_main_doy
             self.season = 'non-winter'
 
     def __str__(self):

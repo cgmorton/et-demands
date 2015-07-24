@@ -59,7 +59,8 @@ class InitializeCropCycle:
     kt_reducer = 1.
     mad = 0.
     mad_ini = 0.
-    mad_mid = 0.0
+    mad_mid = 0.
+    niwr = 0.
     ppt_inf = 0.
     ppt_inf_yest = 0.
     ##ppt_net4 = 0
@@ -84,7 +85,7 @@ class InitializeCropCycle:
     frost_flag = 0.
     penalty = 0.
     cgdd_penalty = 0.
-    l_cgdd = 0.
+    cgdd_prev = 0.
     pressure = 0.0
     n_cgdd = 0.
     n_pl_ec = 0.

@@ -67,10 +67,10 @@ def crop_cycle(data, et_cell, start_dt, end_dt, basin_id, output_ws):
         ## Open output file for each crop and write header
         output_name = '%s_%s.dat' % (et_cell.cell_id, crop.class_number)
         output_path = os.path.join(output_ws, output_name)
-        fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
+        fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s %9s\n'
         header = (
             '#     Date','DOY','PMETo','Pr.mm','T30','ETact',
-            'ETpot','ETbas','Irrn','Seasn','Runof','DPerc')
+            'ETpot','ETbas','Irrn','Seasn','Runof','DPerc', 'NIWR')
         output_f = open(output_path, 'w')
         output_f.write(fmt % header)
 
@@ -90,7 +90,6 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
         et_cell ():
         crop ():
         foo ():
-        nsteps (int):
         start_dt (date):
         end_dt (date):
         output_f (): 
@@ -201,8 +200,9 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
             tup = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
                    foo_day.t30, foo.etc_act, foo.etc_pot,
                    foo.etc_bas, foo.irr_sim, foo.in_season,
-                   foo.sro, foo.dpr)
-            fmt = '%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
+                   foo.sro, foo.dpr, foo.niwr)
+            fmt = ('%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f '+
+                   '%9.3f %9.3f %5d %9.3f %9.3f %9.3f\n')
             output_f.write(fmt % tup)
 
         ## Write final output file variables to DEBUG file
@@ -213,8 +213,8 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
             ('crop_day_loop(): ETact  %.6f  ETpot %.6f   ETbas %.6f') %
             (foo.etc_act, foo.etc_pot, foo.etc_bas))
         logging.debug(
-            ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f') %
-            (foo.irr_sim, foo.sro, foo.dpr))
+            ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f  NIWR %.6f') %
+            (foo.irr_sim, foo.sro, foo.dpr, foo.niwr))
 
 def main():
     """ """
