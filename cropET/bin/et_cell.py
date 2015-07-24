@@ -180,9 +180,9 @@ class ETCell:
         ## Calculate Tdew from specific humidity
         ## Convert station elevation from feet to meters
         pair = util.pair_func(0.3048 * self.stn_elev)
-        ea = util.ea_from_q(pair, data_array['Specific_Humiditykg_kg1'])
-        tdew = util.tdew_from_ea(ea)
-
+        ea_array = util.ea_from_q(pair, data_array['Specific_Humiditykg_kg1'])
+        tdew_array = util.tdew_from_ea(ea_array)
+        
         zero_array = np.zeros(data_array['TmaxK'].shape, dtype=np.float32)
         self.refet = {
              'TMax': data_array['TmaxK'], 
@@ -192,7 +192,7 @@ class ETCell:
              'SnowDepth': zero_array,
              'EstRs': data_array['Solar_Radiation_W_m2'],                     
              'Wind': data_array['Wind__10m_m_s1'],
-             'TDew' : tdew,
+             'TDew' : tdew_array,
              'ASCEPMStdETr': data_array['ETr__2mmm_day1'],
              'ASCEPMStdETo': data_array['ETo__2m_mm_day1'],    
              'Dates': dt_array}          
@@ -265,9 +265,9 @@ class ETCell:
         ## T30 stuff, done after temperature adjustments above
         tmean_array = (tmax_array + tmin_array) * 0.5
         t30_array = np.zeros(len(tmax_array)) 
-        nrecord_main_t30 = np.zeros(367)
         main_t30_lt = np.zeros(367)
         main_cgdd_0_lt = np.zeros(367)
+        nrecord_main_t30 = np.zeros(367)
         nrecord_main_cgdd = np.zeros(367)
 
         sd_array = np.copy(self.refet['SnowDepth'])
@@ -276,13 +276,20 @@ class ETCell:
         ## Need to do precip conversion to mm, from hundreths of inches
         precip_array = np.copy(self.refet['Precip']) * 25.4 / 100.
 
+        ## Find valid dates
+        date_mask = (
+            (self.refet['Dates'] >= start_dt) &
+            (self.refet['Dates'] <= end_dt))
+        
         main_t30 = 0.0
         snow_accum = 0.0
         for i, step_dt in enumerate(self.refet['Dates']):
-            if start_dt is not None and step_dt < start_dt:
+            if not date_mask[i]:
                 continue
-            elif end_dt is not None and step_dt > end_dt:
-                continue
+            ##if start_dt is not None and step_dt < start_dt:
+            ##    continue
+            ##elif end_dt is not None and step_dt > end_dt:
+            ##    continue
             doy = int(step_dt.strftime('%j'))
 
             ## Calculate an estimated depth of snow on ground using simple melt rate function))

@@ -109,7 +109,7 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
 
     ## Build a mask of valid dates
     date_mask = (
-        (et_cell.refet['Dates'] >= start_dt) and
+        (et_cell.refet['Dates'] >= start_dt) &
         (et_cell.refet['Dates'] <= end_dt))
  
     for i, step_dt in enumerate(et_cell.refet['Dates']):
@@ -131,7 +131,6 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
             'crop_day_loop(): ETo %.6f  ETr %.6f  ETref %.6f' % 
             (et_cell.refet['ASCEPMStdETo'][i], et_cell.refet['ASCEPMStdETr'][i], 
              refet_array[i]))
-
         ## Log climate values at time step         
         logging.debug(
             'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
@@ -180,17 +179,18 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
 
         ## Compute RH from Tdew
         ## DEADBEEF - Why would tdew or tmax_original be < -90?
+        ## DEADBEEF - This could be done in et_cell.set_daily_nldas_data() and
+        ##   et_cell.set_daily_refet_data()
         if foo_day.tdew < -90 or foo_day.tmax_orig < -90:
             foo_day.rh_min = 30.0
         else:
+            ## For now do not consider SVP over ice
+            ## (it was not used in ETr or ETo computations, anyway)
             es_tdew = util.aFNEs(foo_day.tdew)
-            # For now do not consider SVP over ice
-            # (it was not used in ETr or ETo computations, anyway)
             es_tmax = util.aFNEs(foo_day.tmax_orig) 
             foo_day.rh_min = min(es_tdew / es_tmax * 100, 100)
                 
         ## Calculate Kcb, Ke, ETc
-        #If Not compute_crop_et(T30) Then Return False
         compute_crop_et.compute_crop_et(
             data, et_cell, crop, foo, foo_day)
 
@@ -200,7 +200,8 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
         if output_f:
             tup = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
                    foo_day.t30, foo.etc_act, foo.etc_pot,
-                   foo.etc_bas, foo.irr_sim, foo.in_season, foo.sro, foo.dpr)
+                   foo.etc_bas, foo.irr_sim, foo.in_season,
+                   foo.sro, foo.dpr)
             fmt = '%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
             output_f.write(fmt % tup)
 
