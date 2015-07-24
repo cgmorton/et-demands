@@ -56,7 +56,7 @@ def crop_cycle(data, et_cell, start_dt, end_dt, basin_id, output_ws):
         ##logging.debug('  Class: {}'.format(crop.class_number))
         ##logging.debug('  Flag:  {}'.format(et_cell.crop_flags[crop_num]))
 
-        logging.debug('  GDD trigger DOY: {}'.format(crop.crop_gdd_trigger_doy))
+        logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy ))
 
         ## 'foo' is holder of all these global variables for now
         foo = InitializeCropCycle()
