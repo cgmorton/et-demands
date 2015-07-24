@@ -80,7 +80,7 @@ class InitializeCropCycle:
     z = 0.
 
     e = 0.
-    lDoy = 0
+    doy_prev = 0
     frost_flag = 0.
     penalty = 0.
     cgdd_penalty = 0.
