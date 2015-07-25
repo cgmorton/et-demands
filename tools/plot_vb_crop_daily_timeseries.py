@@ -1,8 +1,8 @@
 #--------------------------------
-# Name:         plot_crop_daily_timeseries_bokeh_v2.py
+# Name:         plot_vb_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-07-23
+# Created       2015-07-25
 # Python:       2.7
 #--------------------------------
 

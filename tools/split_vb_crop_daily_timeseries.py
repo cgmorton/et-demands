@@ -1,8 +1,8 @@
 #--------------------------------
-# Name:         split_crop_daily_timeseries.py
+# Name:         split_vb_crop_daily_timeseries.py
 # Purpose:      Split daily data timeseries into separate files for each crop
 # Author:       Charles Morton
-# Created       2015-07-23
+# Created       2015-07-25
 # Python:       2.7
 #--------------------------------
 

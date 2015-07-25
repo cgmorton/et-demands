@@ -1,5 +1,5 @@
 #--------------------------------
-# Name:         growing_season.py
+# Name:         cet_growing_season.py
 # Purpose:      Extract growing season data from Python ET-Demands output files
 # Author:       Charles Morton
 # Created       2015-01-21

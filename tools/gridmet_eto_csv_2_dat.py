@@ -1,6 +1,6 @@
 #--------------------------------
-# Name:         nldas_csv_2_dat.py
-# Purpose:      Convert NDLAS 4km datarods to RefET output format for CropET
+# Name:         gridmet_eto_csv_2_dat.py
+# Purpose:      Convert GRIDMET 4km datarods to RefET output format for CropET
 # Author:       Charles Morton
 # Created       2015-02-04
 # Python:       2.7
@@ -50,13 +50,13 @@ def main(project_ws):
             continue
         print item
 
-        ## Get the NLDAS cell ID
+        ## Get the GRIDMET cell ID
         station_id = item.split('.')[0].split('_')[1]
 
         input_csv = os.path.join(eto_ws, item)
         output_dat = os.path.join(eto_ws, '{0}.dat'.format(station_id))
 
-        ## Read input NLDAS datarod CSV
+        ## Read input GRIDMET datarod CSV
         data_df = pd.read_csv(
             input_csv, sep=',', parse_dates=[[0, 1, 2]],
             date_parser=lambda *columns: dt.date(*map(int, columns)))
