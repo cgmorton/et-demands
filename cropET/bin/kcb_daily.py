@@ -48,7 +48,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             try:
                 longterm_pl = int(np.where(np.diff(np.array(
                     foo_day.cgdd_0_lt > crop.t30_for_pl_or_gu_or_cgdd, 
-                    dtype=np.int8)) > 0)[0]) + 1
+                    dtype=np.int8)) > 0)[0][0]) + 1
             except TypeError:
                 logging.error('  kcb_daily(): error finding DOY index')
                 longterm_pl = 0
@@ -119,8 +119,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
         ## Use T30 for startup
         ## Caution - need some contraints for oscillating T30 and for late summer
         ## Use first occurrence
-        if foo_day.doy < crop.gdd_trigger_doy  + 195:
-            ## Only allow start flag to begin if < July 15 to prevent GU in fall after freezedown
+        if foo_day.doy < (crop.gdd_trigger_doy + 195):
+            ## Only allow start flag to begin if < July 15 to prevent GU in fall after freeze down
             ##   before finding date of startup using normal T30, determine if it is after latest
             ##   allowable start by checking to see if pl or gu need to be constrained based on long term means
             ## Estimate date based on long term mean
@@ -131,10 +131,11 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             try:
                 longterm_pl = int(np.where(np.diff(np.array(
                     t30_lt > crop.t30_for_pl_or_gu_or_cgdd, 
-                    dtype=np.int8)) > 0)[0]) + 1
+                    dtype=np.int8)) > 0)[0][0]) + 1
             except TypeError:
                 logging.error('  kcb_daily(): error finding DOY index')
                 longterm_pl = 0
+
             ##longterm_pl = 0
             ##for jDoy in range(1,367):
             ##    if longterm_pl < 1:
@@ -579,9 +580,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 #' length_of_season = 2 * (196 - foo.doy_start_cycle)
             else:
                 logging.error(
-                    "Problem with estimated Season length, Crop_curve_type_4")
-                raise SystemExit()
-                ##sys.exit()
+                    'kc_daily.kcb_daily(): Problem with estimated season length, '+
+                    'crop_curve_type_4')
+                sys.exit()
     
             ## Put a minimum and maximum length on season for cheat grass (i= 47)
             ## Was 38, should have been 42   'corr. Jan 07

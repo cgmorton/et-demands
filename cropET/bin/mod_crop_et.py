@@ -13,7 +13,7 @@ import crop_cycle
 import util
 
 def main(basin_id, output_ws, refet_fmt, txt_ws, ncells=0,
-         start_date=None, end_date=None):
+         start_date=None, end_date=None, niwr_flag=False):
     """ Main function for running the Crop ET model
 
     Args:
@@ -21,16 +21,16 @@ def main(basin_id, output_ws, refet_fmt, txt_ws, ncells=0,
         output_ws (str) - folder path of the output file
         refet_fmt (str) - format of the RefET data.  
         txt_ws (str) - folder path of the input static text file
-        nsteps (int): number of time steps to process
         ncells (int): number cells to process
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
+        niwr_flag (bool): If True, output daily NIWR
 
     Returns:
         None
     """
-    logging.info('ET-Demands')
-    logging.debug('  Basin: {}'.format(basin_id))
+    logging.warning('\nRunning Python ET-Demands')
+    logging.info('  Basin: {}'.format(basin_id))
 
     ##
     if not output_ws:
@@ -76,7 +76,7 @@ def main(basin_id, output_ws, refet_fmt, txt_ws, ncells=0,
 
         ## Run the model
         crop_cycle.crop_cycle(
-            data, cell, start_dt, end_dt, basin_id, output_ws)
+            data, cell, basin_id, start_dt, end_dt, output_ws, niwr_flag)
 
 def parse_args():
     output_ws = os.path.join(os.getcwd(), 'cet')
@@ -117,12 +117,15 @@ def parse_args():
         '--end', default='1999-12-31', type=util.valid_date,
         help='End date (format YYYY-MM-DD)', metavar='DATE')
     parser.add_argument(
-        '--debug', action="store_true",
+        '--debug', action="store_true", default=False,
         help="Save debug level comments to debug.txt")
     parser.add_argument(
         '--verbose', action="store_const",
         dest='log_level', const=logging.INFO, default=logging.WARNING,   
         help="Print info level comments")
+    parser.add_argument(
+        '--niwr', action="store_true", default=False,
+        help="Compute/output net irrigation water requirement (NIWR)")
     args = parser.parse_args()
 
     ## Convert relative paths to absolute paths
@@ -161,4 +164,4 @@ if __name__ == '__main__':
     ##
     main(basin_id=args.basin_id, output_ws=args.output,
          refet_fmt=args.refet, txt_ws=args.text, ncells=args.ncells,
-         start_date=args.start, end_date=args.end)
+         start_date=args.start, end_date=args.end, niwr_flag=args.niwr)

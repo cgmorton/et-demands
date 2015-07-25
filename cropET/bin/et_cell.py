@@ -106,8 +106,9 @@ class ETCell:
             Dictionary of the RefET data, keys are the columns,
                 and values are numpy arrays of the data
         """
-        data_pd = pd.read_csv(fn, skiprows=skiprows)
-        ##logging.debug(list(data_pd.columns.values))
+        logging.debug(fn)
+        data_pd = pd.read_table(fn, skiprows=skiprows)
+        logging.debug(list(data_pd.columns.values))
 
         dt_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
         ##date_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
@@ -380,7 +381,7 @@ if __name__ == '__main__':
     ### Mean cuttings
     ##fn = os.path.join(static_ws,'MeanCuttings.txt')
     ##print '\nRead Mean Cuttings'
-    ##read_mean_cuttings(fn, et_cells)
+    ##(fn, et_cells)
     ##
     ###c = et_cells[0]
     ##c = et_cells.values()[0]

@@ -108,7 +108,7 @@ class CropETData():
             cell_id = row[1]
             if cell_id not in self.et_cells.keys():
                 logging.error(
-                    'read_mean_cuttings(), cell_id %s not found' % cell_id)
+                    'crop_et_data.static_mean_cuttings(), cell_id %s not found' % cell_id)
                 sys.exit()
             obj = self.et_cells[cell_id]
             obj.init_cuttings_from_row(row)
@@ -123,7 +123,9 @@ class CropETData():
 ##def read_cell_txt_files(static_ws=os.getcwd()):
 ##    """ """
 ##    if not os.path.isdir(static_ws):
-##        raise SystemExit()
+##        logging.warning(
+##            'crop_et_data.read_cell_txt_files(): static workspace not found')
+##        sys.exit()
 ##    cet = CropETData()
 ##
 ##    # Init cells with property info

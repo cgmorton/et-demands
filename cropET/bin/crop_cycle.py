@@ -19,8 +19,22 @@ class DayData:
         ## Used in compute_crop_gdd(), needs to be persistant during day loop
         self.etref_array = np.zeros(30)
 
-def crop_cycle(data, et_cell, start_dt, end_dt, basin_id, output_ws):
-    """"""
+def crop_cycle(data, et_cell, basin_id, start_dt, end_dt, 
+               output_ws, niwr_flag=False):
+    """
+
+    Args:
+        data (): 
+        et_cell (): 
+        basin_id (): 
+        start_dt (date): 
+        end_dt (date): 
+        output_ws (str): 
+        niwr_flag (bool): If True, output daily NIWR
+        
+    Returns:
+
+    """
     ## Following is for one crop grown back to back over entire ETr sequence
     ##
     ## do bare soil first, before looping through crops
@@ -44,7 +58,7 @@ def crop_cycle(data, et_cell, start_dt, end_dt, basin_id, output_ws):
             logging.debug('  NOT USED')
             continue
         else:
-            logging.info('Crop %s %s' % (crop_num, crop))
+            logging.warning('Crop %2s %s' % (crop_num, crop))
             
         logging.debug(
             'crop_day_loop():  Curve %s %s  Class %s  Flag %s' %
@@ -67,22 +81,25 @@ def crop_cycle(data, et_cell, start_dt, end_dt, basin_id, output_ws):
         ## Open output file for each crop and write header
         output_name = '%s_%s.dat' % (et_cell.cell_id, crop.class_number)
         output_path = os.path.join(output_ws, output_name)
-        fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s %9s\n'
+        fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n'
         header = (
-            '#     Date','DOY','PMETo','Pr.mm','T30','ETact',
-            'ETpot','ETbas','Irrn','Seasn','Runof','DPerc', 'NIWR')
+            '#     Date', 'DOY', 'PMETo', 'Pr.mm', 'T30', 'ETact',
+            'ETpot', 'ETbas', 'Irrn', 'Seasn', 'Runof', 'DPerc')
+        if niwr_flag:
+            header = header + ('NIWR',)
+            fmt = fmt.replace('\n', ' %9s\n')
         output_f = open(output_path, 'w')
         output_f.write(fmt % header)
 
         ## 
         crop_day_loop(
-            data, et_cell, crop, foo, start_dt, end_dt, output_f)
+            data, et_cell, crop, foo, start_dt, end_dt, output_f, niwr_flag)
 
         ## Close output file
         output_f.close()
 
 def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
-                  output_f=None):
+                  output_f=None, niwr_flag=False):
     """
 
     Args:
@@ -92,7 +109,8 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
         foo ():
         start_dt (date):
         end_dt (date):
-        output_f (): 
+        output_f ():
+        niwr_flag (bool): If True, output daily NIWR
 
     Returns:
         None
@@ -152,6 +170,7 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
             'crop_day_loop(): in_season[%s]  crop_setup[%s]  dormant_setup[%s]' % 
             (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
 
+        ## Track variables for each day
         foo_day.sdays = i + 1
         foo_day.doy = step_doy
         foo_day.year = step_dt.year
@@ -160,10 +179,7 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
         foo_day.date = et_cell.refet['Dates'][i]
         foo_day.tmax_orig = et_cell.refet['TMax'][i]
         foo_day.tdew = et_cell.refet['TDew'][i]
-        foo_day.wind = et_cell.refet['Wind'][i]
-        ## DEADBEEF - Why have 2 wind variables that are the same?
-        ##   U2 is at 2m, but wind doesn't have a height passed in
-        foo_day.u2 = foo_day.wind 
+        foo_day.u2 = et_cell.refet['Wind'][i]
         foo_day.etref = refet_array[i]
         foo_day.tmean = et_cell.climate['tmean_array'][i]
         foo_day.tmin = et_cell.climate['tmin_array'][i]
@@ -197,13 +213,15 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
 
         ## Write vb-like output file for comparison
         if output_f:
-            tup = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
-                   foo_day.t30, foo.etc_act, foo.etc_pot,
-                   foo.etc_bas, foo.irr_sim, foo.in_season,
-                   foo.sro, foo.dpr, foo.niwr)
             fmt = ('%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f '+
-                   '%9.3f %9.3f %5d %9.3f %9.3f %9.3f\n')
-            output_f.write(fmt % tup)
+                   '%9.3f %9.3f %5d %9.3f %9.3f\n')
+            values = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
+                      foo_day.t30, foo.etc_act, foo.etc_pot, foo.etc_bas,
+                      foo.irr_sim, foo.in_season, foo.sro, foo.dpr)
+            if niwr_flag:
+                values = values + (foo.niwr,)
+                fmt = fmt.replace('\n', ' %9.3f\n')
+            output_f.write(fmt % values)
 
         ## Write final output file variables to DEBUG file
         logging.debug(
