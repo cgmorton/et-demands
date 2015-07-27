@@ -2,7 +2,7 @@
 # Name:         plot_vb_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-07-25
+# Created       2015-07-27
 # Python:       2.7
 #--------------------------------
 
@@ -19,16 +19,13 @@ import sys
 from bokeh.plotting import figure, show, output_file, vplot
 from bokeh.models import Callback, ColumnDataSource, Range1d
 ##from bokeh.models import Slider, DateRangeSlider
-##import matplotlib.pyplot as plt
-##import matplotlib.dates as mdates
-##import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 
 ################################################################################
 
 def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
-         figure_size=(1000,300)):
+         figure_size=(1000,300), start_date=None, end_date=None):
     """Plot full daily data by crop
 
     Args:
@@ -36,55 +33,54 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
         figure_show_flag (bool):
         figure_save_flag (bool):
         figure_size (tuple):
+        start_date (str): ISO format date string (YYYY-MM-DD)
+        end_date (str): ISO format date string (YYYY-MM-DD)
+
     Returns:
         None
     """
 
+    ## Input names
+    et_folder    = 'ET'
+    stats_folder = 'Stats'
+
+    ## Output names
+    figure_folder  = 'PLOTS_DAILY_TIMESERIES'
+
+    ## These crops will not be processed (if set)
+    crop_skip_list = [44, 45, 46]
+    ## Only these crops will be processed (if set)
+    crop_keep_list = []
+
+    ## Field names
+    year_field   = 'Year'
+    doy_field    = 'DoY'
+    month_field  = 'Mo'
+    day_field    = 'Dy'
+    pmeto_field  = 'PMETo'
+    precip_field = 'Prmm'
+    t30_field    = 'T30'
+
+    etact_field  = 'ETact'
+    etpot_field  = 'ETpot'
+    etbas_field  = 'ETbas'
+    irrig_field  = 'Irrn'
+    season_field = 'Seasn'
+    runoff_field = 'Runof'
+    dperc_field = 'DPerc'
+
+    ## Number of header lines in data file
+    header_lines = 5
+
+    ## Additional figure controls
+    figure_dynamic_size = False
+    figure_ylabel_size = '12pt'
+
+    ########################################################################
+
     try:
-        ## Input names
-        et_folder    = 'ET'
-        stats_folder = 'Stats'
-
-        ## Output names
-        figure_folder  = 'PLOTS_DAILY_TIMESERIES'
-
-        ## These crops will not be processed (if set)
-        crop_skip_list = [44, 45, 46]
-        ## Only these crops will be processed (if set)
-        crop_keep_list = []
-
-        ## Range of data to plot
-        year_start = 1950
-        year_end   = 1999
-
-        ## Field names
-        year_field   = 'Year'
-        doy_field    = 'DoY'
-        month_field  = 'Mo'
-        day_field    = 'Dy'
-        pmeto_field  = 'PMETo'
-        precip_field = 'Prmm'
-        t30_field    = 'T30'
-
-        etact_field  = 'ETact'
-        etpot_field  = 'ETpot'
-        etbas_field  = 'ETbas'
-        irrig_field  = 'Irrn'
-        season_field = 'Seasn'
-        runoff_field = 'Runof'
-        dperc_field = 'DPerc'
-
-        ## Number of header lines in data file
-        header_lines = 5
-
-        ## Additional figure controls
-        figure_dynamic_size = False
-        figure_ylabel_size = '12pt'
-
-        ########################################################################
-
         logging.info('\nPlot mean daily data by crop')
-        logging.info('  PMData Workspace: {0}'.format(pmdata_ws))
+        logging.info('  PMData Folder: {0}'.format(pmdata_ws))
 
         ## If save and show flags were not set, prompt user
         logging.info('')
@@ -116,8 +112,20 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
         if not os.path.isdir(figure_ws):
             os.mkdir(figure_ws)
 
-        logging.info('\n  Start Year:  {0}'.format(year_start))
-        logging.info('  End Year:    {0}'.format(year_end))
+        ## Range of data to plot
+        try:
+            year_start = datetime.strptime(start_date, '%Y-%m-%d').year
+            logging.info('  Start Year:  {0}'.format(year_start))
+        except:
+            year_start = None
+        try:
+            year_end = datetime.datetime.strptime(end_date, '%Y-%m-%d').year
+            logging.info('  End Year:    {0}'.format(year_end))
+        except:
+            year_end = None
+        if year_start and year_end and year_end <= year_start:
+            logging.error('\n  ERROR: End date must be after start date\n')
+            raise SystemExit()
 
         ## Limit x_panning to a specified date range
         ## Doesn't currently work
@@ -223,8 +231,10 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             year_sub_array = np.unique(data[year_field].astype(np.int))
             logging.debug('\nAll Years: \n{0}'.format(year_sub_array.tolist()))
             ## Only keep years between year_start and year_end
-            year_sub_array = year_sub_array[
-                (year_start <= year_sub_array) & (year_sub_array <= year_end)]
+            if year_start:
+                year_sub_array = year_sub_array[(year_start <= year_sub_array)]
+            if year_end:
+                year_sub_array = year_sub_array[(year_sub_array <= year_end)]
             logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
             date_mask = np.in1d(data[year_field].astype(np.int), year_sub_array)
 
@@ -494,15 +504,36 @@ def query_yes_no(question, default="yes"):
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
-################################################################################
+def valid_date(input_date):
+    """Check that a date string is ISO format (YYYY-MM-DD)
 
-if __name__ == '__main__':
+    This function is used to check the format of dates entered as command
+      line arguments.
+    DEADBEEF - It would probably make more sense to have this function 
+      parse the date using dateutil parser (http://labix.org/python-dateutil)
+      and return the ISO format string
+
+    Args:
+        input_date: string
+    Returns:
+        string 
+    Raises:
+        ArgParse ArgumentTypeError
+    """
+    try:
+        input_dt = datetime.datetime.strptime(input_date, "%Y-%m-%d")
+        return input_date
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(input_date)
+        raise argparse.ArgumentTypeError(msg)
+
+def parse_args():
     parser = argparse.ArgumentParser(
         description='Plot Crop Daily Timeseries',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
-        ##'workspace', nargs='?', default=os.getcwd(),
+        ##'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
+        'workspace', nargs='?', default=os.path.join(os.getcwd(), 'PMData'),
         help='PMData Folder', metavar='FOLDER')
     parser.add_argument(
         '--size', default=(1000, 300), type=int,
@@ -514,6 +545,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--show', default=None, action='store_true',
         help='Save timeseries figures to disk')
+    parser.add_argument(
+        '--start', default=None, type=valid_date,
+        help='Start date (format YYYY-MM-DD)', metavar='DATE')
+    parser.add_argument(
+        '--end', default=None, type=valid_date,
+        help='End date (format YYYY-MM-DD)', metavar='DATE')
     ##parser.add_argument(
     ##    '-o', '--overwrite', default=None, action="store_true", 
     ##    help='Force overwrite of existing files')
@@ -521,6 +558,12 @@ if __name__ == '__main__':
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
+    return args
+
+################################################################################
+
+if __name__ == '__main__':
+    args = parse_args()
     
     ## Create Basic Logger
     logging.basicConfig(level=args.loglevel, format='%(message)s')
@@ -533,4 +576,5 @@ if __name__ == '__main__':
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
     main(pmdata_ws=args.workspace, figure_show_flag=args.show, 
-         figure_save_flag=args.save, figure_size=args.size,)
+         figure_save_flag=args.save, figure_size=args.size,
+         start_date=args.start, end_date=args.end)

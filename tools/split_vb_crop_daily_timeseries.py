@@ -2,7 +2,7 @@
 # Name:         split_vb_crop_daily_timeseries.py
 # Purpose:      Split daily data timeseries into separate files for each crop
 # Author:       Charles Morton
-# Created       2015-07-25
+# Created       2015-07-27
 # Python:       2.7
 #--------------------------------
 
@@ -21,11 +21,14 @@ import pandas as pd
 
 ################################################################################
 
-def main(workspace, niwr_flag=False, overwrite_flag=True):
+def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
+         overwrite_flag=True):
     """Split full daily data by crop
 
     Args:
         pmdata_ws (str):
+        start_date (str): ISO format date string (YYYY-MM-DD)
+        end_date (str): ISO format date string (YYYY-MM-DD)
         niwr_flag (bool): If True, compute daily NIWR
         overwrite_flag (bool): If True, overwrite existing files
         
@@ -33,56 +36,52 @@ def main(workspace, niwr_flag=False, overwrite_flag=True):
         None
     """
 
+    ## Input names
+    et_folder = 'ETc'
+
+    ## Output names
+    output_folder  = 'cet'
+
+    ## These crops will not be processed (if set)
+    crop_skip_list = []
+    ## Only these crops will be processed (if set)
+    crop_keep_list = []
+
+    ## Field names
+    year_field   = 'Year'
+    doy_field    = 'DoY'
+    month_field  = 'Mo'
+    day_field    = 'Dy'
+    pmeto_field  = 'PMETo'
+    precip_field = 'Prmm'
+    t30_field    = 'T30'
+
+    etact_field  = 'ETact'
+    etpot_field  = 'ETpot'
+    etbas_field  = 'ETbas'
+    irrig_field  = 'Irrn'
+    season_field = 'Seasn'
+    runoff_field = 'Runof'
+    dperc_field  = 'DPerc'
+
+    ## Number of header lines in data file
+    header_lines = 5
+    delimiter = '\t'
+    ##delimiter = ','
+    
+    ###########################################################################
+
     try:
-        ## Input names
-        pmdata_folder = 'pmdata'
-        et_folder = 'ETc'
-
-        ## Output names
-        output_folder  = 'cet'
-
-        ## These crops will not be processed (if set)
-        crop_skip_list = []
-        ## Only these crops will be processed (if set)
-        crop_keep_list = []
-
-        ## Range of data to plot
-        year_start = 1950
-        year_end   = 1999
-
-        ## Field names
-        year_field   = 'Year'
-        doy_field    = 'DoY'
-        month_field  = 'Mo'
-        day_field    = 'Dy'
-        pmeto_field  = 'PMETo'
-        precip_field = 'Prmm'
-        t30_field    = 'T30'
-
-        etact_field  = 'ETact'
-        etpot_field  = 'ETpot'
-        etbas_field  = 'ETbas'
-        irrig_field  = 'Irrn'
-        season_field = 'Seasn'
-        runoff_field = 'Runof'
-        dperc_field = 'DPerc'
-
-        ## Number of header lines in data file
-        header_lines = 5
-        delimiter = '\t'
-        ##delimiter = ','
-
-        ########################################################################
-
         logging.info('\nPlot mean daily data by crop')
-        logging.info('  Workspace: {0}'.format(workspace))
+        logging.info('  PMData Folder: {0}'.format(pmdata_ws))
 
         ## Input workspaces
-        et_ws = os.path.join(workspace, pmdata_folder, et_folder)
+        project_ws = os.path.dirname(pmdata_ws)
+        et_ws = os.path.join(pmdata_ws, et_folder)
         logging.debug('  ET Folder: {0}'.format(et_ws))
 
         ## Output workspaces
-        output_ws = os.path.join(workspace, output_folder)
+        output_ws = os.path.join(project_ws, output_folder)
         logging.debug('  Output Folder: {0}'.format(output_ws))
 
         ## Check workspaces
@@ -93,8 +92,20 @@ def main(workspace, niwr_flag=False, overwrite_flag=True):
         if not os.path.isdir(output_ws):
             os.mkdir(output_ws)
    
-        logging.info('\n  Start Year:  {0}'.format(year_start))
-        logging.info('  End Year:    {0}'.format(year_end))
+        ## Range of data to plot
+        try:
+            year_start = datetime.strptime(start_date, '%Y-%m-%d').year
+            logging.info('  Start Year:  {0}'.format(year_start))
+        except:
+            year_start = None
+        try:
+            year_end = datetime.datetime.strptime(end_date, '%Y-%m-%d').year
+            logging.info('  End Year:    {0}'.format(year_end))
+        except:
+            year_end = None
+        if year_start and year_end and year_end <= year_start:
+            logging.error('\n  ERROR: End date must be after start date\n')
+            raise SystemExit()
 
         ## Regular expressions
         def list_re_or(input_list):
@@ -127,10 +138,10 @@ def main(workspace, niwr_flag=False, overwrite_flag=True):
             logging.info('  {0}'.format(file_name))
 
             station = file_name.split('ETc')[0]
-            logging.debug('    Station:         {0}'.format(station))
             if station == 'temp':
                 logging.debug('      Skipping')
                 continue
+            logging.debug('    Station:         {0}'.format(station))
 
             ## Read in file header
             with open(file_path, 'r') as f:
@@ -174,21 +185,12 @@ def main(workspace, niwr_flag=False, overwrite_flag=True):
             year_sub_array = np.unique(data[year_field].astype(np.int))
             logging.debug('\nAll Years: \n{0}'.format(year_sub_array.tolist()))
             ## Only keep years between year_start and year_end
-            year_sub_array = year_sub_array[
-                (year_start <= year_sub_array) & (year_sub_array <= year_end)]
+            if year_start:
+                year_sub_array = year_sub_array[(year_start <= year_sub_array)]
+            if year_end:
+                year_sub_array = year_sub_array[(year_sub_array <= year_end)]
             logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
             date_mask = np.in1d(data[year_field].astype(np.int), year_sub_array)
-
-            ## Check year start and year end
-            if year_start not in year_sub_array:
-                logging.error('\n  ERROR: Start Year is invalid\n')
-                raise SystemExit()
-            if year_end not in year_sub_array:
-                logging.error('\n  ERROR: End Year is invalid\n')
-                raise SystemExit()
-            if year_end <= year_start:
-                logging.error('\n  ERROR: End Year must be >= Start Year\n')
-                raise SystemExit()
 
             ## Build separate arrays for each field of non-crop specific data
             doy_array = data[doy_field][date_mask].astype(np.int)
@@ -290,7 +292,7 @@ def main(workspace, niwr_flag=False, overwrite_flag=True):
                                   float(irrig_array[i]), float(season_array[i]),
                                   float(runoff_array[i]), float(dperc_array[i]))
                         if niwr_flag:
-                            values = values + (float(niwr_array[i]),)
+                            values = values + (float(niwr_array[i]) + 0,)
                             fmt = fmt.replace('\n', ' %9.3f\n')
                         output_f.write(fmt % values)
 
@@ -326,13 +328,52 @@ def main(workspace, niwr_flag=False, overwrite_flag=True):
 
 ################################################################################
 
+def get_pmdata_workspace(workspace):
+    import Tkinter, tkFileDialog
+    root = Tkinter.Tk()
+    user_ws = tkFileDialog.askdirectory(
+        initialdir=workspace, parent=root,
+        title='Select the target PMData directory', mustexist=True)
+    root.destroy()
+    return user_ws
+
+def valid_date(input_date):
+    """Check that a date string is ISO format (YYYY-MM-DD)
+
+    This function is used to check the format of dates entered as command
+      line arguments.
+    DEADBEEF - It would probably make more sense to have this function 
+      parse the date using dateutil parser (http://labix.org/python-dateutil)
+      and return the ISO format string
+
+    Args:
+        input_date: string
+    Returns:
+        string 
+    Raises:
+        ArgParse ArgumentTypeError
+    """
+    try:
+        input_dt = datetime.datetime.strptime(input_date, "%Y-%m-%d")
+        return input_date
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(input_date)
+        raise argparse.ArgumentTypeError(msg)
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Split Crop Daily Timeseries',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        'workspace', nargs='?', default=os.getcwd(),
+        ##'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
+        'workspace', nargs='?', default=os.path.join(os.getcwd(), 'PMData'),
         help='PMData Folder', metavar='FOLDER')
+    parser.add_argument(
+        '--start', default=None, type=valid_date,
+        help='Start date (format YYYY-MM-DD)', metavar='DATE')
+    parser.add_argument(
+        '--end', default=None, type=valid_date,
+        help='End date (format YYYY-MM-DD)', metavar='DATE')
     parser.add_argument(
         '--niwr', action="store_true", default=False,
         help="Compute/output net irrigation water requirement (NIWR)")
@@ -360,5 +401,5 @@ if __name__ == '__main__':
     logging.info(log_f.format('Current Directory:', args.workspace))
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(workspace=args.workspace, niwr_flag=args.niwr,
-         overwrite_flag=args.overwrite)
+    main(pmdata_ws=args.workspace, start_date=args.start, end_date=args.end,
+         niwr_flag=args.niwr, overwrite_flag=args.overwrite)
