@@ -11,20 +11,19 @@ import time
 import numpy as np
 import pandas as pd
 
+import crop_et_data
 import crop_parameters
 import crop_coefficients
 import util
 
-class ETCell:
-    name = None
-
+class ETCell():
+    ##name = None
     def __init__(self):
         """ """
-
     def __str__(self):
         """ """
         return '<ETCell {0}, {1} {2}>'.format(
-            self.cell_id, self.cell_name, self.refET_id)
+            self.cell_id, self.cell_name, self.refet_id)
 
     def static_crop_params(self, fn):
         """ List of <CropParameter> instances """
@@ -40,7 +39,7 @@ class ETCell:
         Order of the values:
         ETCellIDs, ETCellNames, RefETIDs, station_lat, station_long,
         station_elevft, station_WHC, station_soildepth, station_HydroGroup,
-        aridity_rating, refETPaths
+        aridity_rating, refet_path
 
         Args:
             data (list): row values
@@ -48,7 +47,7 @@ class ETCell:
         """
         self.cell_id = data[0]
         self.cell_name = data[1]
-        self.refET_id = data[2]    # met_id ??
+        self.refet_id = data[2]    # met_id ??
         self.stn_lat = float(data[3])
         self.stn_lon = float(data[4])
         self.stn_elev = float(data[5])
@@ -60,7 +59,7 @@ class ETCell:
         #self.stn_hydrogroup = int(data[10])
         self.stn_hydrogroup = int(eval(data[10]))
         self.aridity_rating = float(data[11])
-        ##self.refET_path = data[12]
+        ##self.refet_path = data[12]
         ##if len(data) == 14:       # CVP
         ##    self.area = data[13]
         ##elif len(data) == 15:     # truckee
@@ -88,7 +87,8 @@ class ETCell:
         self.dairy_cuttings = int(data[3])
         self.beef_cuttings = int(data[4])
 
-    def set_daily_refet_data(self, fn, skiprows=[1]):
+    ##def set_daily_refet_data(self, fn, skiprows=[1]):
+    def set_daily_refet_data(self, refet):
         """Read the RefET data file for a single station using Pandas
 
         Klamath_pmdata/ETo/OR1571E2_KL_2020_S0.dat
@@ -99,15 +99,21 @@ class ETCell:
             1/2/1950 -1.825944 -13.92594 3.0854 0 0 7.4293 1.4369 -12.14653 0.3694 0.07820 0.6126 0.3757 0.3867
 
         Args:
-            fn (str): file path to the RefET data file
-            skiprows (list): collection of row numbers to skip in header
+            refet (dict): RefET parameters from the INI file
 
         Returns:
             Dictionary of the RefET data, keys are the columns,
                 and values are numpy arrays of the data
         """
-        logging.debug(fn)
-        data_pd = pd.read_table(fn, skiprows=skiprows)
+        refet_path = os.path.join(refet['ws'], refet['format'] % self.refet_id)
+        logging.debug(refet_path)
+        ## Get list of 0 based line numbers to skip
+        ## Ignore header but assume header was set as a 1's based index
+        skiprows = [i for i in range(refet['header_lines'])
+                    if i+1 <> refet['names_line']]
+        data_pd = pd.read_table(
+            refet_path, header=refet['names_line']-1,
+            skiprows=skiprows, delimiter=refet['delimiter'])
         logging.debug(list(data_pd.columns.values))
 
         dt_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
@@ -162,7 +168,7 @@ class ETCell:
         data_array = np.genfromtxt(fn, delimiter=',', names=True)
         ##logging.debug(a.dtype.names)
      
-        dt_array = np.array([
+        date_array = np.array([
             datetime.date(y, m, d) for y, m, d in zip(a['Year'], a['Month'], a['Day'])])
         ##date_str_list = ['{0}/{1}/{2}'.format(int(m),int(d),int(y))
         ##                 for y, m, d in zip(a['Year'], a['Month'], a['Day'])]
@@ -196,7 +202,7 @@ class ETCell:
              'TDew' : tdew_array,
              'ASCEPMStdETr': data_array['ETr__2mmm_day1'],
              'ASCEPMStdETo': data_array['ETo__2m_mm_day1'],    
-             'Dates': dt_array}          
+             'Dates': date_array}          
              ##'Dates': np.asarray(date_str_list)}
              ##'Dates': np.asarray(struct_time_list)}     
              ##'Penman' : zero_array,                     
@@ -277,20 +283,19 @@ class ETCell:
         ## Need to do precip conversion to mm, from hundreths of inches
         precip_array = np.copy(self.refet['Precip']) * 25.4 / 100.
 
-        ## Find valid dates
-        date_mask = (
-            (self.refet['Dates'] >= start_dt) &
-            (self.refet['Dates'] <= end_dt))
+        ## Build a mask of valid dates
+        date_mask = np.array([
+            isinstance(dt, datetime.date) for dt in self.refet['Dates']])
+        if start_dt is not None:
+            date_mask[self.refet['Dates'] < start_dt] = False
+        if end_dt is not None:
+            date_mask[self.refet['Dates'] > end_dt] = False
         
         main_t30 = 0.0
         snow_accum = 0.0
         for i, step_dt in enumerate(self.refet['Dates']):
             if not date_mask[i]:
                 continue
-            ##if start_dt is not None and step_dt < start_dt:
-            ##    continue
-            ##elif end_dt is not None and step_dt > end_dt:
-            ##    continue
             doy = int(step_dt.strftime('%j'))
 
             ## Calculate an estimated depth of snow on ground using simple melt rate function))

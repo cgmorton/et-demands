@@ -19,18 +19,12 @@ class DayData:
         ## Used in compute_crop_gdd(), needs to be persistant during day loop
         self.etref_array = np.zeros(30)
 
-def crop_cycle(data, et_cell, basin_id, start_dt, end_dt, 
-               output_ws, niwr_flag=False):
+def crop_cycle(data, et_cell):
     """
 
     Args:
         data (): 
         et_cell (): 
-        basin_id (): 
-        start_dt (date): 
-        end_dt (date): 
-        output_ws (str): 
-        niwr_flag (bool): If True, output daily NIWR
         
     Returns:
 
@@ -79,27 +73,25 @@ def crop_cycle(data, et_cell, basin_id, start_dt, end_dt,
         foo.crop_load(data, et_cell, crop)
 
         ## Open output file for each crop and write header
-        output_name = '%s_%s.dat' % (et_cell.cell_id, crop.class_number)
-        output_path = os.path.join(output_ws, output_name)
+        output_path = os.path.join(
+            data.output_ws, '%s_%s.dat' % (et_cell.cell_id, crop.class_number))
         fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n'
         header = (
             '#     Date', 'DOY', 'PMETo', 'Pr.mm', 'T30', 'ETact',
             'ETpot', 'ETbas', 'Irrn', 'Seasn', 'Runof', 'DPerc')
-        if niwr_flag:
+        if data.niwr_flag:
             header = header + ('NIWR',)
             fmt = fmt.replace('\n', ' %9s\n')
         output_f = open(output_path, 'w')
         output_f.write(fmt % header)
 
         ## 
-        crop_day_loop(
-            data, et_cell, crop, foo, start_dt, end_dt, output_f, niwr_flag)
+        crop_day_loop(data, et_cell, crop, foo, output_f)
 
         ## Close output file
         output_f.close()
 
-def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
-                  output_f=None, niwr_flag=False):
+def crop_day_loop(data, et_cell, crop, foo, output_f=None):
     """
 
     Args:
@@ -107,10 +99,7 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
         et_cell ():
         crop ():
         foo ():
-        start_dt (date):
-        end_dt (date):
         output_f ():
-        niwr_flag (bool): If True, output daily NIWR
 
     Returns:
         None
@@ -119,15 +108,19 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
     foo_day = DayData()
 
     ## Originally in ProcessClimate() in vb code
-    if data.refet_type > 0:
+    if data.refet_params['type'] > 0:
         refet_array = et_cell.refet['ASCEPMStdETr']
     else:
         refet_array = et_cell.refet['ASCEPMStdETo']
 
     ## Build a mask of valid dates
-    date_mask = (
-        (et_cell.refet['Dates'] >= start_dt) &
-        (et_cell.refet['Dates'] <= end_dt))
+    ## DEADBEEF - This should be computed once instead of by crop
+    date_mask = np.array([
+        isinstance(dt, datetime.date) for dt in et_cell.refet['Dates']])
+    if data.start_dt:
+        date_mask[et_cell.refet['Dates'] < data.start_dt] = False
+    if data.end_dt:
+        date_mask[et_cell.refet['Dates'] > data.end_dt] = False
  
     for i, step_dt in enumerate(et_cell.refet['Dates']):
         step_doy = int(step_dt.strftime('%j'))
@@ -218,8 +211,8 @@ def crop_day_loop(data, et_cell, crop, foo, start_dt=None, end_dt=None,
             values = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
                       foo_day.t30, foo.etc_act, foo.etc_pot, foo.etc_bas,
                       foo.irr_sim, foo.in_season, foo.sro, foo.dpr)
-            if niwr_flag:
-                values = values + (foo.niwr,)
+            if data.niwr_flag:
+                values = values + (foo.niwr + 0,)
                 fmt = fmt.replace('\n', ' %9.3f\n')
             output_f.write(fmt % values)
 
