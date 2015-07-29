@@ -27,6 +27,7 @@ class CropETData():
         self.cgdd_winter_doy = 274
 
         ## Static file names
+        ## DEADBEEF - These needed to be pre-initialized/declared for some reason
         self.cell_properties_path =  os.path.join('static', 'ETCellsProperties.txt')
         self.cell_crops_path =  os.path.join('static', 'ETCellsCrops.txt')
         self.cell_cuttings_path = os.path.join('static', 'MeanCuttings.txt')
@@ -52,12 +53,12 @@ class CropETData():
 
         ## Check that all the sections are present
         crop_et_sec = 'CROP_ET'
-        climate_sec = 'CLIMATE'
+        weather_sec = 'WEATHER'
         refet_sec = 'REFET'
-        if sorted(config.sections()) <> [climate_sec, crop_et_sec, refet_sec]:
+        if set(config.sections()) <> set([crop_et_sec, weather_sec, refet_sec]):
             logging.error(
                 '\nERROR: The input file must have the following sections:\n'+
-                '  [{}], [{}], and [{}]'.format(climate_sec, crop_et_sec, refet_sec))
+                '  [{}], [{}], and [{}]'.format(crop_et_sec, weather_sec, refet_sec))
             sys.exit()
 
         ## The project and CropET folders need to be full/absolute paths
@@ -127,54 +128,98 @@ class CropETData():
 
         ## RefET parameters
         self.refet_params = {}
+        self.refet_params['fields'] = {}
+        self.refet_params['units'] = {}
         self.refet_params['ws'] = os.path.join(
             project_ws, config.get(refet_sec, 'refet_folder'))
-        self.refet_params['type'] = config.get(refet_sec, 'refet_type')
+        self.refet_params['type'] = config.get(refet_sec, 'refet_type').lower()
+        if self.refet_params['type'] not in ['eto', 'etr']:
+            logging.error('  ERROR: RefET type must be ETo or ETr')
+            sys.exit()
         self.refet_params['format'] = config.get(refet_sec, 'name_format')
         self.refet_params['header_lines'] = config.getint(refet_sec, 'header_lines')
         self.refet_params['names_line'] = config.getint(refet_sec, 'names_line')
-        self.refet_params['units_line'] = config.getint(refet_sec, 'units_line')
         self.refet_params['delimiter'] = config.get(refet_sec, 'delimiter')
-        #### Field names and units
-        ##refet_field = ASCEg
-        ##refet_units = mm/day
+        ## Field names and units
+        self.refet_params['fields']['date'] = config.get(refet_sec, 'date_field')
+        self.refet_params['fields']['etref'] = config.get(refet_sec, 'etref_field')
+        self.refet_params['units']['etref'] = config.get(refet_sec, 'etref_units')
+        ## Check RefET parameters
         if not os.path.isdir(self.refet_params['ws']):
             logging.error(
-                ('ERROR: The RefET data folder does not '+
+                ('  ERROR: The RefET data folder does not '+
                  'exist\n  %s') % self.refet_params['ws'])
             sys.exit()
-        if self.refet_params['type'] not in ['ETo', 'ETr']:
-            logging.error('ERROR: RefET type must be ETo or ETr')
-            sys.exit()
+        ## Check/modify units
+        for k,v in self.refet_params['units'].items():
+            if v and self.refet_params['fields'][k] is None:
+                logging.error(' ERROR: Units were not set for {0}'.format(k))
+                sys.exit()
+            elif v and v.lower() in ['mm/day', 'mm']:
+                pass
+            else:
+                logging.error(('\n ERROR: {0} units {1} are not currently '+
+                               'available').format(k,v))
 
-        ## Climate parameters
-        self.climate_params = {}
-        self.climate_params['ws'] = os.path.join(
-            project_ws, config.get(climate_sec, 'climate_folder'))
-        self.climate_params['format'] = config.get(climate_sec, 'name_format')
-        self.climate_params['header_lines'] = config.getint(climate_sec, 'header_lines')
-        self.climate_params['names_line'] = config.getint(climate_sec, 'names_line')
-        self.climate_params['units_line'] = config.getint(climate_sec, 'units_line')
-        self.climate_params['delimiter'] = config.get(climate_sec, 'delimiter')
-        #### Field names
-        ##tmin_field = Tmax
-        ##tmax_field = Tmin
-        ##ppt_field = Precip
-        ##wind_field = EsWind
-        ##tdew_field = EsTDew
-        #### Units
-        ##tmin_units = C
-        ##tmax_units = C
-        ##ppt_units = In*100
-        ##wind_units = m/s
-        ##tdew_units = C     
-        if not os.path.isdir(self.climate_params['ws']):
+        ## Weather parameters
+        self.weather_params = {}
+        self.weather_params['fields'] = {}
+        self.weather_params['units'] = {}
+        self.weather_params['ws'] = os.path.join(
+            project_ws, config.get(weather_sec, 'weather_folder'))
+        self.weather_params['format'] = config.get(weather_sec, 'name_format')
+        self.weather_params['header_lines'] = config.getint(weather_sec, 'header_lines')
+        self.weather_params['names_line'] = config.getint(weather_sec, 'names_line')
+        self.weather_params['delimiter'] = config.get(weather_sec, 'delimiter')
+        ## Field names
+        self.weather_params['fields']['date'] = config.get(weather_sec, 'date_field')
+        self.weather_params['fields']['tmin'] = config.get(weather_sec, 'tmin_field')
+        self.weather_params['fields']['tmax'] = config.get(weather_sec, 'tmax_field')
+        self.weather_params['fields']['ppt'] = config.get(weather_sec, 'ppt_field')
+        self.weather_params['fields']['snow'] = config.get(weather_sec, 'snow_field')
+        self.weather_params['fields']['depth'] = config.get(weather_sec, 'depth_field')
+        self.weather_params['fields']['rs'] = config.get(weather_sec, 'rs_field')
+        self.weather_params['fields']['wind'] = config.get(weather_sec, 'wind_field')
+        try: self.weather_params['fields']['tdew'] = config.get(weather_sec, 'tdew_field')
+        except: self.weather_params['fields']['tdew'] = None
+        try: self.weather_params['fields']['q'] = config.get(weather_sec, 'q_field')
+        except: self.weather_params['fields']['q'] = None
+        ## Units
+        self.weather_params['units']['tmin'] = config.get(weather_sec, 'tmin_units')
+        self.weather_params['units']['tmax'] = config.get(weather_sec, 'tmax_units')
+        self.weather_params['units']['ppt'] = config.get(weather_sec, 'ppt_units')
+        self.weather_params['units']['snow'] = config.get(weather_sec, 'snow_units')
+        self.weather_params['units']['depth'] = config.get(weather_sec, 'depth_units')
+        self.weather_params['units']['rs'] = config.get(weather_sec, 'rs_units')
+        self.weather_params['units']['wind'] = config.get(weather_sec, 'wind_units')
+        self.weather_params['units']['tdew'] = config.get(weather_sec, 'tdew_units')
+        try: self.weather_params['units']['q'] = config.get(weather_sec, 'q_units')
+        except: self.weather_params['units']['q'] = None
+        ## Misc
+        try: self.weather_params['wind_height'] = config.getfloat(
+            weather_sec, 'wind_height')
+        except: self.weather_params['wind_height'] = 2
+        ## Check weather parameters
+        if not os.path.isdir(self.weather_params['ws']):
             logging.error(
-                ('ERROR: The climate data folder does not '+
-                 'exist\n  %s') % self.climate_params['ws'])
+                ('  ERROR: The weather data folder does not '+
+                 'exist\n  %s') % self.weather_params['ws'])
             sys.exit()
+        ## Check/modify units
+        for k,v in self.weather_params['units'].items():
+            ##Every field must have units
+            if v and self.weather_params['fields'][k] is None:
+                logging.error(' ERROR: Units were not set for {0}'.format(k))
+                sys.exit()
+            elif v and v.lower() in ['c', 'm/s', 'mj/m2']:
+                pass
+            elif v and v.lower() in ['k', 'f', 'in*100', 'in', 'w/m^2', 'kg/kg']:
+                pass
+            else:
+                logging.error((' ERROR: {0} units {1} are not currently '+
+                               'available').format(k,v))
     
-    def static_cell_properties(self, fn, delimiter='\t'):
+    def set_cell_properties(self, fn, delimiter='\t'):
         """Extract the ET cell property data from the text file
 
         This function will build the ETCell objects and must be run first.
@@ -198,7 +243,7 @@ class CropETData():
             obj.source_file_properties = fn
             self.et_cells[obj.cell_id] = obj
 
-    def static_cell_crops(self, fn, delimiter='\t'):
+    def set_cell_crops(self, fn, delimiter='\t'):
         """Extract the ET cell crop data from the text file
 
         Args:
@@ -226,7 +271,7 @@ class CropETData():
             ## List of active crop numbers (i.e. flag is True)
             obj.num_crop_sequence = [k for k,v in obj.crop_flags.items() if v]
 
-    def static_cell_cuttings(self, fn, delimiter='\t', skip_rows=2):
+    def set_cell_cuttings(self, fn, delimiter='\t', skip_rows=2):
         """Extract the mean cutting data from the text file
 
         Args:

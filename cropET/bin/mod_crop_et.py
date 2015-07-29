@@ -32,24 +32,22 @@ def main(ini_path):
 
     ## Read in cell properties, crops and cuttings
     ## DEADBEEF - These could be called directly from the CropETData class
-    data.static_cell_properties(data.cell_properties_path)
-    data.static_cell_crops(data.cell_crops_path)
-    data.static_cell_cuttings(data.cell_cuttings_path)
-
+    data.set_cell_properties(data.cell_properties_path)
+    data.set_cell_crops(data.cell_crops_path)
+    data.set_cell_cuttings(data.cell_cuttings_path)
 
     ## Process each cell/station
     for cell_id, cell in sorted(data.et_cells.items()):
         logging.warning('CellID: {}'.format(cell_id))
 
-        ## DEADBEEF - Should the "cell" inherit the "data" values instead?
+        ## DEADBEEF - The "cell" could inherit the "data" values instead
         ## Read in crop specific parameters and coefficients
-        cell.static_crop_params(data.crop_params_path)
-        cell.static_crop_coeffs(data.crop_coefs_path)
+        cell.set_crop_params(data.crop_params_path)
+        cell.set_crop_coeffs(data.crop_coefs_path)
 
         ## Need to pass elevation to calculate pressure, ea, and Tdew
-        cell.set_daily_refet_data(data.refet_params)
-        ##cell.set_daily_refet_data(refet_fmt % (cell.refet_id), skiprows=[1])
-        ##cell.set_daily_nldas_data(refet_fmt % (cell.refet_id))
+        cell.set_refet_data(data.refet_params)
+        cell.set_weather_data(data.weather_params)
 
         ## Process climate arrays
         cell.process_climate(data.start_dt, data.end_dt)

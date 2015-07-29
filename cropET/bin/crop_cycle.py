@@ -107,22 +107,16 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
     ##logging.debug('crop_day_loop()')
     foo_day = DayData()
 
-    ## Originally in ProcessClimate() in vb code
-    if data.refet_params['type'] > 0:
-        refet_array = et_cell.refet['ASCEPMStdETr']
-    else:
-        refet_array = et_cell.refet['ASCEPMStdETo']
-
     ## Build a mask of valid dates
     ## DEADBEEF - This should be computed once instead of by crop
     date_mask = np.array([
-        isinstance(dt, datetime.date) for dt in et_cell.refet['Dates']])
+        isinstance(dt, datetime.date) for dt in et_cell.refet['dates']])
     if data.start_dt:
-        date_mask[et_cell.refet['Dates'] < data.start_dt] = False
+        date_mask[et_cell.refet['dates'] < data.start_dt] = False
     if data.end_dt:
-        date_mask[et_cell.refet['Dates'] > data.end_dt] = False
+        date_mask[et_cell.refet['dates'] > data.end_dt] = False
  
-    for i, step_dt in enumerate(et_cell.refet['Dates']):
+    for i, step_dt in enumerate(et_cell.refet['dates']):
         step_doy = int(step_dt.strftime('%j'))
         logging.debug('\ncrop_day_loop(): DOY %s  Date %s' % (step_doy, step_dt))
         if not date_mask[i]:
@@ -134,20 +128,14 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
 
         ## Log RefET values at time step 
         logging.debug(
-            'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f' % 
-            (et_cell.refet['Precip'][i], et_cell.refet['Wind'][i], 
-             et_cell.refet['TDew'][i]))
-        logging.debug(
-            'crop_day_loop(): ETo %.6f  ETr %.6f  ETref %.6f' % 
-            (et_cell.refet['ASCEPMStdETo'][i], et_cell.refet['ASCEPMStdETr'][i], 
-             refet_array[i]))
+            'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f ETref %.6f' % 
+            (et_cell.weather['precip'][i], et_cell.weather['wind'][i], 
+             et_cell.weather['tdew'][i], et_cell.refet['etref'][i]))
         ## Log climate values at time step         
         logging.debug(
             'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
             (et_cell.climate['tmax_array'][i], et_cell.climate['tmin_array'][i], 
              et_cell.climate['tmean_array'][i], et_cell.climate['t30_array'][i]))
-        logging.debug(
-            'crop_day_loop(): precip %.6f' % et_cell.climate['precip'][i])
 
         ## At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
@@ -169,17 +157,18 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
         foo_day.year = step_dt.year
         foo_day.month = step_dt.month
         foo_day.day = step_dt.day
-        foo_day.date = et_cell.refet['Dates'][i]
-        foo_day.tmax_orig = et_cell.refet['TMax'][i]
-        foo_day.tdew = et_cell.refet['TDew'][i]
-        foo_day.u2 = et_cell.refet['Wind'][i]
-        foo_day.etref = refet_array[i]
+        foo_day.date = et_cell.refet['dates'][i]
+        foo_day.tmax_orig = et_cell.weather['tmax'][i]
+        foo_day.tdew = et_cell.weather['tdew'][i]
+        foo_day.u2 = et_cell.weather['wind'][i]
+        foo_day.etref = et_cell.refet['etref'][i]
         foo_day.tmean = et_cell.climate['tmean_array'][i]
         foo_day.tmin = et_cell.climate['tmin_array'][i]
         foo_day.tmax = et_cell.climate['tmax_array'][i]
-        foo_day.snow_depth = et_cell.climate['snow_depth'][i]
+        foo_day.snow_depth = et_cell.climate['snow_depth_array'][i]
         foo_day.t30 = et_cell.climate['t30_array'][i]
-        foo_day.precip = et_cell.climate['precip'][i]
+        ##foo_day.precip = et_cell.climate['precip_array'][i]
+        foo_day.precip = et_cell.weather['precip'][i]
 
         ## DEADBEEF - Why make copies?
         foo_day.cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
@@ -201,8 +190,6 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
         ## Calculate Kcb, Ke, ETc
         compute_crop_et.compute_crop_et(
             data, et_cell, crop, foo, foo_day)
-
-        ## Compute NIWR at daily time step and write out
 
         ## Write vb-like output file for comparison
         if output_f:

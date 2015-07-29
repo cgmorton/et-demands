@@ -158,24 +158,20 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                     foo.doy_start_cycle))
                 foo.real_start = True    #' Harleys Rule
 
-            #' start of season has not yet been determined.  Look for it in normal fashion:
+            ## Start of season has not yet been determined.
+            ## Look for it in normal fashion:
+            #' use +/- 40 days from longterm as constraint
             if not foo.real_start:     
                 if foo_day.t30 > crop.t30_for_pl_or_gu_or_cgdd:     #' 'JH,RGA 4/13/09
-                    if longterm_pl > 0:    
-                        if foo_day.doy < longterm_pl - 40:     #' use +/- 40 days from longterm as constraint
-                            foo.real_start = False #' too early to start season
-                            foo.doy_start_cycle = longterm_pl - 40
+                    if longterm_pl > 0 and foo_day.doy < (longterm_pl - 40):    
+                        foo.real_start = False #' too early to start season
+                        foo.doy_start_cycle = longterm_pl - 40
+                        logging.debug('kcb_daily(): doy_start_cycle %s' % (
+                            foo.doy_start_cycle))
+                        if foo.doy_start_cycle < 1:     
+                            foo.doy_start_cycle += 365
                             logging.debug('kcb_daily(): doy_start_cycle %s' % (
                                 foo.doy_start_cycle))
-                            if foo.doy_start_cycle < 1:     
-                                foo.doy_start_cycle = foo.doy_start_cycle + 365
-                                logging.debug('kcb_daily(): doy_start_cycle %s' % (
-                                    foo.doy_start_cycle))
-                        else:
-                            foo.doy_start_cycle = foo_day.doy
-                            logging.debug('kcb_daily(): doy_start_cycle %s' % (
-                                foo.doy_start_cycle))
-                            foo.real_start = True
                     else:
                         foo.doy_start_cycle = foo_day.doy
                         logging.debug('kcb_daily(): doy_start_cycle %s' % (
@@ -204,7 +200,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 ##   but this code needs to be here because process (or DoY)
                 ##   can not go back in time
                 if crop.date_of_pl_or_gu < 0.0:    
-                    foo.doy_start_cycle = foo.doy_start_cycle + int(crop.date_of_pl_or_gu)
+                    foo.doy_start_cycle += int(crop.date_of_pl_or_gu)
                     logging.debug('kcb_daily(): doy_start_cycle %s' % (
                         foo.doy_start_cycle))
                     if foo.doy_start_cycle < 1:     
@@ -733,10 +729,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
     ##   This section for WATER only
     if crop.class_number in [55, 56, 57]:      
         if crop.class_number == 55:
-            if data.refet_params['type'] == 'ETr':     #' Allen 3/6/08
+            if data.refet_params['type'] == 'etr':     #' Allen 3/6/08
                 foo.kcb = 0.6 #' for ETr basis
                 logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
-            elif data.refet_params['type'] == 'ETo':
+            elif data.refet_params['type'] == 'eto':
                 ## For ETo basis 'Allen 12/26/07....
                 ## Note that these values are substantially different from FAO56
                 foo.kcb = 1.05
@@ -747,10 +743,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             foo.kcb = open_water_evap.open_water_evap(foo, foo_day)
             logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
         elif crop.class_number == 57:
-            if data.refet_params['type'] == 'ETr':     #' Allen 3/6/08
+            if data.refet_params['type'] == 'etr':     #' Allen 3/6/08
                 foo.kcb = 0.7 #' for ETr basis
                 logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
-            else:
+            elif data.refet_params['type'] == 'eto':
                 foo.kcb = 0.85 #' for ETo basis 'Allen 12/26/07
                 logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
         ## Water has only 'kcb'

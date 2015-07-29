@@ -25,11 +25,11 @@ class ETCell():
         return '<ETCell {0}, {1} {2}>'.format(
             self.cell_id, self.cell_name, self.refet_id)
 
-    def static_crop_params(self, fn):
+    def set_crop_params(self, fn):
         """ List of <CropParameter> instances """
         self.crop_params = crop_parameters.read_crop_parameters(fn)
     
-    def static_crop_coeffs(self, fn):
+    def set_crop_coeffs(self, fn):
         """ List of <CropCoeff> instances """
         self.crop_coeffs = crop_coefficients.read_crop_coefs(fn)
 
@@ -87,9 +87,8 @@ class ETCell():
         self.dairy_cuttings = int(data[3])
         self.beef_cuttings = int(data[4])
 
-    ##def set_daily_refet_data(self, fn, skiprows=[1]):
-    def set_daily_refet_data(self, refet):
-        """Read the RefET data file for a single station using Pandas
+    def set_refet_data(self, refet_params):
+        """Read the ETo/ETr data file for a single station using Pandas
 
         Klamath_pmdata/ETo/OR1571E2_KL_2020_S0.dat
         Example of data file:
@@ -99,116 +98,158 @@ class ETCell():
             1/2/1950 -1.825944 -13.92594 3.0854 0 0 7.4293 1.4369 -12.14653 0.3694 0.07820 0.6126 0.3757 0.3867
 
         Args:
-            refet (dict): RefET parameters from the INI file
+            refet_params (dict): RefET parameters from the INI file
 
         Returns:
             Dictionary of the RefET data, keys are the columns,
                 and values are numpy arrays of the data
         """
-        refet_path = os.path.join(refet['ws'], refet['format'] % self.refet_id)
-        logging.debug(refet_path)
+        logging.debug('\nRead ETo/ETr data')
+        refet_path = os.path.join(
+            refet_params['ws'], refet_params['format'] % self.refet_id)
+        logging.debug('  {0}'.format(refet_path))
+
         ## Get list of 0 based line numbers to skip
         ## Ignore header but assume header was set as a 1's based index
-        skiprows = [i for i in range(refet['header_lines'])
-                    if i+1 <> refet['names_line']]
+        skiprows = [i for i in range(refet_params['header_lines'])
+                    if i+1 <> refet_params['names_line']]
         data_pd = pd.read_table(
-            refet_path, header=refet['names_line']-1,
-            skiprows=skiprows, delimiter=refet['delimiter'])
-        logging.debug(list(data_pd.columns.values))
+            refet_path, engine='python', header=refet_params['names_line']-1,
+            skiprows=skiprows, delimiter=refet_params['delimiter'])
+        logging.debug('  Columns: {}'.format(', '.join(list(data_pd.columns.values))))
 
+        ## Array of date objects
         dt_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
-        ##date_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
-        
+        ##date_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])     
         ## time.struct_time(tm_year=1950, tm_mon=1, tm_mday=3, tm_hour=0, tm_min=0,
         ## tm_sec=0, tm_wday=1, tm_yday=3, tm_isdst=-1)
         ##struct_time_array = np.array([
         ##    time.strptime(s, "%m/%d/%Y") for s in data_pd['Date'].tolist()])
- 
+
+        ## Check fields
+        for field_key, field_name in refet_params['fields'].items():
+            if field_name is not None and field_name not in data_pd.columns:
+                logging.error(
+                    ('\n  ERROR: Field "{0}" was not found in {1}\n'+
+                     '    Check the {2}_field value in the INI file').format(
+                    field_name, os.path.basename(refet_path), field_key))
+                sys.exit()
+
+        ## Check/modify units
+        for k,v in refet_params['units'].items():
+            if v is None:
+                continue
+            elif v.lower() in ['mm/day', 'mm']:
+                continue
+            else:
+                logging.error('\n ERROR: Unknown {0} units {1}'.format(k, v))
+
+        ##
         self.refet = {
-             'TMax': np.array(data_pd['TMax']), 
-             'TMin': np.array(data_pd['TMin']),
-             'Precip': np.array(data_pd['Precip']), 
-             'Snow': np.array(data_pd['Snow']), 
-             'SnowDepth': np.array(data_pd['SDep']), 
-             'Rs': np.array(data_pd['EstRs']), 
-             'Wind': np.array(data_pd['EsWind']), 
-             'TDew': np.array(data_pd['EsTDew']),
-             'ASCEPMStdETr': np.array(data_pd['ASCEr']), 
-             'ASCEPMStdETo': np.array(data_pd['ASCEg']),
-             'Dates': dt_array}
-             ##'Dates': struct_time_array}
+             'etref': np.array(data_pd[refet_params['fields']['etref']]), 
+             'dates': dt_array}
+             ##'dates': struct_time_array}
+             ##'ASCEPMStdETr': np.array(data_pd['ASCEr']), 
+             ##'ASCEPMStdETo': np.array(data_pd['ASCEg']),
              ##'Penman':  a['Penm48'], 'PreTay': a['PreTay'], 'Harg': a['85Harg'],
-             ##'Dates': date_array,
+             ##'dates': date_array,
 
-    def set_daily_nldas_data(self, fn):
-        """Read the NLDAS data rod CSV file for a single station
+    def set_weather_data(self, weather_params):
+        """Read the meteorological/climate data file for a single station using Pandas
 
+        Klamath_pmdata/ETo/OR1571E2_KL_2020_S0.dat
         Example of data file:
-            Year,Month,Day,DOY,Tmin(K),Tmax(K),Specific Humidity(kg kg-1),
-            Wind @ 10m (m s-1),Solar Radiation (W m-2),Precipitation (mm),
-            ETo @ 2m (mm day-1),ETr @ 2m(mm day-1)
-            1979,1,1,1,252.7,263.62,0.00028215,1.9643,143.58,0,0.5754,0.92938
-            1979,1,2,2,252.24,267.21,0.00035664,0.80539,76.738,0,0.43268,0.64418
-            1979,1,3,3,257.46,272.2,0.00073107,0.64853,89.89,0,0.45107,0.6639
-
-        genfromtxt replaces spaces, hyphens, and paranethesis with underscores
-        Field names become:
-            Year,Month,Day,DOY,TminK,TmaxK,Specific_Humiditykg_kg1,
-            Wind__10m_m_s1,Solar_Radiation_W_m2,Precipitation_mm,
-            ETo__2m_mm_day1,ETr__2mmm_day1
+            Date TMax TMin Precip Snow SDep EstRs EsWind EsTDew Penm48 PreTay ASCEr ASCEg 85Harg
+                 C    C    In*100 In*100 In MJ/m2 m/s    C      mm/day mm/day mm/day mm/day mm/day
+            1/1/1950 -1.655943 -14.90594 7.0347 0 0 7.7163 1.4369 -13.12652 0.3820 0.05878 0.6653 0.4011 0.3863
+            1/2/1950 -1.825944 -13.92594 3.0854 0 0 7.4293 1.4369 -12.14653 0.3694 0.07820 0.6126 0.3757 0.3867
 
         Args:
-            fn (str): file path to the NLDAS data file
+            met_params (dict): Weater parameters from the INI file
 
         Returns:
-            Dictionary of the NLDAS data, keys are the columns,
+            Dictionary of the RefET data, keys are the columns,
                 and values are numpy arrays of the data
         """
+        logging.debug('Read meteorological/climate data')
 
-        data_array = np.genfromtxt(fn, delimiter=',', names=True)
-        ##logging.debug(a.dtype.names)
-     
-        date_array = np.array([
-            datetime.date(y, m, d) for y, m, d in zip(a['Year'], a['Month'], a['Day'])])
-        ##date_str_list = ['{0}/{1}/{2}'.format(int(m),int(d),int(y))
-        ##                 for y, m, d in zip(a['Year'], a['Month'], a['Day'])]
-        ##struct_time_list = [time.strptime(s, "%m/%d/%Y") for s in date_str_list]
+        weather_path = os.path.join(
+            weather_params['ws'], weather_params['format'] % self.refet_id)
+        logging.debug('  {0}'.format(weather_path))
 
-        ## Convert temperatures from K to C
-        data_array['TmaxK'] -= 273.15
-        data_array['TminK'] -= 273.15
+        ## Get list of 0 based line numbers to skip
+        ## Ignore header but assume header was set as a 1's based index
+        data_skip = [i for i in range(weather_params['header_lines'])
+                     if i+1 <> weather_params['names_line']]
+        data_pd = pd.read_table(
+            weather_path, engine='python',
+            header=weather_params['names_line']-1,
+            skiprows=data_skip, sep=weather_params['delimiter'])
+        logging.debug('  Columns: {0}'.format(', '.join(list(data_pd.columns.values))))
 
-        ## Convert W/m2 to MJ/m2
-        data_array['Solar_Radiation_W_m2'] *= 0.0864
+        ## Array of date objects
+        dt_array = np.array([dt.date() for dt in pd.to_datetime(data_pd['Date'])])
 
-        ## Scale wind from 10m to 2m
-        data_array['Wind__10m_m_s1'] *= 4.87 / math.log(67.8 * 10 - 5.42)
+        ## Check fields
+        for field_key, field_name in weather_params['fields'].items():
+            if field_name is not None and field_name not in data_pd.columns:
+                logging.error(
+                    ('\n  ERROR: Field "{0}" was not found in {1}\n'+
+                     '    Check the {2}_field value in the INI file').format(
+                    field_name, os.path.basename(weather_path), field_key))
+                sys.exit()
+
+        ## Check/modify units
+        for k,v in weather_params['units'].items():
+            if v is None:
+                continue
+            elif v.lower() in ['c', 'm/s', 'mj/m2']:
+                continue
+            elif v.lower() == 'k':
+                data_pd[weather_params['fields'][k]] -= 273.15
+            elif v.lower() == 'f':
+                data_pd[weather_params['fields'][k]] -= 32
+                data_pd[weather_params['fields'][k]] /= 1.8
+            elif v.lower() == 'in*100':
+                data_pd[weather_params['fields'][k]] *= 0.254
+            elif v.lower() == 'in':
+                data_pd[weather_params['fields'][k]] *= 25.4
+            elif v.lower() == 'w/m^2':
+                data_pd[weather_params['fields'][k]] *= 0.0864
+            ##elif v.lower() == 'kg/kg':
+            ##    data_pd[weather_params['fields'][k]] *= 1
+            else:
+                logging.error('\n ERROR: Unknown {0} units {1}'.format(k, v))
+
+        ## Scale wind height to 2m if necessary
+        if weather_params['wind_height'] <> 2:
+            data_pd[weather_params['fields']['wind']] *= (
+                4.87 / np.log(67.8 * weather_params['wind_height'] - 5.42))
 
         ## Calculate Tdew from specific humidity
         ## Convert station elevation from feet to meters
-        pair = util.pair_func(0.3048 * self.stn_elev)
-        ea_array = util.ea_from_q(pair, data_array['Specific_Humiditykg_kg1'])
-        tdew_array = util.tdew_from_ea(ea_array)
-        
-        zero_array = np.zeros(data_array['TmaxK'].shape, dtype=np.float32)
-        self.refet = {
-             'TMax': data_array['TmaxK'], 
-             'TMin': data_array['TminK'],
-             'Precip': data_array['Precipitation_mm'],                     
-             'Snow': zero_array,
-             'SnowDepth': zero_array,
-             'EstRs': data_array['Solar_Radiation_W_m2'],                     
-             'Wind': data_array['Wind__10m_m_s1'],
-             'TDew' : tdew_array,
-             'ASCEPMStdETr': data_array['ETr__2mmm_day1'],
-             'ASCEPMStdETo': data_array['ETo__2m_mm_day1'],    
-             'Dates': date_array}          
-             ##'Dates': np.asarray(date_str_list)}
-             ##'Dates': np.asarray(struct_time_list)}     
-             ##'Penman' : zero_array,                     
-             ##'PreTay' : zero_array,
-             ##'Harg': zero_array,
-             
+        if (not weather_params['fields']['tdew'] and
+            weather_params['fields']['q']):
+            logging.warning('Tdew from Ea needs to be tested!')
+            raw_input('ENTER')
+            pair = util.pair_func(0.3048 * self.stn_elev)
+            ea_array = util.ea_from_q(pair, data_pd[weather_params['fields']['q']])
+            tdew_array = util.tdew_from_ea(ea_array)
+            weather_params['fields']['tdew'] = tdew_array
+
+        ## Save arrays
+        ## DEADBEEF - Eventually return dataframe directly?
+        self.weather = {
+             'tmax': np.array(data_pd[weather_params['fields']['tmax']]), 
+             'tmin': np.array(data_pd[weather_params['fields']['tmin']]),
+             'precip': np.array(data_pd[weather_params['fields']['ppt']]), 
+             'snow': np.array(data_pd[weather_params['fields']['snow']]), 
+             'snow_depth': np.array(data_pd[weather_params['fields']['depth']]), 
+             'rs': np.array(data_pd[weather_params['fields']['rs']]), 
+             'wind': np.array(data_pd[weather_params['fields']['wind']]), 
+             'tdew': np.array(data_pd[weather_params['fields']['tdew']]),
+             'dates': dt_array}
+
     def process_climate(self, start_dt=None, end_dt=None):
         """ 
         
@@ -234,16 +275,10 @@ class ETCell():
         aridity_adj = [0., 0., 0., 0., 1., 1.5, 2., 3.5, 4.5, 3., 0., 0., 0.]
 
         ## Hold onto original TMax value for computing RHmin later on (for Kco), 12/2007, Allen
-        tmax_array = np.copy(self.refet['TMax'])
-        tmin_array = np.copy(self.refet['TMin'])
+        tmax_array = np.copy(self.weather['tmax'])
+        tmin_array = np.copy(self.weather['tmin'])
 
-        ## Seems most/all of what goes on in day loop could be done with array math
-        ## Maybe change later after validating code
-        ##month_array = np.array([step_dt.month for step_dt in self.refet['Dates']])
-        ##day_array = np.array([step_dt.day for step_dt in self.refet['Dates']])
-        
-        #for i,ts in enumerate(self.refet['ts']):
-        for i, step_dt in enumerate(self.refet['Dates']):
+        for i, step_dt in enumerate(self.weather['dates']):
             if start_dt is not None and step_dt < start_dt:
                 continue
             elif end_dt is not None and step_dt > end_dt:
@@ -277,23 +312,21 @@ class ETCell():
         nrecord_main_t30 = np.zeros(367)
         nrecord_main_cgdd = np.zeros(367)
 
-        sd_array = np.copy(self.refet['SnowDepth'])
-        swe_array = np.copy(self.refet['Snow'])
-
-        ## Need to do precip conversion to mm, from hundreths of inches
-        precip_array = np.copy(self.refet['Precip']) * 25.4 / 100.
+        sd_array = np.copy(self.weather['snow_depth'])
+        swe_array = np.copy(self.weather['snow'])
+        ##precip_array = np.copy(self.weather['precip'])
 
         ## Build a mask of valid dates
         date_mask = np.array([
-            isinstance(dt, datetime.date) for dt in self.refet['Dates']])
+            isinstance(dt, datetime.date) for dt in self.weather['dates']])
         if start_dt is not None:
-            date_mask[self.refet['Dates'] < start_dt] = False
+            date_mask[self.weather['dates'] < start_dt] = False
         if end_dt is not None:
-            date_mask[self.refet['Dates'] > end_dt] = False
+            date_mask[self.weather['dates'] > end_dt] = False
         
         main_t30 = 0.0
         snow_accum = 0.0
-        for i, step_dt in enumerate(self.refet['Dates']):
+        for i, step_dt in enumerate(self.weather['dates']):
             if not date_mask[i]:
                 continue
             doy = int(step_dt.strftime('%j'))
@@ -302,12 +335,13 @@ class ETCell():
             if len(sd_array) > 0:
                 snow = swe_array[i]
                 snow_depth = sd_array[i]
-                
+
+                ## DEADBEEF - Units conversion is happening when data is read in
                 ### [140610] TP, the ETo file has snow in hundreths, not tenths????
-                snow = snow / 10 * 25.4 #'tenths of inches to mm
+                ##snow = snow / 10 * 25.4 #'tenths of inches to mm
                 swe_array[i] = snow
                 #snow = swe_array(sdays - 1)  # ???
-                snow_depth = snow_depth * 25.4 #' inches to mm
+                ##snow_depth = snow_depth * 25.4 #' inches to mm
                 
                 ## Calculate an estimated depth of snow on ground using simple melt rate function))
                 snow_accum += snow * 0.5 #' assume a settle rate of 2 to 1
@@ -317,7 +351,6 @@ class ETCell():
                 snow_accum = max(snow_accum, 0.0)
                 snow_depth = min(snow_depth, snow_accum)
                 sd_array[i] = snow_depth
-
             if i > 29:
                 main_t30 = sum(tmean_array[i-29:i+1]) / 30
             else:
@@ -366,9 +399,9 @@ class ETCell():
         self.climate['t30_array'] = t30_array
         self.climate['main_t30_lt'] = main_t30_lt
         self.climate['main_cgdd_0_lt'] = main_cgdd_0_lt
-        self.climate['snow_depth'] = sd_array
-        self.climate['snow'] = swe_array
-        self.climate['precip'] = precip_array
+        self.climate['snow_depth_array'] = sd_array
+        self.climate['snow_array'] = swe_array
+        ##self.climate['precip_array'] = precip_array
 
 
 if __name__ == '__main__':

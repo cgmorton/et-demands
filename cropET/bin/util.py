@@ -105,3 +105,7 @@ def valid_date(input_date):
     except ValueError:
         msg = "Not a valid date: '{0}'.".format(input_date)
         raise argparse.ArgumentTypeError(msg)
+
+##def wind_adjust_func(uz_array, zw):
+##    """Adjust wind speed to 2m"""
+##    return uz_array * 4.87 / np.log(67.8 * zw - 5.42)

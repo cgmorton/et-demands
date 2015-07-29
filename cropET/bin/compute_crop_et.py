@@ -42,13 +42,13 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     #' RHmin and U2 are computed in Climate subroutine called above
 
     foo.height = max(0.05, foo.height) #' m #'limit height for numerical stability
-    if data.refet_params['type'] == 'ETr':    #' edited by Allen, 6/8/09 to use kc_max from file if given
+    if data.refet_params['type'] == 'etr':    #' edited by Allen, 6/8/09 to use kc_max from file if given
         if crop.kc_max > 0.3:   
             kc_max = crop.kc_max
         else:
             #' ETr basis
             kc_max = 1
-    elif data.refet_params['type'] == 'ETo':
+    elif data.refet_params['type'] == 'eto':
         if crop.kc_max > 0.3:   
             kc_max = (
                 crop.kc_max +
@@ -113,7 +113,6 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
 
         # (not ground cover class)
         if crop.class_number < 44 or crop.class_number > 46:
-
             if wscc == 1:    #' bare soil    #'note that these are ETr based.  Mult by 1.2 (plus adj?) for ETo base  *************
                 #' foo.fc is calculated below
                 if data.refet_params['type'] == 'ETr':    #' Allen 3/08
@@ -352,10 +351,12 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     tew3use = foo.tew3 #' for stage 3 drying (cracking soils (not in Idaho))
     rew2use = foo.rew
     foo.etref_30 = max(0.1, foo.etref_30) #' mm/day  #'edited from ETr to ETref 12/26/2007
-    if data.refet_params['type'] == 'ETr':   
+    if data.refet_params['type'] == 'etr':   
         etr_threshold = 4 #' for ETr basis
-    elif data.refet_params['type'] == 'ETo':
+    elif data.refet_params['type'] == 'eto':
         etr_threshold = 5 #' for ETo basis #'added March 26, 2008 RGA
+    else:
+        sys.exit()
 
     # Use 30 day ETr, if less than 4 or 5 mm/d to reduce TEW
     if foo.etref_30 < etr_threshold:    
