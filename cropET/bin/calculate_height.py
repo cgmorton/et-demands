@@ -4,10 +4,11 @@ def calculate_height(crop, foo):
     """Determine height of crop based on Kc and height limits"""
     height_prev = foo.height
 
-    # height = height_min + (kcb - kcb_min) / (kcb_mid - kc_min) * (height_max - height_min) <----- previous (2000) and with error (Kcbmin vs Kcmin)
+    # <----- previous (2000) and with error (Kcbmin vs Kcmin)
+    # height = height_min + (kcb - kcb_min) / (kcb_mid - kc_min) * (height_max - height_min) 
     # kcb_mid is maximum kcb found in kcb table read into program
 
-    # Followng conditionals added 12/26/07 to prevent any error
+    # Following conditionals added 12/26/07 to prevent any error
     if foo.kcb > foo.kc_min and foo.kcb_mid > foo.kc_min:
         foo.height = (
             crop.height_initial + (foo.kcb - foo.kc_min) / (foo.kcb_mid - foo.kc_min) *

@@ -161,6 +161,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
         foo_day.tmax_orig = et_cell.weather['tmax'][i]
         foo_day.tdew = et_cell.weather['tdew'][i]
         foo_day.u2 = et_cell.weather['wind'][i]
+        foo_day.precip = et_cell.weather['precip'][i]
         foo_day.etref = et_cell.refet['etref'][i]
         foo_day.tmean = et_cell.climate['tmean_array'][i]
         foo_day.tmin = et_cell.climate['tmin_array'][i]
@@ -168,7 +169,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
         foo_day.snow_depth = et_cell.climate['snow_depth_array'][i]
         foo_day.t30 = et_cell.climate['t30_array'][i]
         ##foo_day.precip = et_cell.climate['precip_array'][i]
-        foo_day.precip = et_cell.weather['precip'][i]
+
 
         ## DEADBEEF - Why make copies?
         foo_day.cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
@@ -185,11 +186,10 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
             ## (it was not used in ETr or ETo computations, anyway)
             es_tdew = util.aFNEs(foo_day.tdew)
             es_tmax = util.aFNEs(foo_day.tmax_orig) 
-            foo_day.rh_min = min(es_tdew / es_tmax * 100, 100)
+            foo_day.rh_min = max(min(es_tdew / es_tmax * 100, 100), 0)
                 
         ## Calculate Kcb, Ke, ETc
-        compute_crop_et.compute_crop_et(
-            data, et_cell, crop, foo, foo_day)
+        compute_crop_et.compute_crop_et(data, et_cell, crop, foo, foo_day)
 
         ## Write vb-like output file for comparison
         if output_f:
@@ -197,7 +197,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
                    '%9.3f %9.3f %5d %9.3f %9.3f\n')
             values = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
                       foo_day.t30, foo.etc_act, foo.etc_pot, foo.etc_bas,
-                      foo.irr_sim, foo.in_season, foo.sro, foo.dpr)
+                      foo.irr_sim, foo.in_season, foo.sro, foo.dperc)
             if data.niwr_flag:
                 values = values + (foo.niwr + 0,)
                 fmt = fmt.replace('\n', ' %9.3f\n')
@@ -212,7 +212,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
             (foo.etc_act, foo.etc_pot, foo.etc_bas))
         logging.debug(
             ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f  NIWR %.6f') %
-            (foo.irr_sim, foo.sro, foo.dpr, foo.niwr))
+            (foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
 def main():
     """ """

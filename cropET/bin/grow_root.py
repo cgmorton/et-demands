@@ -25,15 +25,15 @@ def grow_root(crop, foo):
         (foo.zr_max - foo.zr_min) + foo.zr_min)
     delta_zr = foo.zr - lZr
 
-    # update Dr for new moisture coming in bottom of root zone
-    # Dr (depletion) will increase if new portion of root zone is < FC
+    # update depl_root for new moisture coming in bottom of root zone
+    # depl_root (depletion) will increase if new portion of root zone is < FC
     if delta_zr > 0:   
         # AM3 is mean moisture of maxrootzone - Zr layer
-        foo.dr += delta_zr * (foo.aw - foo.aw3)
+        foo.depl_root += delta_zr * (foo.aw - foo.aw3)
 
     logging.debug(
-        ('grow_root(): zr %.6f  fractime %s  zr_max %s  zr_min %s  dr %.6f') %
-        (foo.zr, fractime, foo.zr_max, foo.zr_min, foo.dr))
+        ('grow_root(): zr %.6f  fractime %s  zr_max %s  zr_min %s  depl_root %.6f') %
+        (foo.zr, fractime, foo.zr_max, foo.zr_min, foo.depl_root))
     logging.debug(
         ('grow_root(): delta_zr %s  AW %.6f  AW3 %.6f') %
         (delta_zr, foo.aw, foo.aw3))

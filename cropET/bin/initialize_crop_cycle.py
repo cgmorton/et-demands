@@ -15,13 +15,12 @@ class InitializeCropCycle:
     cgdd = 0.0
     cum_evap = 0.
     cum_evap_prev = 0.
-    de = 0.
+    depl_ze = 0.
+    depl_zep = 0.
+    dperc_ze = 0.
     density = 0.
-    dep = 0.
     depl_surface = 0.
-    dpe = 0.
-    dpe_yest = 0.
-    dr = 0.
+    depl_root = 0.
     ##ei = 0
     ##ep = 0
     etc_act = 0.
@@ -33,7 +32,7 @@ class InitializeCropCycle:
     fw = 0.
     fw_spec = 0.
     fw_std = 0.
-    fwi = 0.
+    fw_irr = 0.
     gdd = 0.0
     height_min = 0.
     height_max = 0.
@@ -49,9 +48,10 @@ class InitializeCropCycle:
     kc_min = 0.
     kcb = 0.
     kcb_mid = 0.
+    kcb_prev = 0.
     ke = 0.
-    kei = 0
-    kep = 0.
+    ke_irr = 0
+    ke_ppt = 0.
     ##kr = 0
     kr2 = 0.
     ks = 0.
@@ -62,7 +62,7 @@ class InitializeCropCycle:
     mad_mid = 0.
     niwr = 0.
     ppt_inf = 0.
-    ppt_inf_yest = 0.
+    ppt_inf_prev = 0.
     ##ppt_net4 = 0
     ##ppt_net3 = 0
     ##ppt_net2 = 0
@@ -92,7 +92,7 @@ class InitializeCropCycle:
     #tei = 0
     #Kcmult = 1
     sro = 0.
-    dpr = 0.
+    dperc = 0.
     doy_start_cycle = 0
 
     real_start = False
@@ -104,7 +104,7 @@ class InitializeCropCycle:
 
     # [140609] TP added this, looks like its value comes from compute_crop_et(),
     # but needed for setup_dormant() below...
-    totwatinZe = 0.0
+    totwatin_ze = 0.0
 
     cgdd_at_planting = 0.0
 
@@ -128,7 +128,7 @@ class InitializeCropCycle:
     kcb_wscc[2] = 0.1
     kcb_wscc[3] = 0.1
 
-    wtirr = 0.0   # compute_crop_et()
+    wt_irr = 0.0   # compute_crop_et()
 
     # Minimum net depth of application for germination irrig., etc.
     irr_min = 10.0
@@ -154,7 +154,7 @@ class InitializeCropCycle:
         self.tew = self.tew2 #' find total evaporable water
         if self.tew3 > self.tew:  
             self.tew = self.tew3
-        self.fwi = self.fw_std #' fw changed to fwi 8/10/06
+        self.fw_irr = self.fw_std #' fw changed to fw_irr 8/10/06
         self.irr_auto = 0
         self.irr_sim = 0
     
@@ -181,28 +181,28 @@ class InitializeCropCycle:
         if self.zr_min > zr_dormant:
             #' adjust depletion for extra starting root zone at plant or GU
             #' assume fully mixed layer 3
-            self.dr = (
-                self.dr + (taw3 - daw3) *
+            self.depl_root = (
+                self.depl_root + (taw3 - daw3) *
                 (self.zr_min - zr_dormant) / (self.zr_max - zr_dormant))
         elif self.zr_max > self.zr_min:
             # Was, until 5/9/07:
             # Assume moisture right above zr_dormant is same as below
-            #dr = dr - (taw3 - daw3) * (zr_dormant - zr_min) / (zr_max - zr_min) 
+            #depl_root = depl_root - (taw3 - daw3) * (zr_dormant - zr_min) / (zr_max - zr_min) 
             # Following added 5/9/07
             # Enlarge depth of water
             daw3 = (
                 daw3 + (zr_dormant - self.zr_min) / zr_dormant *
-                (self.aw * zr_dormant - self.dr))
-            # Adjust dr in proportion to zr_min / zdormant and increase daw3 and AW3
-            self.dr = self.dr * self.zr_min / zr_dormant
+                (self.aw * zr_dormant - self.depl_root))
+            # Adjust depl_root in proportion to zr_min / zdormant and increase daw3 and AW3
+            self.depl_root *= self.zr_min / zr_dormant
             # The denom is layer 3 depth at start of season
             self.aw3 = daw3 / (self.zr_max - self.zr_min) 
             if self.aw3 < 0.:
                 self.aw3 = 0.
             if self.aw3 > self.aw:
                 self.aw3 = self.aw
-        if self.dr < 0.:
-            self.dr = 0.
+        if self.depl_root < 0.:
+            self.depl_root = 0.
         # Initialize rooting depth at beginning of time  <----DO??? Need recalc on Reserve?
         self.zr = self.zr_min
         self.crop_setup_flag = False
@@ -218,7 +218,7 @@ class InitializeCropCycle:
         self.zr_max = crop.rooting_depth_max
     
         self.de = de_initial #' (10 mm) at start of new crop at beginning of time
-        self.dr = de_initial #' (20 mm) at start of new crop at beginning of time
+        self.depl_root = de_initial #' (20 mm) at start of new crop at beginning of time
         self.zr = self.zr_min #' initialize rooting depth at beginning of time
         self.height = self.height_min
         self.stress_event = False
@@ -337,33 +337,33 @@ class InitializeCropCycle:
         ## AW is mm/m and daw3 is mm in layer 3 (in case zr < zr_max)
         daw3 = self.aw3 * (self.zr_max - self.zr) 
 
-        ## Add TAW - Dr that is in root zone below zr_dormant.
+        ## Add TAW - depl_root that is in root zone below zr_dormant.
         ## Assume fully mixed root zone inclding zr_dormant part
 
         ## Potential water in root zone
         taw_root = self.aw * (self.zr) #' potential water in root zone
-        ## Actual water in root zone based on Dr at end of season
-        daw_root = max(taw_root - self.dr, 0) 
+        ## Actual water in root zone based on depl_root at end of season
+        daw_root = max(taw_root - self.depl_root, 0) 
         ze = 0.1 #' depth of evaporation layer   #' (This only works when ze < zr_dormant)
         if zr_dormant < self.zr:  #' reduce daw_root by water in  evap layer and rest of zrdormant and then proportion
 
             #' determine water in zr_dormant layer
             #' combine water in ze layer (1-fc fraction) to that in balance of zr_dormant depth
             #' need to mix ze and zr_dormant zones.  Assume current Zr zone of crop just ended is fully mixed.
-            #' totwatinZe is water in fc fraction of Ze.
+            #' totwatin_ze is water in fc fraction of Ze.
 
             aw_root = daw_root / self.zr
             if zr_dormant > ze:
                 totwatinzr_dormant = (
-                    (self.totwatinZe + aw_root * (zr_dormant - ze)) * (1 - self.fc) +
+                    (self.totwatin_ze + aw_root * (zr_dormant - ze)) * (1 - self.fc) +
                     aw_root * zr_dormant * fc)
             else:
                 # Was, until 5/9/07
                 #totwatinzr_dormant = (
-                #    (self.totwatinZe * (ze - zr_dormant) / ze) * (1 - fc) +
+                #    (self.totwatin_ze * (ze - zr_dormant) / ze) * (1 - fc) +
                 #    aw_root * zr_dormant * fc)
                 totwatinzr_dormant = (
-                    (self.totwatinZe * (1 - (ze - zr_dormant) / ze)) * (1 - self.fc) +
+                    (self.totwatin_ze * (1 - (ze - zr_dormant) / ze)) * (1 - self.fc) +
                     aw_root * zr_dormant * self.fc) #' corrected
 
             #' This requires that zr_dormant > ze.
@@ -379,14 +379,14 @@ class InitializeCropCycle:
             self.aw3 = self.aw3 #' this should never happen, since zr_max for all crops > 0.15 m
 
 
-        #' initialize dr for dormant season
+        #' initialize depl_root for dormant season
         #' Depletion below evaporation layer:
 
-        #' dr_below_Ze = (dr - de) #' / (zr - ze) #'mm/m
-        #' If dr_below_ze < 0 Then dr_below_ze = 0
-        #' dr = dr_below_ze * (zr_dormant - ze) / (zr - ze) + de  #'assume fully mixed profile below Ze
+        #' depl_root_below_Ze = (depl_root - de) #' / (zr - ze) #'mm/m
+        #' If depl_root_below_ze < 0 Then depl_root_below_ze = 0
+        #' depl_root = depl_root_below_ze * (zr_dormant - ze) / (zr - ze) + de  #'assume fully mixed profile below Ze
             
-        self.dr = self.aw * zr_dormant - totwatinzr_dormant
+        self.depl_root = self.aw * zr_dormant - totwatinzr_dormant
 
         #' set Zr for dormant season
         self.zr = zr_dormant
@@ -395,7 +395,7 @@ class InitializeCropCycle:
         #' used to recharge zr_max - zr zone
         #' make sure that grow_root is not called during dormant season
 
-        self.fwi = self.fw_std #' fw changed to fwi 8/10/06
+        self.fw_irr = self.fw_std #' fw changed to fw_irr 8/10/06
         self.irr_auto = 0
         self.irr_sim = 0
         self.dormant_setup_flag = False

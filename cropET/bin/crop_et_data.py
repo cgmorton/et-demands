@@ -40,7 +40,7 @@ class CropETData():
 
     def read_ini(self, ini_path):
         """Read and parse the INI file"""
-        logging.debug('  {}'.format(ini_path))
+        logging.info('  INI: {}'.format(os.path.basename(ini_path)))
 
         ## Check that the INI file can be read
         config = ConfigParser.ConfigParser()
@@ -126,6 +126,7 @@ class CropETData():
                     static_path))
                 sys.exit()
 
+                
         ## RefET parameters
         self.refet_params = {}
         self.refet_params['fields'] = {}
@@ -140,27 +141,38 @@ class CropETData():
         self.refet_params['header_lines'] = config.getint(refet_sec, 'header_lines')
         self.refet_params['names_line'] = config.getint(refet_sec, 'names_line')
         self.refet_params['delimiter'] = config.get(refet_sec, 'delimiter')
+        
         ## Field names and units
-        self.refet_params['fields']['date'] = config.get(refet_sec, 'date_field')
-        self.refet_params['fields']['etref'] = config.get(refet_sec, 'etref_field')
-        self.refet_params['units']['etref'] = config.get(refet_sec, 'etref_units')
+        try: 
+            self.refet_params['fields']['date'] = config.get(refet_sec, 'date_field')
+        except: 
+            logging.error('  ERROR: REFET date_field must set in the INI')
+            sys.exit()
+        try: 
+            self.refet_params['fields']['etref'] = config.get(refet_sec, 'etref_field')
+        except: 
+            logging.error('  ERROR: REFET etref_field must set in the INI')
+            sys.exit()
+        try: 
+           self.refet_params['units']['etref'] = config.get(refet_sec, 'etref_units')
+        except: 
+            logging.error('  ERROR: REFET etref_units must set in the INI')
+            sys.exit()
+        
         ## Check RefET parameters
         if not os.path.isdir(self.refet_params['ws']):
             logging.error(
                 ('  ERROR: The RefET data folder does not '+
                  'exist\n  %s') % self.refet_params['ws'])
             sys.exit()
-        ## Check/modify units
-        for k,v in self.refet_params['units'].items():
-            if v and self.refet_params['fields'][k] is None:
-                logging.error(' ERROR: Units were not set for {0}'.format(k))
-                sys.exit()
-            elif v and v.lower() in ['mm/day', 'mm']:
-                pass
-            else:
-                logging.error(('\n ERROR: {0} units {1} are not currently '+
-                               'available').format(k,v))
+        ## Check fields and units
+        elif self.refet_params['units']['etref'].lower() not in ['mm/day', 'mm']:
+            logging.error(
+                '  ERROR:  ETref units {0} are not currently supported'.format(
+                    self.refet_params['units']['etref']))
+            sys.exit()
 
+            
         ## Weather parameters
         self.weather_params = {}
         self.weather_params['fields'] = {}
@@ -171,53 +183,67 @@ class CropETData():
         self.weather_params['header_lines'] = config.getint(weather_sec, 'header_lines')
         self.weather_params['names_line'] = config.getint(weather_sec, 'names_line')
         self.weather_params['delimiter'] = config.get(weather_sec, 'delimiter')
-        ## Field names
-        self.weather_params['fields']['date'] = config.get(weather_sec, 'date_field')
-        self.weather_params['fields']['tmin'] = config.get(weather_sec, 'tmin_field')
-        self.weather_params['fields']['tmax'] = config.get(weather_sec, 'tmax_field')
-        self.weather_params['fields']['ppt'] = config.get(weather_sec, 'ppt_field')
-        self.weather_params['fields']['snow'] = config.get(weather_sec, 'snow_field')
-        self.weather_params['fields']['depth'] = config.get(weather_sec, 'depth_field')
-        self.weather_params['fields']['rs'] = config.get(weather_sec, 'rs_field')
-        self.weather_params['fields']['wind'] = config.get(weather_sec, 'wind_field')
+        
+        ## Field names 
+        ## The following fields are mandatory 
+        ## DEADBEEF - Are snow and snow depth required?
+        field_list = ['date', 'tmin', 'tmax', 'ppt', 'snow', 'depth', 'rs', 'wind']
+        for f_name in field_list:
+            try: 
+                self.weather_params['fields'][f_name] = config.get(
+                    weather_sec, f_name+'_field')
+            except:
+                logging.error('  ERROR: WEATHER {}_field must be set in the INI'.format(f_name))
+                sys.exit()
+        ## Units
+        for f_name in field_list:
+            if f_name == 'date':
+                continue
+            elif self.weather_params['fields'][f_name] is not None:
+                try: 
+                    self.weather_params['units'][f_name] = config.get(
+                        weather_sec, f_name+'_units')
+                except:
+                    logging.error(
+                        '  ERROR: WEATHER {}_units must be set in the INI'.format(f_name))
+                    sys.exit()
+
+        ## Tdew can be set or computed from Q (specific humidity)
         try: self.weather_params['fields']['tdew'] = config.get(weather_sec, 'tdew_field')
-        except: self.weather_params['fields']['tdew'] = None
+        except:  self.weather_params['fields']['tdew'] = None
         try: self.weather_params['fields']['q'] = config.get(weather_sec, 'q_field')
         except: self.weather_params['fields']['q'] = None
-        ## Units
-        self.weather_params['units']['tmin'] = config.get(weather_sec, 'tmin_units')
-        self.weather_params['units']['tmax'] = config.get(weather_sec, 'tmax_units')
-        self.weather_params['units']['ppt'] = config.get(weather_sec, 'ppt_units')
-        self.weather_params['units']['snow'] = config.get(weather_sec, 'snow_units')
-        self.weather_params['units']['depth'] = config.get(weather_sec, 'depth_units')
-        self.weather_params['units']['rs'] = config.get(weather_sec, 'rs_units')
-        self.weather_params['units']['wind'] = config.get(weather_sec, 'wind_units')
-        self.weather_params['units']['tdew'] = config.get(weather_sec, 'tdew_units')
-        try: self.weather_params['units']['q'] = config.get(weather_sec, 'q_units')
-        except: self.weather_params['units']['q'] = None
-        ## Misc
-        try: self.weather_params['wind_height'] = config.getfloat(
-            weather_sec, 'wind_height')
-        except: self.weather_params['wind_height'] = 2
+        if self.weather_params['fields']['tdew'] is not None:
+            try: self.weather_params['units']['tdew'] = config.get(weather_sec, 'tdew_units')
+            except:                     
+                logging.error('  ERROR: WEATHER {}_units must be set in the INI'.format('tdew'))
+                sys.exit()
+        elif self.weather_params['fields']['q'] is not None:
+            try:  self.weather_params['units']['q'] = config.get(weather_sec, 'q_units')
+            except:                     
+                logging.error('  ERROR: WEATHER {}_units must be set in the INI'.format('q'))
+                sys.exit()
+       
+        ## Wind speeds measured at heights other than 2m will be scaled
+        try: 
+            self.weather_params['wind_height'] = config.getfloat(
+                weather_sec, 'wind_height')
+        except: 
+            self.weather_params['wind_height'] = 2
+            
         ## Check weather parameters
         if not os.path.isdir(self.weather_params['ws']):
             logging.error(
                 ('  ERROR: The weather data folder does not '+
                  'exist\n  %s') % self.weather_params['ws'])
             sys.exit()
-        ## Check/modify units
+        ## Check units
+        units_list = ['c', 'm/s', 'mj/m2'] + ['k', 'f', 'in*100', 'in', 'w/m^2', 'kg/kg']
         for k,v in self.weather_params['units'].items():
-            ##Every field must have units
-            if v and self.weather_params['fields'][k] is None:
-                logging.error(' ERROR: Units were not set for {0}'.format(k))
+            if v is not None and v.lower() not in units_list:
+                logging.error(
+                    '  ERROR: {0} units {1} are not currently supported'.format(k,v))
                 sys.exit()
-            elif v and v.lower() in ['c', 'm/s', 'mj/m2']:
-                pass
-            elif v and v.lower() in ['k', 'f', 'in*100', 'in', 'w/m^2', 'kg/kg']:
-                pass
-            else:
-                logging.error((' ERROR: {0} units {1} are not currently '+
-                               'available').format(k,v))
     
     def set_cell_properties(self, fn, delimiter='\t'):
         """Extract the ET cell property data from the text file
