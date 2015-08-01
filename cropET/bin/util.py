@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 
-def aFNEs(t):
+def es_from_t(t):
     """ Tetens (1930) equation for sat. vap pressure, kPa, (T in C)
 
     Args:
@@ -12,10 +12,10 @@ def aFNEs(t):
     Returns:
         A float of the saturated vapor pressure [kPa]
     """
-    return 0.6108 * math.exp((17.27 * t) / (t + 237.3)) 
+    return 0.6108 * np.exp((17.27 * t) / (t + 237.3)) 
 
 
-def aFNEsIce(t):
+def es_ice_from_t(t):
     """ Murray (1967) equation for sat. vap pressure over ice, kPa, (T in C)
 
     Args:
@@ -24,7 +24,7 @@ def aFNEsIce(t):
     Returns:
         A float of the saturated vapor pressure over ice [kPa]
     """
-    return 0.6108 * math.exp((21.87 * t) / (t + 265.5)) 
+    return 0.6108 * np.exp((21.87 * t) / (t + 265.5)) 
 
 
 def is_winter(data, foo_day):
@@ -50,7 +50,7 @@ def is_winter(data, foo_day):
         else:
             return False
 
-def pair_func(elevation):
+def pair_from_elev(elevation):
     """Calculates air pressure as a function of elevation
 
     Args:
