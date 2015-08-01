@@ -2,7 +2,7 @@
 # Name:         split_vb_crop_daily_timeseries.py
 # Purpose:      Split daily data timeseries into separate files for each crop
 # Author:       Charles Morton
-# Created       2015-07-27
+# Created       2015-07-31
 # Python:       2.7
 #--------------------------------
 
@@ -40,7 +40,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
     et_folder = 'ETc'
 
     ## Output names
-    output_folder  = 'cet'
+    output_folder  = 'ETc'
 
     ## These crops will not be processed (if set)
     crop_skip_list = []
@@ -68,6 +68,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
     header_lines = 5
     delimiter = '\t'
     ##delimiter = ','
+    ##delimiter = r'\s*'
     
     ###########################################################################
 
@@ -76,19 +77,18 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         logging.info('  PMData Folder: {0}'.format(pmdata_ws))
 
         ## Input workspaces
-        project_ws = os.path.dirname(pmdata_ws)
         et_ws = os.path.join(pmdata_ws, et_folder)
         logging.debug('  ET Folder: {0}'.format(et_ws))
 
         ## Output workspaces
-        output_ws = os.path.join(project_ws, output_folder)
+        output_ws = os.path.join(pmdata_ws, output_folder)
         logging.debug('  Output Folder: {0}'.format(output_ws))
 
         ## Check workspaces
         if not os.path.isdir(et_ws):
             logging.error(
                 '\nERROR: The ET folder {0} could be found\n'.format(et_ws))
-            raise SystemExit()
+            sys.exit()
         if not os.path.isdir(output_ws):
             os.mkdir(output_ws)
    
@@ -105,7 +105,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             year_end = None
         if year_start and year_end and year_end <= year_start:
             logging.error('\n  ERROR: End date must be after start date\n')
-            raise SystemExit()
+            sys.exit()
 
         ## Regular expressions
         def list_re_or(input_list):
@@ -269,14 +269,15 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
                 ##niwr_sub_array = np.delete(niwr_array, np.where(leap_array)[0])
 
                 ## Timeseries figures of daily data
-                output_name = '{0}_{1}.dat'.format(
+                output_name = '{0}_Crop_{1}.dat'.format(
                     station, crop_num)
                 output_path = os.path.join(output_ws, output_name)
 
                 ##
                 with open(output_path, 'w') as output_f:
+                    output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
                     fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
-                    header = ('#     Date', 'DOY', 'PMETo', 'Pr.mm', 'T30', 'ETact',
+                    header = ('      Date', 'DOY', 'PMETo', 'Pr.mm', 'T30', 'ETact',
                               'ETpot', 'ETbas', 'Irrn', 'Seasn', 'Runof', 'DPerc')
                     if niwr_flag:
                         header = header + ('NIWR',)
