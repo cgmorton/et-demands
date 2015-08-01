@@ -732,10 +732,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
     ##   This section for WATER only
     if crop.class_number in [55, 56, 57]:      
         if crop.class_number == 55:
-            if data.refet_params['type'] == 'etr':     #' Allen 3/6/08
+            if data.refet['type'] == 'etr':     #' Allen 3/6/08
                 foo.kcb = 0.6 #' for ETr basis
                 logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
-            elif data.refet_params['type'] == 'eto':
+            elif data.refet['type'] == 'eto':
                 ## For ETo basis 'Allen 12/26/07....
                 ## Note that these values are substantially different from FAO56
                 foo.kcb = 1.05
@@ -746,10 +746,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             foo.kcb = open_water_evap.open_water_evap(foo, foo_day)
             logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
         elif crop.class_number == 57:
-            if data.refet_params['type'] == 'etr':     #' Allen 3/6/08
+            if data.refet['type'] == 'etr':     #' Allen 3/6/08
                 foo.kcb = 0.7 #' for ETr basis
                 logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
-            elif data.refet_params['type'] == 'eto':
+            elif data.refet['type'] == 'eto':
                 foo.kcb = 0.85 #' for ETo basis 'Allen 12/26/07
                 logging.debug('kcb_daily(): Kcb %s' % foo.kcb)
         ## Water has only 'kcb'
@@ -775,10 +775,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
 
     ## RHmin and U2 are computed in Climate subroutine
     ## Allen 3/26/08
-    if data.refet_params['type'] == 'etr':     
+    if data.refet['type'] == 'etr':     
         ## ETr basis, therefore, no adjustment to kcb
         pass
-    elif data.refet_params['type'] == 'eto':
+    elif data.refet['type'] == 'eto':
         #' ******'12/26/07
         logging.debug(
             'kcb_daily(): Kcb0 %.6f  U2 %.6f  RHmin %.6f  Height %.6f' % 

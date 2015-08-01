@@ -217,7 +217,7 @@ class InitializeCropCycle:
         self.zr_min = crop.rooting_depth_initial
         self.zr_max = crop.rooting_depth_max
     
-        self.de = de_initial #' (10 mm) at start of new crop at beginning of time
+        self.depl_ze = de_initial #' (10 mm) at start of new crop at beginning of time
         self.depl_root = de_initial #' (20 mm) at start of new crop at beginning of time
         self.zr = self.zr_min #' initialize rooting depth at beginning of time
         self.height = self.height_min

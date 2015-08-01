@@ -74,15 +74,16 @@ def crop_cycle(data, et_cell):
 
         ## Open output file for each crop and write header
         output_path = os.path.join(
-            data.output_ws, '%s_%s.dat' % (et_cell.cell_id, crop.class_number))
+            data.output_ws, '%s_Crop_%s.dat' % (et_cell.cell_id, crop.class_number))
         fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n'
         header = (
-            '#     Date', 'DOY', 'PMETo', 'Pr.mm', 'T30', 'ETact',
+            '      Date', 'DOY', 'PMETo', 'Pr.mm', 'T30', 'ETact',
             'ETpot', 'ETbas', 'Irrn', 'Seasn', 'Runof', 'DPerc')
         if data.niwr_flag:
             header = header + ('NIWR',)
             fmt = fmt.replace('\n', ' %9s\n')
         output_f = open(output_path, 'w')
+        output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
         output_f.write(fmt % header)
 
         ## 
@@ -107,35 +108,19 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
     ##logging.debug('crop_day_loop()')
     foo_day = DayData()
 
-    ## Build a mask of valid dates
-    ## DEADBEEF - This should be computed once instead of by crop
-    date_mask = np.array([
-        isinstance(dt, datetime.date) for dt in et_cell.refet['dates']])
-    if data.start_dt:
-        date_mask[et_cell.refet['dates'] < data.start_dt] = False
-    if data.end_dt:
-        date_mask[et_cell.refet['dates'] > data.end_dt] = False
- 
-    for i, step_dt in enumerate(et_cell.refet['dates']):
-        step_doy = int(step_dt.strftime('%j'))
+    for i, (step_dt, step_doy) in et_cell.refet_pd[['date','doy']].iterrows():
         logging.debug('\ncrop_day_loop(): DOY %s  Date %s' % (step_doy, step_dt))
-        if not date_mask[i]:
-            continue
-        ##if start_dt is not None and step_dt < start_dt:
-        ##    continue
-        ##elif end_dt is not None and step_dt > end_dt:
-        ##    continue
 
         ## Log RefET values at time step 
         logging.debug(
             'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f ETref %.6f' % 
-            (et_cell.weather['precip'][i], et_cell.weather['wind'][i], 
-             et_cell.weather['tdew'][i], et_cell.refet['etref'][i]))
+            (et_cell.weather_pd['ppt'][i], et_cell.weather_pd['wind'][i], 
+             et_cell.weather_pd['tdew'][i], et_cell.refet_pd['etref'][i]))
         ## Log climate values at time step         
         logging.debug(
             'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
-            (et_cell.climate['tmax_array'][i], et_cell.climate['tmin_array'][i], 
-             et_cell.climate['tmean_array'][i], et_cell.climate['t30_array'][i]))
+            (et_cell.climate_pd['tmax'][i], et_cell.climate_pd['tmin'][i], 
+             et_cell.climate_pd['tmean'][i], et_cell.climate_pd['t30'][i]))
 
         ## At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
@@ -152,41 +137,30 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
             (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
 
         ## Track variables for each day
+        ## For now, cast all values to native Python types
         foo_day.sdays = i + 1
-        foo_day.doy = step_doy
-        foo_day.year = step_dt.year
-        foo_day.month = step_dt.month
-        foo_day.day = step_dt.day
-        foo_day.date = et_cell.refet['dates'][i]
-        foo_day.tmax_orig = et_cell.weather['tmax'][i]
-        foo_day.tdew = et_cell.weather['tdew'][i]
-        foo_day.u2 = et_cell.weather['wind'][i]
-        foo_day.precip = et_cell.weather['precip'][i]
-        foo_day.etref = et_cell.refet['etref'][i]
-        foo_day.tmean = et_cell.climate['tmean_array'][i]
-        foo_day.tmin = et_cell.climate['tmin_array'][i]
-        foo_day.tmax = et_cell.climate['tmax_array'][i]
-        foo_day.snow_depth = et_cell.climate['snow_depth_array'][i]
-        foo_day.t30 = et_cell.climate['t30_array'][i]
-        ##foo_day.precip = et_cell.climate['precip_array'][i]
+        foo_day.doy = int(step_doy)
+        foo_day.year = int(step_dt.year)
+        foo_day.month = int(step_dt.month)
+        foo_day.day = int(step_dt.day)
+        foo_day.date = et_cell.refet_pd.at[i, 'date'].to_datetime()
+        foo_day.tmax_orig = float(et_cell.weather_pd.at[i, 'tmax'])
+        foo_day.tdew = float(et_cell.weather_pd.at[i, 'tdew'])
+        foo_day.u2 = float(et_cell.weather_pd.at[i, 'wind'])
+        foo_day.precip = float(et_cell.weather_pd.at[i, 'ppt'])
+        foo_day.rh_min = float(et_cell.weather_pd.at[i, 'rh_min'])
+        foo_day.etref = float(et_cell.refet_pd.at[i, 'etref'])
+        foo_day.tmean = float(et_cell.climate_pd.at[i, 'tmean'])
+        foo_day.tmin = float(et_cell.climate_pd.at[i, 'tmin'])
+        foo_day.tmax = float(et_cell.climate_pd.at[i, 'tmax'])
+        foo_day.snow_depth = float(et_cell.climate_pd.at[i, 'snow_depth'])
+        foo_day.t30 = float(et_cell.climate_pd.at[i, 't30'])
+        ##foo_day.precip = float(et_cell.climate_pd.at[i, 'precip'])
 
 
         ## DEADBEEF - Why make copies?
         foo_day.cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
         #foo_day.t30_lt = np.copy(et_cell.climate['main_t30_lt'])
-
-        ## Compute RH from Tdew
-        ## DEADBEEF - Why would tdew or tmax_original be < -90?
-        ## DEADBEEF - This could be done in et_cell.set_daily_nldas_data() and
-        ##   et_cell.set_daily_refet_data()
-        if foo_day.tdew < -90 or foo_day.tmax_orig < -90:
-            foo_day.rh_min = 30.0
-        else:
-            ## For now do not consider SVP over ice
-            ## (it was not used in ETr or ETo computations, anyway)
-            es_tdew = util.aFNEs(foo_day.tdew)
-            es_tmax = util.aFNEs(foo_day.tmax_orig) 
-            foo_day.rh_min = max(min(es_tdew / es_tmax * 100, 100), 0)
                 
         ## Calculate Kcb, Ke, ETc
         compute_crop_et.compute_crop_et(data, et_cell, crop, foo, foo_day)
@@ -195,7 +169,7 @@ def crop_day_loop(data, et_cell, crop, foo, output_f=None):
         if output_f:
             fmt = ('%10s %3s %9.3f %9.3f %9.3f %9.3f %9.3f '+
                    '%9.3f %9.3f %5d %9.3f %9.3f\n')
-            values = (step_dt, step_doy, foo_day.etref, foo_day.precip, 
+            values = (step_dt.date(), step_doy, foo_day.etref, foo_day.precip, 
                       foo_day.t30, foo.etc_act, foo.etc_pot, foo.etc_bas,
                       foo.irr_sim, foo.in_season, foo.sro, foo.dperc)
             if data.niwr_flag:

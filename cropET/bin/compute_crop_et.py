@@ -43,12 +43,12 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
 
     #' m #'limit height for numerical stability
     foo.height = max(0.05, foo.height) 
-    if data.refet_params['type'] == 'etr':    #' edited by Allen, 6/8/09 to use kc_max from file if given
+    if data.refet['type'] == 'etr':    #' edited by Allen, 6/8/09 to use kc_max from file if given
         if crop.kc_max > 0.3:   
             kc_max = crop.kc_max
         else:
             kc_max = 1
-    elif data.refet_params['type'] == 'eto':
+    elif data.refet['type'] == 'eto':
         kc_max = ((0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rh_min - 45)) *
                   (foo.height / 3) ** 0.3)
         if crop.kc_max > 0.3:
@@ -77,28 +77,28 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         # Bare soil
         if crop.class_number == 44:
             # Less soil heat in winter.
-            if data.refet_params['type'] == 'etr':
+            if data.refet['type'] == 'etr':
                 # For ETr (Allen 3/2008)
                 kc_max = 0.9 
-            elif data.refet_params['type'] == 'eto':
+            elif data.refet['type'] == 'eto':
                 # For ETo  (Allen 12/2007)
                 kc_max = 1.1 
             foo.fc = 0.0
         # Mulched soil, including grain stubble
         elif crop.class_number == 45:
-            if data.refet_params['type'] == 'etr':
+            if data.refet['type'] == 'etr':
                 # For ETr (Allen 3/2008)
                 kc_max = 0.85 
-            elif data.refet_params['type'] == 'eto':
+            elif data.refet['type'] == 'eto':
                 # For ETo (0.85 * 1.2)  (Allen 12/2007)
                 kc_max = 1.0  
             foo.fc = 0.4
         # Dormant turf/sod (winter time)
         elif crop.class_number == 46:
-            if data.refet_params['type'] == 'etr':    
+            if data.refet['type'] == 'etr':    
                 # For ETr (Allen 3/2008)
                 kc_max = 0.8
-            elif data.refet_params['type'] == 'eto':
+            elif data.refet['type'] == 'eto':
                 # For ETo (0.8 * 1.2)  (Allen 12/2007)
                 kc_max = 0.95
             # Was 0.6
@@ -111,19 +111,19 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         if crop.class_number < 44 or crop.class_number > 46:
             if wscc == 1:    #' bare soil    #'note that these are ETr based.  Mult by 1.2 (plus adj?) for ETo base  *************
                 #' foo.fc is calculated below
-                if data.refet_params['type'] == 'etr':    #' Allen 3/08
+                if data.refet['type'] == 'etr':    #' Allen 3/08
                     kc_max = 0.9 #' for ETr
-                elif data.refet_params['type'] == 'eto':
+                elif data.refet['type'] == 'eto':
                     kc_max = 1.1 #' for ETo  #'Allen 12/2007 **********
             elif wscc == 2:    #' Mulched soil, including grain stubble
-                if data.refet_params['type'] == 'etr':   
+                if data.refet['type'] == 'etr':   
                     kc_max = 0.85 #' for ETr
-                elif data.refet_params['type'] == 'eto':
+                elif data.refet['type'] == 'eto':
                     kc_max = 1.0  #' for ETo (0.85 * 1.2)  #'Allen 12/2007 ************
             elif wscc == 3:    #' Dormant turf/sod (winter time)
-                if data.refet_params['type'] == 'etr':   
+                if data.refet['type'] == 'etr':   
                     kc_max = 0.8 #' for ETr
-                elif data.refet_params['type'] == 'eto':
+                elif data.refet['type'] == 'eto':
                     kc_max = 0.95 #' for ETo (0.8 * 1.2)  #'Allen 12/2007  **********
 
     #' added 2/21/08 to make sure that a winter cover class is used if during nongrowing season
@@ -182,8 +182,11 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         ('compute_crop_et(): ppt_inf_prev %s  ppt_inf %.6f  SRO %s  precip %.6f') %
         (foo.ppt_inf_prev, foo.ppt_inf, foo.sro, foo_day.precip))
     logging.debug(
-        ('compute_crop_et(): depl_surface %.6f  wt_irr %.6f  depl_ze %.6f  depl_zep %.6f') %
-        (foo.depl_surface, foo.wt_irr, foo.depl_ze, foo.depl_zep))
+        ('compute_crop_et(): depl_surface %.6f  wt_irr %.6f') %
+        (foo.depl_surface, foo.wt_irr))
+    logging.debug(
+        ('compute_crop_et(): depl_ze %.6f  depl_zep %.6f') %
+        (foo.depl_ze, foo.depl_zep))
 
     # Compare precipitation and irrigation to determine value for fw
 
@@ -332,9 +335,9 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     tew3use = foo.tew3 #' for stage 3 drying (cracking soils (not in Idaho))
     rew2use = foo.rew
     foo.etref_30 = max(0.1, foo.etref_30) #' mm/day  #'edited from ETr to ETref 12/26/2007
-    if data.refet_params['type'] == 'etr':   
+    if data.refet['type'] == 'etr':   
         etr_threshold = 4 #' for ETr basis
-    elif data.refet_params['type'] == 'eto':
+    elif data.refet['type'] == 'eto':
         etr_threshold = 5 #' for ETo basis #'added March 26, 2008 RGA
     else:
         sys.exit()

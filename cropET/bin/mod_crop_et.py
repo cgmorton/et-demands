@@ -45,12 +45,13 @@ def main(ini_path):
         cell.set_crop_params(data.crop_params_path)
         cell.set_crop_coeffs(data.crop_coefs_path)
 
-        ## Need to pass elevation to calculate pressure, ea, and Tdew
-        cell.set_refet_data(data.refet_params)
-        cell.set_weather_data(data.weather_params)
+        ## DEADBEEF - The pandas dataframes could be inherited instead
+        cell.set_refet_data(data.refet)
+        cell.set_weather_data(data.weather)
 
         ## Process climate arrays
-        cell.process_climate(data.start_dt, data.end_dt)
+        cell.process_climate()
+        cell.subset_weather_data(data.start_dt, data.end_dt)
 
         ## Run the model
         crop_cycle.crop_cycle(data, cell)
