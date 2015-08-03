@@ -126,25 +126,25 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
                 elif data.refet['type'] == 'eto':
                     kc_max = 0.95 #' for ETo (0.8 * 1.2)  #'Allen 12/2007  **********
 
-    #' added 2/21/08 to make sure that a winter cover class is used if during nongrowing season
+    #' added 2/21/08 to make sure that a winter cover class is used if during non-growing season
 
-    #' override Kcb assigned from KcbDaily if nongrowing season and not water
+    #' override Kc_bas assigned from kcb_daily() if non-growing season and not water
     if (not foo.in_season and
         (crop.class_number < 55 or crop.class_number > 57)):    
         logging.debug(
-            'compute_crop_et(): Kcb %.6f  Kcb_wscc %s  wscc %s' % (
-                foo.kcb, foo.kcb_wscc[wscc], wscc))
-        foo.kcb = foo.kcb_wscc[wscc] 
+            'compute_crop_et(): Kc_bas %.6f  Kc_bas_wscc %s  wscc %s' % (
+                foo.kc_bas, foo.kc_bas_wscc[wscc], wscc))
+        foo.kc_bas = foo.kc_bas_wscc[wscc] 
 
-    #' limit kc_max to at least Kcb + .05
+    #' limit kc_max to at least Kc_bas + .05
 
-    kc_max = max(kc_max, foo.kcb + 0.05)
+    kc_max = max(kc_max, foo.kc_bas + 0.05)
 
     #' kc_min is minimum evaporation for 0 ground cover under dry soil surface
     #' but with diffusive evaporation.
     #' kc_min is used to estimate fraction of ground cover for crops.
     #' Set kc_min to 0.1 for all vegetation covers (crops and natural)
-    #' Kcb will be reduced for all surfaces not irrigated when stressed, even during winter.
+    #' Kc_bas will be reduced for all surfaces not irrigated when stressed, even during winter.
 
     # Use same value for both ETr or ETo bases.
     foo.kc_min = 0.1 
@@ -155,17 +155,17 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         if kc_max <= foo.kc_min:    
             kc_max = foo.kc_min + 0.001
         if foo.in_season:   
-            if foo.kcb > foo.kc_min:   
+            if foo.kc_bas > foo.kc_min:   
                 #' heightcalc  #'call to heightcalc was moved to top of this subroutine 12/26/07 by Allen
-                foo.fc = ((foo.kcb - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
+                foo.fc = ((foo.kc_bas - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
                 # limit so that few > 0
                 if foo.fc > 0.99:    
                     foo.fc = 0.99 
             else:
                 foo.fc = 0.001
     logging.debug(
-        'compute_crop_et(): kc_max %s  Kcmin %s  Kcb %.6f  InSeason %s' % (
-        kc_max, foo.kc_min, foo.kcb, foo.in_season))
+        'compute_crop_et(): kc_max %s  Kcmin %s  Kc_bas %.6f  InSeason %s' % (
+        kc_max, foo.kc_min, foo.kc_bas, foo.in_season))
 
 
     # Estimate infiltrating precipitation
@@ -393,16 +393,16 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     foo.wt_irr = min(max(foo.wt_irr, 0), 1)
     logging.debug('compute_crop_et(): wt_irr %.6f' % (foo.wt_irr))
 
-    #' Ke = Kr * (kc_max - foo.kcb) #' this was generic for irr + precip
+    #' Ke = Kr * (kc_max - foo.kc_bas) #' this was generic for irr + precip
     #' IF Ke > few * kc_max THEN Ke = few * kc_max
 
-    ke_irr = kr * (kc_max - foo.kcb) * foo.wt_irr
+    ke_irr = kr * (kc_max - foo.kc_bas) * foo.wt_irr
 
     # Limit to maximum rate per unit surface area
 
     if ke_irr > few * kc_max:    
         ke_irr = few * kc_max
-    ke_ppt = krp * (kc_max - foo.kcb) * (1 - foo.wt_irr)
+    ke_ppt = krp * (kc_max - foo.kc_bas) * (1 - foo.wt_irr)
     if ke_ppt > fewp * kc_max:    
         ke_ppt = fewp * kc_max
     ke_irr = max(ke_irr, 0)
@@ -431,7 +431,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         ks = 1 
     elif crop.invoke_stress == 1:   
         # Unrecoverable stress.  No greenup after this.
-        if ks < 0.05 and foo.in_season and foo.kcb > 0.3:
+        if ks < 0.05 and foo.in_season and foo.kc_bas > 0.3:
             foo.stress_event = True
         if foo.stress_event:   
             ks = 0.0
@@ -456,17 +456,17 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         ('compute_crop_et(): kc_mult %s  ke %.6f  ke_irr %.6f  ke_ppt %.6f') %
         (kc_mult, ke, ke_irr, ke_ppt))
         
-    # Don't reduce Kcb, since it may be held constant during non-growing periods.
+    # Don't reduce Kc_bas, since it may be held constant during non-growing periods.
     # Make adjustment to kc_act
-    kc_act = kc_mult * ks * foo.kcb + ke
-    kc_pot = foo.kcb + ke
+    foo.kc_act = kc_mult * ks * foo.kc_bas + ke
+    foo.kc_pot = foo.kc_bas + ke
     logging.debug(
-        ('compute_crop_et(): Kcb %.6f  Kc_pot %.6f  Kc_act %.6f') %
-        (foo.kcb, kc_pot, kc_act))    
+        ('compute_crop_et(): Kc_bas %.6f  Kc_pot %.6f  Kc_act %.6f') %
+        (foo.kc_bas, foo.kc_pot, foo.kc_act))    
     # ETref is defined (to ETo or ETr) in CropCycle sub #'Allen 12/26/2007
-    foo.etc_act = kc_act * foo_day.etref
-    foo.etc_pot = kc_pot * foo_day.etref
-    foo.etc_bas = foo.kcb * foo_day.etref
+    foo.etc_act = foo.kc_act * foo_day.etref
+    foo.etc_pot = foo.kc_pot * foo_day.etref
+    foo.etc_bas = foo.kc_bas * foo_day.etref
     logging.debug(
         ('compute_crop_et(): ETcbas %.6f  ETcpot %.6f  ETcact %.6f') %
         (foo.etc_bas, foo.etc_pot, foo.etc_act))
@@ -505,7 +505,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     #' kt_reducer can be greater than 1
     kt_prop = min(kt_prop, 1)
     #' this had a few in equation as compared to Allen et al., 2005, ASCE
-    te_irr = kc_mult * ks * foo.kcb * foo_day.etref * kt_prop
+    te_irr = kc_mult * ks * foo.kc_bas * foo_day.etref * kt_prop
 
     # For precip wetted fraction beyond that irrigated
     #' fewp added, 8/2006, that is not in Allen et al., 2005, ASCE
@@ -514,7 +514,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
     #' kt_reducer can be greater than 1
     kt_prop = min(kt_prop, 1)
     #' this had a fewp in equation as compared to Allen et al., 2005, ASCE
-    te_ppt = kc_mult * ks * foo.kcb * foo_day.etref * kt_prop
+    te_ppt = kc_mult * ks * foo.kc_bas * foo_day.etref * kt_prop
 
     # Setup for water balance of evaporation layer
     depl_ze_prev = foo.depl_ze
@@ -603,15 +603,15 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
         logging.warning("ks > 1.")
         return
 
-    kc_act = kc_mult * ks * foo.kcb + ke
-    foo.etc_act = kc_act * foo_day.etref
+    foo.kc_act = kc_mult * ks * foo.kc_bas + ke
+    foo.etc_act = foo.kc_act * foo_day.etref
     # Note that etc_act will be checked later against depl_root and TAW
-    kc_pot = foo.kcb + ke
+    foo.kc_pot = foo.kc_bas + ke
 
     # etref is defined (to eto or etr) in crop_cycle sub'Allen 12/26/2007
 
-    foo.etc_pot = kc_pot * foo_day.etref
-    foo.etc_bas = foo.kcb * foo_day.etref
+    foo.etc_pot = foo.kc_pot * foo_day.etref
+    foo.etc_bas = foo.kc_bas * foo_day.etref
 
     # Accumulate evaporation following each irrigation event.
     # Subtract evaporation from precipitation.
@@ -666,9 +666,9 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
             crop_doy += 365
         if (crop_doy >= crop.days_after_planting_irrigation and
             foo_day.doy >= doy_to_start_irr and foo.in_season and
-            foo.depl_root > raw and foo.kcb > 0.22):   
+            foo.depl_root > raw and foo.kc_bas > 0.22):   
             # No premature end for irrigations is used for Idaho CU comps.
-            # Limit irrigation to periods when Kcb > 0.22 to preclude
+            # Limit irrigation to periods when kc_bas > 0.22 to preclude
             #   frequent irrigation during initial periods
             foo.irr_sim = foo.depl_root
             foo.irr_sim = max(foo.irr_sim, foo.irr_min)
@@ -723,7 +723,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day):
 
         # Calc new kc_act
         if foo_day.etref > 0.1:    
-            kc_act = foo.etc_act / foo_day.etref
+            foo.kc_act = foo.etc_act / foo_day.etref
         # Limit depletion to total available water
         foo.depl_root = taw 
 
