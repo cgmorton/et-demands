@@ -2,7 +2,7 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-07-31
+# Created       2015-08-03
 # Python:       2.7
 #--------------------------------
 
@@ -191,36 +191,36 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
                 logging.debug('    Crop:            {0}'.format(crop_name))
             
             ## Read data from file into record array (structured array)
-            data_pd = pd.read_table(
+            data_df = pd.read_table(
                 file_path, header=0, comment='#', sep=sep, engine='python')
-            data_pd[date_field] = pd.to_datetime(data_pd[date_field])
-            data_pd['year'] = data_pd[date_field].map(lambda x: x.year)
-            logging.debug('\nFields: \n{0}'.format(data_pd.columns.values))
+            data_df[date_field] = pd.to_datetime(data_df[date_field])
+            data_df['year'] = data_df[date_field].map(lambda x: x.year)
+            logging.debug('\nFields: \n{0}'.format(data_df.columns.values))
 
             ## Build list of unique years
-            year_array = np.sort(np.unique(np.array(data_pd['year']).astype(np.int)))
+            year_array = np.sort(np.unique(np.array(data_df['year']).astype(np.int)))
             logging.debug('\nAll Years: \n{0}'.format(year_array.tolist()))
             
             ## Only keep years between year_start and year_end
             if year_start:
                 crop_year_start = year_start
-                data_pd = data_pd.ix['year' >= year_start]
+                data_df = data_df.ix['year' >= year_start]
                 crop_year_start = max(year_end, year_array[0])
             else:
                 crop_year_start = year_array[0]
             if year_end:
-                data_pd = data_pd.ix['year' <= year_end]
+                data_df = data_df.ix['year' <= year_end]
                 crop_year_end = min(year_end, year_array[-1])
             else:
                 crop_year_end = year_array[-1]
-            year_sub_array = np.sort(np.unique(np.array(data_pd['year']).astype(np.int)))
+            year_sub_array = np.sort(np.unique(np.array(data_df['year']).astype(np.int)))
             logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
 
             ## Build separate arrays for each field of non-crop specific data
-            dt_array = np.array(data_pd[date_field])
-            doy_array = np.array(data_pd[doy_field]).astype(np.int)
-            pmeto_array = np.array(data_pd[pmeto_field])
-            precip_array = np.array(data_pd[precip_field])
+            dt_array = np.array(data_df[date_field])
+            doy_array = np.array(data_df[doy_field]).astype(np.int)
+            pmeto_array = np.array(data_df[pmeto_field])
+            precip_array = np.array(data_df[precip_field])
 
             ## Remove leap days
             leap_array = (doy_array == 366)
@@ -234,13 +234,13 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
                 continue
             
             ## Build separate arrays for each set of crop specific fields
-            etact_array = np.array(data_pd[etact_field])
-            etpot_array = np.array(data_pd[etpot_field])
-            etbas_array = np.array(data_pd[etbas_field])
-            irrig_array = np.array(data_pd[irrig_field])
-            season_array = np.array(data_pd[season_field])
-            runoff_array = np.array(data_pd[runoff_field])
-            dperc_array = np.array(data_pd[dperc_field])
+            etact_array = np.array(data_df[etact_field])
+            etpot_array = np.array(data_df[etpot_field])
+            etbas_array = np.array(data_df[etbas_field])
+            irrig_array = np.array(data_df[irrig_field])
+            season_array = np.array(data_df[season_field])
+            runoff_array = np.array(data_df[runoff_field])
+            dperc_array = np.array(data_df[dperc_field])
             kc_array = etact_array / pmeto_array
             kcb_array = etbas_array / pmeto_array
 
@@ -325,7 +325,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             ##del etact_sub_array, niwr_sub_array
 
             ## Cleanup
-            del file_path, data_pd
+            del file_path, data_df
             del dt_array, doy_array
             del pmeto_array
             del precip_array

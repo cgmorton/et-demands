@@ -2,7 +2,7 @@
 # Name:         split_vb_crop_daily_timeseries.py
 # Purpose:      Split daily data timeseries into separate files for each crop
 # Author:       Charles Morton
-# Created       2015-07-31
+# Created       2015-08-03
 # Python:       2.7
 #--------------------------------
 
@@ -22,14 +22,19 @@ import pandas as pd
 ################################################################################
 
 def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
-         overwrite_flag=True):
+         kc_flag=False, crop_name_flag=False, overwrite_flag=True):
     """Split full daily data by crop
+
+    For now, scipt will assume it is run in the project/basin folder and will
+        look for a PMData sub-folder
 
     Args:
         pmdata_ws (str):
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
         niwr_flag (bool): If True, compute daily NIWR
+        kc_flag (bool): If True, compute daily Kc
+        crop_name_flag (bool): If True, include crop name as first line in file
         overwrite_flag (bool): If True, overwrite existing files
         
     Returns:
@@ -248,77 +253,67 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
                     runoff_sub_field = '{0}_{1}'.format(runoff_field, f_crop_i)
                     dperc_sub_field = '{0}_{1}'.format(dperc_field, f_crop_i)
 
-                ## Build separate arrays for each set of crop specific fields
-                etact_array = data[etact_sub_field][date_mask]
-                etpot_array = data[etpot_sub_field][date_mask]
-                etbas_array = data[etbas_sub_field][date_mask]
-                irrig_array = data[irrig_sub_field][date_mask]
-                season_array = data[season_sub_field][date_mask]
-                runoff_array = data[runoff_sub_field][date_mask]
-                dperc_array = data[dperc_sub_field][date_mask]
-                kc_array = etact_array / pmeto_array
-                kcb_array = etbas_array / pmeto_array
-
-                ## NIWR is ET - precip + runoff + deep percolation
-                ## Don't include deep percolation when irrigating
-                niwr_array = etact_array - (precip_array - runoff_array)
-                niwr_array[irrig_array==0] += dperc_array[irrig_array == 0]
-
                 ## Remove leap days
                 ##etact_sub_array = np.delete(etact_array, np.where(leap_array)[0])
                 ##niwr_sub_array = np.delete(niwr_array, np.where(leap_array)[0])
 
                 ## Timeseries figures of daily data
-                output_name = '{0}_Crop_{1}.dat'.format(
+                output_name = '{0}_Crop_{1}.csv'.format(
                     station, crop_num)
                 output_path = os.path.join(output_ws, output_name)
 
-                ##
+                ## Build an output data frame
+                output_dict = {
+                    'Date':dt_array, 'DOY':doy_array,
+                    ##'T30':t30_array,
+                    'PMETo':pmeto_array,
+                    'ETact':data[etact_sub_field][date_mask], 
+                    'ETpot':data[etpot_sub_field][date_mask],
+                    'ETbas':data[etbas_sub_field][date_mask],
+                    'PPT':precip_array,
+                    'Irrigation':data[irrig_sub_field][date_mask],
+                    'Runoff':data[runoff_sub_field][date_mask],
+                    'DPerc':data[dperc_sub_field][date_mask],
+                    'Season':data[season_sub_field][date_mask].astype(np.int)}
+                output_df = pd.DataFrame(output_dict)
+                output_df.set_index('Date', inplace=True)
+
+                ## NIWR is ET - precip + runoff + deep percolation
+                output_df['NIWR'] = output_df['ETact'] - (precip_array - output_df['Runoff'])
+                ## Only include deep percolation when not irrigating
+                irrig_mask = output_df['Irrigation'] == 0
+                output_df.loc[irrig_mask, 'NIWR'] += output_df.loc[irrig_mask, 'DPerc']
+                del irrig_mask
+
+                ## Crop coefficients
+                output_df['Kc'] = output_df['ETact'] / pmeto_array
+                output_df['Kcb'] = output_df['ETbas'] / pmeto_array
+                
+                ## Order the output columns
+                output_columns = [
+                    'DOY', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
+                    'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+                if not kc_flag:
+                    output_columns.remove('Kc')
+                    output_columns.remove('Kcb')
+                if not niwr_flag:
+                    output_columns.remove('NIWR')
+                ##output_df =  output_df[output_columns]
+
+                ## Write output dataframe to file 
                 with open(output_path, 'w') as output_f:
-                    output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
-                    fmt = '%10s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
-                    header = ('      Date', 'DOY', 'PMETo', 'Pr.mm', 'T30', 'ETact',
-                              'ETpot', 'ETbas', 'Irrn', 'Seasn', 'Runof', 'DPerc')
-                    if niwr_flag:
-                        header = header + ('NIWR',)
-                        fmt = fmt.replace('\n', ' %9s\n')
-                    output_f.write(fmt % header)
-                    for i in range(dt_array.size):
-                        fmt = ('%10s %3s %9.3f %9.3f %9.3f %9.3f '+
-                               '%9.3f %9.3f %9.3f %5d %9.3f %9.3f\n')
-                        values = (dt_array[i].date().isoformat(), int(doy_array[i]),
-                                  float(pmeto_array[i]), float(precip_array[i]),
-                                  float(t30_array[i]), float(etact_array[i]),
-                                  float(etpot_array[i]), float(etbas_array[i]),
-                                  float(irrig_array[i]), float(season_array[i]),
-                                  float(runoff_array[i]), float(dperc_array[i]))
-                        if niwr_flag:
-                            values = values + (float(niwr_array[i]) + 0,)
-                            fmt = fmt.replace('\n', ' %9.3f\n')
-                        output_f.write(fmt % values)
-
-                ## Cleanup
-                del etact_array, etact_sub_field
-                del etpot_array, etpot_sub_field
-                del etbas_array, etbas_sub_field
-                del irrig_array, irrig_sub_field
-                del season_array, season_sub_field
-                del runoff_array, runoff_sub_field
-                del dperc_array, dperc_sub_field
-                del kc_array, kcb_array
-                del niwr_array
-                ##del etact_sub_array, niwr_sub_array
-                ##break
-
+                    if crop_name_flag:
+                        output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
+                    output_df.to_csv(
+                        output_f, sep=',', columns=output_columns,
+                        float_format='%10.6f')
+                del output_df
+                
             ## Cleanup
             del file_path, f_crop_list, data
             del doy_array, year_array, month_array, day_array
-            del pmeto_array
-            del precip_array
-            ##del date_array
-            ##del dt_array
-            del date_mask
-            ##break
+            del pmeto_array, precip_array, t30_array
+            del date_mask, dt_array
 
     except:
         logging.exception('Unhandled Exception Error\n\n')
@@ -379,6 +374,12 @@ def parse_args():
         '--niwr', action="store_true", default=False,
         help="Compute/output net irrigation water requirement (NIWR)")
     parser.add_argument(
+        '--kc', action="store_true", default=False,
+        help="Compute/output crop coefficient (Kc)")
+    parser.add_argument(
+        '--crop_name', action="store_true", default=False,
+        help="Write crop name as first line in file")
+    parser.add_argument(
         '-o', '--overwrite', default=None, action="store_true", 
         help='Force overwrite of existing files')
     parser.add_argument(
@@ -403,4 +404,5 @@ if __name__ == '__main__':
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
     main(pmdata_ws=args.workspace, start_date=args.start, end_date=args.end,
-         niwr_flag=args.niwr, overwrite_flag=args.overwrite)
+         niwr_flag=args.niwr, kc_flag=args.kc, crop_name_flag=args.crop_name,
+         overwrite_flag=args.overwrite)
