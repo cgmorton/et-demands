@@ -133,7 +133,8 @@ class ETCell():
                     
         ## Convert date strings to datetimes
         self.refet_pd['date'] = pd.to_datetime(self.refet_pd['date'])
-        self.refet_pd['doy'] = [int(ts.strftime('%j')) for ts in self.refet_pd['date']]
+        self.refet_pd.set_index('date', inplace=True)
+        self.refet_pd['doy'] = [int(ts.strftime('%j')) for ts in self.refet_pd.index]
         
         return True
         ## return refet_pd
@@ -200,7 +201,8 @@ class ETCell():
 
         ## Convert date strings to datetimes
         self.weather_pd['date'] = pd.to_datetime(self.weather_pd['date'])
-        self.weather_pd['doy'] = [int(ts.strftime('%j')) for ts in self.weather_pd['date']]
+        self.weather_pd.set_index('date', inplace=True)
+        self.weather_pd['doy'] = [int(ts.strftime('%j')) for ts in self.weather_pd.index]
                     
         ## Scale wind height to 2m if necessary
         if weather['wind_height'] <> 2:
@@ -210,8 +212,8 @@ class ETCell():
         ## Add snow and snow_dept if necessary
         if 'snow' not in self.weather_pd.columns:
             self.weather_pd['snow'] = 0
-        if 'depth' not in self.weather_pd.columns:
-            self.weather_pd['depth'] = 0
+        if 'snow_depth' not in self.weather_pd.columns:
+            self.weather_pd['snow_depth'] = 0
 
         ## Calculate Tdew from specific humidity
         ## Convert station elevation from feet to meters
@@ -254,29 +256,22 @@ class ETCell():
         Also lots of missing data substitution stuff going on, ignore, this
         should be taken care of outside of process
         """
-        ##logging.debug(pprint.pformat(self.refet))    
        
         ## Initialize the climate dataframe
-        climate = {
-            'date':self.weather_pd['date'],
-            'doy':self.weather_pd['doy'],
-            'tmax':self.weather_pd['tmax'],
-            'tmin':self.weather_pd['tmin'],
-            'snow_depth':self.weather_pd['depth'],
-            'snow':self.weather_pd['snow']}
-            ##'precip':self.weather_pd['ppt']}
-        self.climate_pd = pd.DataFrame(data=climate)
+        self.climate_pd = self.weather_pd[
+            ['doy', 'tmax', 'tmin', 'snow', 'snow_depth']].copy()
 
         ## Adjust T's downward if station is arid
         if self.aridity_rating > 0:
             ## Interpolate value for aridity adjustment
             aridity_adj = [0., 0., 0., 0., 1., 1.5, 2., 3.5, 4.5, 3., 0., 0., 0.]
-            month = np.array([dt.month for dt in self.weather_pd['date']])
-            day = np.array([dt.day for dt in self.weather_pd['date']])
+            month = np.array([dt.month for dt in self.weather_pd.index])
+            day = np.array([dt.day for dt in self.weather_pd.index])
             moa_frac = np.clip((month + (day - 15) / 30.4), 1, 11)
             arid_adj = np.interp(moa_frac, range(len(aridity_adj)), aridity_adj)
-            self.climate_pd['tmax'] -= self.aridity_rating / 100. * arid_adj
-            self.climate_pd['tmin'] -= self.aridity_rating / 100. * arid_adj
+            arid_adj *= self.aridity_rating / 100.
+            self.climate_pd['tmax'] -= arid_adj
+            self.climate_pd['tmin'] -= arid_adj
             del month, day, arid_adj
 
         ## T30 stuff, done after temperature adjustments above
@@ -299,18 +294,19 @@ class ETCell():
         ##self.climate_pd.ix[self.climate_pd['tmean'] > 0, 'ggdd'] -= tbase
         
         ## Compute cumulative GDD for each year
-        self.climate_pd['cgdd'] = self.climate_pd[['date', 'doy', 'cgdd']].groupby(
-            self.climate_pd['date'].map(lambda x: x.year)).cgdd.cumsum()
+        self.climate_pd['cgdd'] = self.climate_pd[['doy', 'cgdd']].groupby(
+            self.climate_pd.index.map(lambda x: x.year)).cgdd.cumsum()
         ## DEADBEEF - Compute year column then compute cumulative GDD
-        ##self.climate_pd['year'] = [dt.year for dt in self.climate_pd['date']]
+        ##self.climate_pd['year'] = [dt.year for dt in self.climate_pd.index]
         ##self.climate_pd['cgdd'] = self.climate_pd[['year', 'doy', 'gdd']].groupby('year').gdd.cumsum()
         
         ## Compute mean cumulative GDD for each DOY
         main_cgdd_0_lt = np.array(self.climate_pd[['cgdd', 'doy']].groupby('doy').mean()['cgdd'])
           
         ## Revert from indexing by I to indexing by DOY (for now)
-        main_t30_lt = np.insert(main_t30_lt, 0, 0)
-        main_cgdd_0_lt = np.insert(main_cgdd_0_lt, 0, 0)
+        ## Copy DOY 1 value into DOY 0
+        main_t30_lt = np.insert(main_t30_lt, 0, main_t30_lt[0])
+        main_cgdd_0_lt = np.insert(main_cgdd_0_lt, 0, main_cgdd_0_lt[0])
         
         ##
         self.climate = {}           
@@ -335,7 +331,6 @@ class ETCell():
 
     def subset_weather_data(self, start_dt=None, end_dt=None): 
         """Subset the dataframes based on the start and end date"""
-        print start_dt, end_dt, type(end_dt)
         if start_dt is not None:
             self.refet_pd = self.refet_pd[self.refet_pd.date >= start_dt]
             self.weather_pd = self.weather_pd[self.weather_pd.date >= start_dt]

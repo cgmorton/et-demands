@@ -35,7 +35,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
     #    Case 1
     if crop.flag_for_means_to_estimate_pl_or_gu == 1:
         # Only allow start flag to begin if < July 15 to prevent GU in fall after freezedown
-        if foo_day.doy < (crop.gdd_trigger_doy  + 195):
+        if foo_day.doy < (crop.gdd_trigger_doy + 195):
             #' before finding date of startup using normal cgdd, determine if it is after latest
             #' allowable start by checking to see if pl or gu need to be constrained based on long term means
             #' estimate date based on long term mean:
@@ -115,7 +115,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
     #### Flag_for_means_to_estimate_pl_or_gu Case 2 ####
     elif crop.flag_for_means_to_estimate_pl_or_gu == 2:
         ## Use T30 for startup
-        ## Caution - need some contraints for oscillating T30 and for late summer
+        ## Caution - need some constraints for oscillating T30 and for late summer
         ## Use first occurrence
         if foo_day.doy < (crop.gdd_trigger_doy + 195):
             ## Only allow start flag to begin if < July 15 to prevent GU in fall after freeze down
@@ -125,7 +125,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             ## Prohibit specifying start of season as long term less
             ##   40 days when it is before that date.
             t30_lt = et_cell.climate['main_t30_lt']
-            t30_lt[0] = t30_lt[1]
+            ## DEADEEF - Not needed, this step was done in et_cell.process_climate()
+            ##t30_lt[0] = t30_lt[1]
             try:
                 longterm_pl = int(np.where(np.diff(np.array(
                     t30_lt > crop.t30_for_pl_or_gu_or_cgdd, 
@@ -140,8 +141,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
             ##        if (t30_lt[jDoy] > crop.t30_for_pl_or_gu_or_cgdd and
             ##            t30_lt[jDoy-1] <= crop.t30_for_pl_or_gu_or_cgdd):
             ##            longterm_pl = jDoy
-            logging.debug('kcb_daily(): longterm_pl %s  t30_lt(0) %s  t30_lt(1) %s' % (
-                longterm_pl, t30_lt[0], t30_lt[1]))
+            logging.debug('kcb_daily(): longterm_pl %s' % (longterm_pl))
 
             ## check if getting too late in season
             ##   and season hasn't started yet
@@ -151,8 +151,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                 ## longterm_pl + 40 'it is unseasonably warm (too warm).
                 ## Delay start ' set to Doy on 4/29/09 (nuts)
                 foo.doy_start_cycle = foo_day.doy 
-                logging.debug('kcb_daily(): doy_start_cycle %s' % (
-                    foo.doy_start_cycle))
+                logging.debug(
+                    ('kcb_daily(): doy_start_cycle %s  '+
+                     'It is unseasonably warm (too warm) Harleys Rule') % 
+                    (foo.doy_start_cycle))
                 foo.real_start = True    #' Harleys Rule
 
             ## Start of season has not yet been determined.
@@ -163,7 +165,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
                     if longterm_pl > 0 and foo_day.doy < (longterm_pl - 40):    
                         foo.real_start = False #' too early to start season
                         foo.doy_start_cycle = longterm_pl - 40
-                        logging.debug('kcb_daily(): doy_start_cycle %s' % (
+                        logging.debug('kcb_daily(): doy_start_cycle %s  Start is too early' % (
                             foo.doy_start_cycle))
                         if foo.doy_start_cycle < 1:     
                             foo.doy_start_cycle += 365
@@ -248,12 +250,14 @@ def kcb_daily(data, et_cell, crop, foo, foo_day):
         
     #### Case Else ####
     else:
-        foo.in_season = True
-        ## Reset severe stress event flag if first
-        if foo_day.doy == crop.gdd_trigger_doy :     
-            foo.stress_event = False
-        foo.dormant_setup_flag = True
-        logging.debug('kcb_daily(): InSeason %s' % (foo.in_season))
+        logging.error('\nERROR: kcb_daily() Unrecognized flag_for_means_to_estimate_pl_or_gu value')
+        sys.exit()
+        ##foo.in_season = True
+        #### Reset severe stress event flag if first
+        ##if foo_day.doy == crop.gdd_trigger_doy :     
+        ##    foo.stress_event = False
+        ##foo.dormant_setup_flag = True
+        ##logging.debug('kcb_daily(): InSeason %s' % (foo.in_season))
     #### END Case ####
 
 

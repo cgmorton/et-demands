@@ -107,8 +107,9 @@ class CropETData():
             logging.debug('  End date not set or invalid')
             self.end_dt = None
 
-        ## Compute NIWR
+        ## Compute additional variables
         self.niwr_flag = config.getboolean(crop_et_sec, 'niwr_flag')
+        self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
 
         ## Static cell/crop files
         static_list = [
@@ -214,15 +215,15 @@ class CropETData():
         ## Snow and snow depth are optional
         try: self.weather['fields']['snow'] = config.get(weather_sec, 'snow_field')
         except:  self.weather['fields']['snow'] = None
-        try: self.weather['fields']['depth'] = config.get(weather_sec, 'depth_field')
-        except: self.weather['fields']['depth'] = None
+        try: self.weather['fields']['snow_depth'] = config.get(weather_sec, 'depth_field')
+        except: self.weather['fields']['snow_depth'] = None
         if self.weather['fields']['snow'] is not None:
             try: self.weather['units']['snow'] = config.get(weather_sec, 'snow_units')
             except:                     
                 logging.error('  ERROR: WEATHER {}_units must be set in the INI'.format('snow'))
                 sys.exit()
-        elif self.weather['fields']['depth'] is not None:
-            try:  self.weather['units']['depth'] = config.get(weather_sec, 'depth_units')
+        elif self.weather['fields']['snow_depth'] is not None:
+            try:  self.weather['units']['snow_depth'] = config.get(weather_sec, 'depth_units')
             except:                     
                 logging.error('  ERROR: WEATHER {}_units must be set in the INI'.format('depth'))
                 sys.exit()
