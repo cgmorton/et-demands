@@ -21,7 +21,7 @@ class DayData:
         ## Used in compute_crop_gdd(), needs to be persistent during day loop
         self.etref_array = np.zeros(30)
 
-def crop_cycle(data, et_cell):
+def crop_cycle(data, et_cell, debug_flag=False):
     """
 
     Args:
@@ -50,19 +50,16 @@ def crop_cycle(data, et_cell):
     for crop_num, crop in sorted(et_cell.crop_params.items()):
         ## Check to see if crop/landuse is at station
         if not et_cell.crop_flags[crop_num]:
-            logging.debug('Crop %s %s' % (crop_num, crop))
+            logging.debug('Crop %2d %s' % (crop_num, crop))
             logging.debug('  NOT USED')
             continue
-        else:
-            logging.warning('Crop %2s %s' % (crop_num, crop))          
+        else:      
+            logging.warning('Crop %2d %s' % (crop_num, crop))                 
         logging.debug(
-            'crop_day_loop():  Curve %s %s  Class %s  Flag %s' %
+            'crop_day_loop():  Curve %d %s  Class %s  Flag %s' %
             (crop.curve_number, crop.curve_name,
              crop.class_number, et_cell.crop_flags[crop_num]))
         logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy ))
-
-        if crop_num <> 58:
-            continue
         
         ## 'foo' is holder of all these global variables for now
         foo = InitializeCropCycle()
@@ -74,7 +71,7 @@ def crop_cycle(data, et_cell):
         foo.setup_dataframe(et_cell)
 
         ## Run ET-Demands
-        crop_day_loop(data, et_cell, crop, foo)
+        crop_day_loop(data, et_cell, crop, foo, debug_flag)
         
         ## Write output
         ## Merge the crop and weather data frames to form the output
@@ -109,8 +106,9 @@ def crop_cycle(data, et_cell):
                 output_f, sep=',', columns=output_columns, 
                 float_format='%10.6f')
             output_f.close()
+        ##break
 
-def crop_day_loop(data, et_cell, crop, foo):
+def crop_day_loop(data, et_cell, crop, foo, debug_flag=False):
     """
 
     Args:
@@ -127,18 +125,19 @@ def crop_day_loop(data, et_cell, crop, foo):
     foo_day.sdays = 0
 
     for step_dt, step_doy in foo.crop_pd[['doy']].iterrows():
-        logging.debug('\ncrop_day_loop(): DOY %s  Date %s' % (step_doy, step_dt.date)) 
-
-        ## Log RefET values at time step 
-        logging.debug(
-            'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f ETref %.6f' % 
-            (et_cell.weather_pd.at[step_dt,'ppt'], et_cell.weather_pd.at[step_dt,'wind'], 
-             et_cell.weather_pd.at[step_dt,'tdew'], et_cell.refet_pd.at[step_dt,'etref']))
-        ## Log climate values at time step         
-        logging.debug(
-            'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
-            (et_cell.climate_pd.at[step_dt,'tmax'], et_cell.climate_pd.at[step_dt,'tmin'], 
-             et_cell.climate_pd.at[step_dt,'tmean'], et_cell.climate_pd.at[step_dt,'t30']))
+        if debug_flag:
+            logging.debug('\ncrop_day_loop(): DOY %d  Date %s' % (step_doy, step_dt.date())) 
+            
+            ## Log RefET values at time step 
+            logging.debug(
+                'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f ETref %.6f' % 
+                (et_cell.weather_pd.at[step_dt,'ppt'], et_cell.weather_pd.at[step_dt,'wind'], 
+                 et_cell.weather_pd.at[step_dt,'tdew'], et_cell.refet_pd.at[step_dt,'etref']))
+            ## Log climate values at time step         
+            logging.debug(
+                'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
+                (et_cell.climate_pd.at[step_dt,'tmax'], et_cell.climate_pd.at[step_dt,'tmin'], 
+                 et_cell.climate_pd.at[step_dt,'tmean'], et_cell.climate_pd.at[step_dt,'t30']))
 
         ## At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
@@ -147,11 +146,11 @@ def crop_day_loop(data, et_cell, crop, foo):
         ## At end of season for each crop, set up for nongrowing and dormant season
         if not foo.in_season and foo.dormant_setup_flag:
             logging.debug(
-                'crop_day_loop(): in_season[%s]  crop_setup[%s]  dormant_setup[%s]' % 
+                'crop_day_loop(): in_season[%r]  crop_setup[%r]  dormant_setup[%r]' % 
                 (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
             foo.setup_dormant(et_cell, crop)
         logging.debug(
-            'crop_day_loop(): in_season[%s]  crop_setup[%s]  dormant_setup[%s]' % 
+            'crop_day_loop(): in_season[%r]  crop_setup[%r]  dormant_setup[%r]' % 
             (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
 
         ## Track variables for each day
@@ -180,7 +179,7 @@ def crop_day_loop(data, et_cell, crop, foo):
         #foo_day.t30_lt = np.copy(et_cell.climate['main_t30_lt'])
                 
         ## Calculate Kcb, Ke, ETc
-        compute_crop_et.compute_crop_et(data, et_cell, crop, foo, foo_day)
+        compute_crop_et.compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag)
 
         ## Retrieve values from foo_day and write to output data frame
         ## Eventually let compute_crop_et() write directly to output df
@@ -196,15 +195,16 @@ def crop_day_loop(data, et_cell, crop, foo):
         foo.crop_pd.at[step_dt, 'season'] = int(foo.in_season)
         
         ## Write final output file variables to DEBUG file
-        logging.debug(
-            ('crop_day_loop(): ETref  %.6f  Precip %.6f  T30 %.6f') %
-            (foo_day.etref, foo_day.precip, foo_day.t30))
-        logging.debug(
-            ('crop_day_loop(): ETact  %.6f  ETpot %.6f   ETbas %.6f') %
-            (foo.etc_act, foo.etc_pot, foo.etc_bas))
-        logging.debug(
-            ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f  NIWR %.6f') %
-            (foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
+        if debug_flag:
+            logging.debug(
+                ('crop_day_loop(): ETref  %.6f  Precip %.6f  T30 %.6f') %
+                (foo_day.etref, foo_day.precip, foo_day.t30))
+            logging.debug(
+                ('crop_day_loop(): ETact  %.6f  ETpot %.6f   ETbas %.6f') %
+                (foo.etc_act, foo.etc_pot, foo.etc_bas))
+            logging.debug(
+                ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f  NIWR %.6f') %
+                (foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
 def main():
     """ """

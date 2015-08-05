@@ -2,7 +2,7 @@ import logging
 
 import util
 
-def compute_crop_gdd(data, crop, foo, foo_day):
+def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
     """Compute crop growing degree days
 
     """
@@ -43,14 +43,6 @@ def compute_crop_gdd(data, crop, foo, foo_day):
         foo.real_start = False   #' April 12, 2009 rga
         foo.in_season = False    #' July 30, 20120 dlk
     foo.doy_prev = foo_day.doy
-    logging.debug(
-        ('compute_crop_gdd(): ETref30 %.6f  sdays %s  ETref %.6f  ETref_lost %.6f') %
-        (foo.etref_30, foo_day.sdays, foo_day.etref, etref_lost))
-    logging.debug(
-        ('compute_crop_gdd(): doy_start_cycle %s  crop_curve_number %s  '+
-         'crop_class_num %s') %
-        (foo.doy_start_cycle, crop.curve_number, crop.class_number))
-    logging.debug('compute_crop_gdd(): in_season %s' % (foo.in_season))
 
     ## Calculate CGDD since trigger date
     ## Only needed if a crop
@@ -121,5 +113,14 @@ def compute_crop_gdd(data, crop, foo, foo_day):
             # Simple method for all other crops
             foo.gdd = foo_day.tmean - crop.tbase
             foo.cgdd += foo.gdd
-
-    logging.debug('compute_crop_gdd(): GDD %.6f  CGDD %.6f' % (foo.gdd, foo.cgdd))
+            
+    if debug_flag:
+        logging.debug(
+            ('compute_crop_gdd(): ETref30 %.6f  sdays %d  ETref %.6f  ETref_lost %.6f') %
+            (foo.etref_30, foo_day.sdays, foo_day.etref, etref_lost))
+        logging.debug(
+            ('compute_crop_gdd(): doy_start_cycle %d  crop_curve_number %d  '+
+             'crop_class_num %d') %
+            (foo.doy_start_cycle, crop.curve_number, crop.class_number))
+        logging.debug('compute_crop_gdd(): in_season %d' % (foo.in_season))
+        logging.debug('compute_crop_gdd(): GDD %.6f  CGDD %.6f' % (foo.gdd, foo.cgdd))

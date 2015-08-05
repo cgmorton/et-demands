@@ -62,11 +62,11 @@ class CropETData():
             sys.exit()
 
         ## The project and CropET folders need to be full/absolute paths
-        project_ws = config.get(crop_et_sec, 'project_folder')
+        self.project_ws = config.get(crop_et_sec, 'project_folder')
         crop_et_ws = config.get(crop_et_sec, 'crop_et_folder')
-        if not os.path.isdir(project_ws):
+        if not os.path.isdir(self.project_ws):
             logging.critical(
-                'ERROR: The project folder does not exist\n  %s' % project_ws)
+                'ERROR: The project folder does not exist\n  %s' % self.project_ws)
             sys.exit()
         elif not os.path.isdir(crop_et_ws):
             logging.critical(
@@ -78,10 +78,10 @@ class CropETData():
         logging.info('  Basin: {}'.format(self.basin_id))
 
         ## Input/output folders
-        pmdata_ws = os.path.join(project_ws, config.get(crop_et_sec, 'pmdata_folder'))
-        static_ws = os.path.join(project_ws, config.get(crop_et_sec, 'static_folder'))
-        self.output_ws = os.path.join(project_ws, config.get(crop_et_sec, 'et_folder'))
-        self.stats_ws = os.path.join(project_ws, config.get(crop_et_sec, 'et_folder'))
+        pmdata_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'pmdata_folder'))
+        static_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'static_folder'))
+        self.output_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'et_folder'))
+        self.stats_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'et_folder'))
         if not os.path.isdir(self.output_ws):
            os.makedirs(self.output_ws)
         if not os.path.isdir(self.stats_ws):
@@ -129,14 +129,13 @@ class CropETData():
                 logging.error('ERROR: The static file {} does not exist'.format(
                     static_path))
                 sys.exit()
-
                 
         ## RefET parameters
         self.refet = {}
         self.refet['fields'] = {}
         self.refet['units'] = {}
         self.refet['ws'] = os.path.join(
-            project_ws, config.get(refet_sec, 'refet_folder'))
+            self.project_ws, config.get(refet_sec, 'refet_folder'))
         self.refet['type'] = config.get(refet_sec, 'refet_type').lower()
         if self.refet['type'] not in ['eto', 'etr']:
             logging.error('  ERROR: RefET type must be ETo or ETr')
@@ -175,14 +174,13 @@ class CropETData():
                 '  ERROR:  ETref units {0} are not currently supported'.format(
                     self.refet['units']['etref']))
             sys.exit()
-
             
         ## Weather parameters
         self.weather = {}
         self.weather['fields'] = {}
         self.weather['units'] = {}
         self.weather['ws'] = os.path.join(
-            project_ws, config.get(weather_sec, 'weather_folder'))
+            self.project_ws, config.get(weather_sec, 'weather_folder'))
         self.weather['format'] = config.get(weather_sec, 'name_format')
         self.weather['header_lines'] = config.getint(weather_sec, 'header_lines')
         self.weather['names_line'] = config.getint(weather_sec, 'names_line')

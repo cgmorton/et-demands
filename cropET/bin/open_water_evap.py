@@ -1,3 +1,4 @@
+import math
 
 def open_water_evap(foo, foo_day):
     """Calculate open water evaporation

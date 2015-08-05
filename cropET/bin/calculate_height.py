@@ -1,6 +1,6 @@
 import logging
 
-def calculate_height(crop, foo):
+def calculate_height(crop, foo, debug_flag=False):
     """Determine height of crop based on Kc and height limits"""
     height_prev = foo.height
 
@@ -17,9 +17,10 @@ def calculate_height(crop, foo):
         foo.height = crop.height_initial
     foo.height = min(max(crop.height_initial, max(height_prev, foo.height)), crop.height_max)
     
-    logging.debug(
-        ('calculate_height(): unadj_height %s  Kc_bas %s  Kc_min %s  Kc_bas_mid %s') %
-        (foo.height, foo.kc_bas, foo.kc_min, foo.kc_bas_mid))
-    logging.debug(
-        ('calculate_height(): height_min %s  height_max %s  height %s') %
-        (crop.height_initial, crop.height_max, foo.height))
+    if debug_flag:
+        logging.debug(
+            ('calculate_height(): unadj_height %.6f  Kc_bas %.6f  Kc_min %.6f  Kc_bas_mid %.6f') %
+            (foo.height, foo.kc_bas, foo.kc_min, foo.kc_bas_mid))
+        logging.debug(
+            ('calculate_height(): height_min %.6f  height_max %.6f  height %.6f') %
+            (crop.height_initial, crop.height_max, foo.height))

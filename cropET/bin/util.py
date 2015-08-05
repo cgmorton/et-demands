@@ -1,5 +1,7 @@
 import datetime
+import logging
 import math
+import os
 
 import numpy as np
 
@@ -110,3 +112,25 @@ def valid_date(input_date):
 def wind_adjust_func(uz_array, zw):
     """Adjust wind speed to 2m"""
     return uz_array * 4.87 / np.log(67.8 * zw - 5.42)
+
+def file_logger(logger=logging.getLogger(''), log_level=logging.DEBUG,
+                output_ws=os.getcwd()):
+    """Create file logger"""
+    logger.setLevel(log_level)
+    log_file = logging.FileHandler(
+       os.path.join(output_ws, 'debug.txt'), mode='w')
+    log_file.setLevel(log_level)
+    log_file.setFormatter(logging.Formatter('%(message)s'))
+    logger.addHandler(log_file)
+    return logger
+
+def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
+    """Create console logger"""
+    import sys
+    logger.setLevel(log_level)
+    log_console = logging.StreamHandler(stream=sys.stdout)
+    log_console.setLevel(log_level)
+    log_console.setFormatter(logging.Formatter('%(message)s'))
+    logger.addHandler(log_console)
+    return logger
+

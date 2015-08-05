@@ -13,23 +13,33 @@ import crop_et_data
 import crop_cycle
 import util
 
-def main(ini_path):
+def main(ini_path, log_level=logging.WARNING, debug_flag=False):
     """ Main function for running the Crop ET model
 
     Args:
-        ini_path (str) - file path of the project INI file
+        ini_path (str): file path of the project INI file
+        log_level: logging.lvl
+        debug_flag: 
 
     Returns:
         None
     """
+    ## Start console logging immediatly
+    logger = util.console_logger(log_level=log_level)
+    
     logging.warning('\nRunning Python ET-Demands')
 
     ## All data will be handled in this class
     data = crop_et_data.CropETData()
-
+    
     ## Read in the INI file
     ## DEADBEEF - This could be called directly from the CropETData class
     data.read_ini(ini_path)
+ 
+    ## Start file logging once the INI file has been read in
+    if debug_flag:
+        logger = util.file_logger(
+            logger, log_level=logging.DEBUG, output_ws=data.project_ws)
 
     ## Read in cell properties, crops and cuttings
     ## DEADBEEF - These could be called directly from the CropETData class
@@ -55,7 +65,7 @@ def main(ini_path):
         cell.subset_weather_data(data.start_dt, data.end_dt)
 
         ## Run the model
-        crop_cycle.crop_cycle(data, cell)
+        crop_cycle.crop_cycle(data, cell, debug_flag)
 
 ################################################################################
 
@@ -91,25 +101,5 @@ def is_valid_directory(parser, arg):
 if __name__ == '__main__':
     args = parse_args()
 
-    ## Logging
-    logger = logging.getLogger('')
-    if args.debug:
-        ## Log to file in debug mode
-        logger.setLevel(logging.DEBUG)
-        log_file = logging.FileHandler(
-            os.path.join(os.getcwd(), 'debug.txt'), mode='w')
-        log_file.setLevel(logging.DEBUG)
-        log_file.setFormatter(logging.Formatter('%(message)s'))
-        logger.addHandler(log_file)
-        ## Force console logger to INFO if DEBUG
-        args.log_level = logging.INFO
-    else:
-        logger.setLevel(args.log_level)
-    ## Create console logger
-    log_console = logging.StreamHandler(stream=sys.stdout)
-    log_console.setLevel(args.log_level)
-    log_console.setFormatter(logging.Formatter('%(message)s'))
-    logger.addHandler(log_console)
-
     ##
-    main(ini_path=args.ini)
+    main(ini_path=args.ini, log_level=args.log_level, debug_flag=args.debug)
