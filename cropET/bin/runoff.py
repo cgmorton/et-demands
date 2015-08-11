@@ -37,7 +37,7 @@ def runoff(foo, foo_day, debug_flag=False):
     foo.s = 250 * (100 / cn - 1)
     if debug_flag:
         logging.debug(
-            ('runoff(): CN %.6f  depl_surface %s  AWCIII %.6f  ') %
+            ('runoff(): CN %.6f  depl_surface %.6f  AWCIII %.6f  ') %
             (cn, foo.depl_surface, AWCIII) )
         logging.debug(
             ('runoff(): CNI %.6f  AWCI %.6f  CNIII %.6f') %
@@ -45,7 +45,7 @@ def runoff(foo, foo_day, debug_flag=False):
 
     ## If irrigations are automatically scheduled, base runoff on an average of
     ##   conditions for prior four days to smooth results.
-    logging.debug('runoff(): SRO %.6f  irr_flag %s  S %.6f' % (
+    logging.debug('runoff(): SRO %.6f  irr_flag %d  S %.6f' % (
         foo.sro, foo.irr_flag, foo.s))
     if foo.irr_flag:    
         # Initial abstraction

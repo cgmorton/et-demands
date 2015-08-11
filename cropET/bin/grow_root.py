@@ -33,7 +33,7 @@ def grow_root(crop, foo, debug_flag=False):
         
     if debug_flag:
         logging.debug(
-            ('grow_root(): zr %.6f  fractime %s  zr_max %s  zr_min %s  depl_root %.6f') %
+            ('grow_root(): zr %.6f  fractime %.6f  zr_max %.6f  zr_min %.6f  depl_root %.6f') %
             (foo.zr, fractime, foo.zr_max, foo.zr_min, foo.depl_root))
         logging.debug(
             ('grow_root(): delta_zr %s  AW %.6f  AW3 %.6f') %
