@@ -2,7 +2,7 @@
 # Name:         plot_vb_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-07-27
+# Created       2015-08-11
 # Python:       2.7
 #--------------------------------
 
@@ -16,7 +16,7 @@ import re
 import shutil
 import sys
 
-from bokeh.plotting import figure, show, output_file, vplot
+from bokeh.plotting import figure, output_file, save, show, vplot
 from bokeh.models import Callback, ColumnDataSource, Range1d
 ##from bokeh.models import Slider, DateRangeSlider
 import numpy as np
@@ -42,10 +42,11 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
 
     ## Input names
     et_folder    = 'ET'
-    stats_folder = 'Stats'
+    ##et_folder    = 'ETc'
+    ##stats_folder = 'stats'
 
     ## Output names
-    figure_folder  = 'PLOTS_DAILY_TIMESERIES'
+    figure_folder  = 'plots'
 
     ## These crops will not be processed (if set)
     crop_skip_list = [44, 45, 46]
@@ -67,7 +68,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
     irrig_field  = 'Irrn'
     season_field = 'Seasn'
     runoff_field = 'Runof'
-    dperc_field = 'DPerc'
+    dperc_field  = 'DPerc'
 
     ## Number of header lines in data file
     header_lines = 5
@@ -75,6 +76,12 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
     ## Additional figure controls
     figure_dynamic_size = False
     figure_ylabel_size = '12pt'
+
+    ## Delimiter
+    if et_folder == 'ETc':
+        sep = r'\s*'
+    else:
+        sep = ','
 
     ########################################################################
 
@@ -91,7 +98,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
 
         ## Input workspaces
         et_ws = os.path.join(pmdata_ws, et_folder)
-        stats_ws = os.path.join(pmdata_ws, stats_folder)
+        ##stats_ws = os.path.join(pmdata_ws, stats_folder)
 
         ## Output workspaces
         figure_ws = os.path.join(pmdata_ws, figure_folder)
@@ -104,11 +111,11 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
         if not os.path.isdir(et_ws):
             logging.error(
                 '\nERROR: The ET folder {0} could be found\n'.format(et_ws))
-            raise SystemExit()
+            sys.exit()
         ##if not os.path.isdir(stats_ws):
         ##    logging.error(
         ##        '\nERROR: The stats folder {0} could be found\n'.format(stats_ws))
-        ##    raise SystemExit()
+        ##    sys.exit()
         if not os.path.isdir(figure_ws):
             os.mkdir(figure_ws)
 
@@ -125,20 +132,20 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             year_end = None
         if year_start and year_end and year_end <= year_start:
             logging.error('\n  ERROR: End date must be after start date\n')
-            raise SystemExit()
+            sys.exit()
 
         ## Limit x_panning to a specified date range
         ## Doesn't currently work
-        x_bounds = (
-            np.datetime64(dt.datetime(year_start,1,1), 's'),
-            np.datetime64(dt.datetime(year_end+1,1,1), 's'))
+        ##x_bounds = (
+        ##    np.datetime64(dt.datetime(year_start,1,1), 's'),
+        ##    np.datetime64(dt.datetime(year_end+1,1,1), 's'))
         ## Initial range of timeseries to show
         ## This is independent of what timeseries is in the data and is only 
         ##   based on the end year
         ## Need to add a check to see if this range is in the data
-        x_range = (
-            np.datetime64(dt.datetime(year_end-9,1,1), 's'),
-            np.datetime64(dt.datetime(year_end+1,1,1), 's'))
+        ##x_range = (
+        ##    np.datetime64(dt.datetime(year_end-9,1,1), 's'),
+        ##    np.datetime64(dt.datetime(year_end+1,1,1), 's'))
 
         #### Windows only a
         ##if figure_dynamic_size:
@@ -218,36 +225,51 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             logging.debug('\nCrops: \n{0}'.format(f_crop_list))
             
             ## Read data from file into record array (structured array)
-            try:
-                data = np.genfromtxt(
-                    file_path, skip_header=(header_lines-1), names=True)
-            except ValueError:
-                data = np.genfromtxt(
-                    file_path, skip_header=(header_lines-1), names=True,
-                    delimiter=',')
+            data = np.genfromtxt(
+                file_path, skip_header=(header_lines-1), names=True,
+                delimiter=sep)
             logging.debug('\nFields: \n{0}'.format(data.dtype.names))
 
             ## Build list of unique years
-            year_sub_array = np.unique(data[year_field].astype(np.int))
+            year_array = data[year_field].astype(np.int)
+            year_sub_array = np.sort(np.unique(year_array))
             logging.debug('\nAll Years: \n{0}'.format(year_sub_array.tolist()))
+            
             ## Only keep years between year_start and year_end
             if year_start:
-                year_sub_array = year_sub_array[(year_start <= year_sub_array)]
+                crop_year_start = year_start
+                year_sub_array = year_sub_array[year_sub_array >= year_start]
+                crop_year_start = max(year_end, year_sub_array[0])
+            else:
+                crop_year_start = year_array[0]
             if year_end:
-                year_sub_array = year_sub_array[(year_sub_array <= year_end)]
+                year_sub_array = year_sub_array[year_sub_array <= year_end]
+                crop_year_end = min(year_end, year_sub_array[-1])
+            else:
+                crop_year_end = year_array[-1]
+            date_mask = np.in1d(year_array, year_sub_array)
             logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
-            date_mask = np.in1d(data[year_field].astype(np.int), year_sub_array)
 
-            ## Check year start and year end
-            if year_start not in year_sub_array:
-                logging.error('\n  ERROR: Start Year is invalid\n')
-                raise SystemExit()
-            if year_end not in year_sub_array:
-                logging.error('\n  ERROR: End Year is invalid\n')
-                raise SystemExit()
-            if year_end <= year_start:
-                logging.error('\n  ERROR: End Year must be >= Start Year\n')
-                raise SystemExit()
+            #### Build list of unique years
+            ##year_sub_array = np.unique(data[year_field].astype(np.int))
+            ##logging.debug('\nAll Years: \n{0}'.format(year_sub_array.tolist()))
+            #### Only keep years between year_start and year_end
+            ##if year_start:
+            ##    year_sub_array = year_sub_array[(year_start <= year_sub_array)]
+            ##if year_end:
+            ##    year_sub_array = year_sub_array[(year_sub_array <= year_end)]
+            ##logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
+            ##
+            #### Check year start and year end
+            ##if year_start not in year_sub_array:
+            ##    logging.error('\n  ERROR: Start Year is invalid\n')
+            ##    raise SystemExit()
+            ##if year_end not in year_sub_array:
+            ##    logging.error('\n  ERROR: End Year is invalid\n')
+            ##    raise SystemExit()
+            ##if year_end <= year_start:
+            ##    logging.error('\n  ERROR: End Year must be >= Start Year\n')
+            ##    raise SystemExit()
 
             ## Build separate arrays for each field of non-crop specific data
             doy_array = data[doy_field][date_mask].astype(np.int)
@@ -326,13 +348,13 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
 
                 ## Timeseries figures of daily data
                 output_name = '{0}_Crop_{1}_{2}-{3}'.format(
-                    station, crop_num, year_start, year_end)
+                    station, crop_num, crop_year_start, crop_year_end)
                 output_file(os.path.join(figure_ws, output_name+'.html'),
                             title=output_name)
-                TOOLS = 'pan,xwheel_zoom,box_zoom,reset,save'
+                TOOLS = 'xpan,xwheel_zoom,box_zoom,reset,save'
 
                 f1 = figure(
-                    x_axis_type='datetime', x_range=x_range,
+                    x_axis_type='datetime', 
                     width=figure_size[0], height=figure_size[1], 
                     tools=TOOLS, toolbar_location="right")
                     ##title='Evapotranspiration', x_axis_type='datetime',
@@ -345,7 +367,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
                 f1.grid.grid_line_alpha=0.3
                 f1.yaxis.axis_label = 'Evapotranspiration [mm]'
                 f1.yaxis.axis_label_text_font_size = figure_ylabel_size
-                f1.xaxis.bounds = x_bounds
+                ##f1.xaxis.bounds = x_bounds
 
                 f2 = figure(
                     x_axis_type = "datetime", x_range=f1.x_range,
@@ -378,56 +400,8 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
                 if figure_show_flag:
                     ## Open in a browser
                     show(vplot(f1, f2, f3))
-
-##                ## Timeseries figures of daily data
-##                fig = plt.figure(1, figsize=figure_size)
-##                ##fig = plt.figure()
-##                ##plt.title(
-##                ##    '{0}, Crop {1} ({2})'.format(station, crop_name, crop_num))
-##                fig.text(
-##                    0.5, 0.95,
-##                    '{0}, Crop {1} ({2})'.format(station, crop_name, crop_num),
-##                    size=16, horizontalalignment='center') 
-##
-##                ax1 = plt.subplot(311)            
-##                ax1.plot_date(dt_array, etact_array, 'b-', label='ETact')
-##                ax1.plot_date(dt_array, etbas_array, 'g-', label='ETbas')
-##                ax1.plot_date(dt_array, pmeto_array, 'k-.', label='ETos')
-##                ax1.set_ylabel('Evapotranspiration [mm]')
-##                ax1.xaxis.set_major_locator(mdates.YearLocator())
-##                ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-##                ##ax1.xaxis.set_major_locator(mdates.YearLocator())
-##                ##ax1.xaxis.set_minor_locator(mdates.YearLocator(month=6))
-##                ##ax1.xaxis.set_major_formatter(ticker.NullFormatter())
-##                ##ax1.xaxis.set_minor_formatter(mdates.DateFormatter('%Y'))
-##                plt.legend(loc=1, prop={'size':10})
-##
-##                ax2 = plt.subplot(312)
-##                ax2.plot_date(dt_array, kc_array, 'b-', label='Kc')
-##                ax2.plot_date(dt_array, kcb_array, 'g-', label='Kcb')
-##                ax2.plot_date(dt_array, season_array, 'k:', label='Season')
-##                ax2.set_ylabel('Kc and Kcb (dimensionless)')
-##                ax2.xaxis.set_major_locator(mdates.YearLocator())
-##                ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-##                plt.legend(loc=1, prop={'size':10})
-##
-##                ax3 = plt.subplot(313)
-##                ax3.plot_date(dt_array, precip_array, 'b-', label='PPT')
-##                ax3.plot_date(dt_array, irrig_array, 'k:', label='Irrigation')
-##                ax3.set_ylabel('PPT and Irrigation [mm]')
-##                ax3.xaxis.set_major_locator(mdates.YearLocator())
-##                ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-##                plt.legend(loc=1, prop={'size':10})
-##
-##                ##plt.xlabel('Percentage of agricultural pixels outside calibration threshold')
-##
-##                if figure_save_flag: 
-##                    figure_name = '{0}_Crop_{1}_{2}-{3}.{4}'.format(
-##                        station, crop_num, year_start, year_end,
-##                        figure_fmt.lower())
-##                    plt.savefig(os.path.join(figure_ws, figure_name))
-##                if figure_show_flag: plt.show()
-##                plt.close()
+                if figure_save_flag:
+                    save(vplot(f1, f2, f3))
 
                 ## Cleanup
                 del etact_array, etact_sub_field
@@ -456,8 +430,8 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
         logging.exception('Unhandled Exception Error\n\n')
             
     finally:
-        ##pass
-        raw_input('\nPress ENTER to close')
+        pass
+        ##raw_input('\nPress ENTER to close')
 
 ################################################################################
 
@@ -485,11 +459,11 @@ def query_yes_no(question, default="yes"):
     valid = {"yes": True, "y": True, "ye": True,
              "no": False, "n": False}
     if default is None:
-        prompt = " [y/n] "
+        prompt = " [y/n]: "
     elif default == "yes":
-        prompt = " [Y/n] "
+        prompt = " [Y/n]: "
     elif default == "no":
-        prompt = " [y/N] "
+        prompt = " [y/N]: "
     else:
         raise ValueError("invalid default answer: '%s'" % default)
 
@@ -532,8 +506,8 @@ def parse_args():
         description='Plot Crop Daily Timeseries',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        ##'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
-        'workspace', nargs='?', default=os.path.join(os.getcwd(), 'PMData'),
+        'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
+        ##'workspace', nargs='?', default=os.path.join(os.getcwd(), 'PMData'),
         help='PMData Folder', metavar='FOLDER')
     parser.add_argument(
         '--size', default=(1000, 300), type=int,

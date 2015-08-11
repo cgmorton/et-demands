@@ -2,7 +2,7 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-08-03
+# Created       2015-08-11
 # Python:       2.7
 #--------------------------------
 
@@ -16,7 +16,7 @@ import re
 import shutil
 import sys
 
-from bokeh.plotting import figure, save, show, output_file, vplot
+from bokeh.plotting import figure, output_file, save, show, vplot
 from bokeh.models import Callback, ColumnDataSource, Range1d
 ##from bokeh.models import Slider, DateRangeSlider
 import numpy as np
@@ -42,10 +42,10 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
 
     ## Input names
     et_folder    = 'ETc'
-    stats_folder = 'Stats'
+    ##stats_folder = 'Stats'
 
     ## Output names
-    figure_folder  = 'PLOTS_DAILY_TIMESERIES'
+    figure_folder  = 'plots'
 
     ## These crops will not be processed (if set)
     crop_skip_list = [44, 45, 46]
@@ -58,17 +58,19 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
     ##month_field  = 'Mo'
     ##day_field    = 'Dy'
     pmeto_field  = 'PMETo'
-    precip_field = 'Pr.mm'
+    precip_field = 'PPT'
     t30_field    = 'T30'
 
     etact_field  = 'ETact'
     etpot_field  = 'ETpot'
     etbas_field  = 'ETbas'
-    irrig_field  = 'Irrn'
-    season_field = 'Seasn'
-    runoff_field = 'Runof'
+    irrig_field  = 'Irrigation'
+    season_field = 'Season'
+    runoff_field = 'Runoff'
     dperc_field = 'DPerc'
     niwr_field = 'NIWR'
+
+    year_field = 'year'
 
     ## Number of header lines in data file
     header_lines = 2
@@ -78,7 +80,8 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
     figure_ylabel_size = '12pt'
 
     ## Delimiter
-    sep = r"\s*"
+    sep = ','
+    ##sep = r"\s*"
 
     ########################################################################
 
@@ -95,7 +98,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
 
         ## Input workspaces
         et_ws = os.path.join(pmdata_ws, et_folder)
-        stats_ws = os.path.join(pmdata_ws, stats_folder)
+        ##stats_ws = os.path.join(pmdata_ws, stats_folder)
 
         ## Output workspaces
         figure_ws = os.path.join(pmdata_ws, figure_folder)
@@ -104,15 +107,15 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
         if not os.path.isdir(pmdata_ws):
             logging.error(
                 '\nERROR: The pmdata folder {0} could be found\n'.format(pmdata_ws))
-            raise SystemExit()
+            sys.exit()
         if not os.path.isdir(et_ws):
             logging.error(
                 '\nERROR: The ET folder {0} could be found\n'.format(et_ws))
-            raise SystemExit()
+            sys.exit()
         ##if not os.path.isdir(stats_ws):
         ##    logging.error(
         ##        '\nERROR: The stats folder {0} could be found\n'.format(stats_ws))
-        ##    raise SystemExit()
+        ##    sys.exit()
         if not os.path.isdir(figure_ws):
             os.mkdir(figure_ws)
 
@@ -129,7 +132,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             year_end = None
         if year_start and year_end and year_end <= year_start:
             logging.error('\n  ERROR: End date must be after start date\n')
-            raise SystemExit()
+            sys.exit()
 
         ## Limit x_panning to a specified date range
         ## Doesn't currently work
@@ -160,7 +163,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
         ## Regular expressions
         def list_re_or(input_list):
             return '('+'|'.join(map(str,input_list))+')'
-        data_re = re.compile('(?P<CELLID>\w+)_(?P<CROP>\d+).dat$', re.I)
+        data_re = re.compile('(?P<CELLID>\w+)_Crop_(?P<CROP>\d+).csv$', re.I)
 
         ## Build list of all data files
         data_file_list = sorted(
@@ -170,7 +173,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             logging.error(
                 '  ERROR: No daily ET files were found\n'+
                 '  ERROR: Check the folder_name parameters\n')
-            raise SystemExit()
+            sys.exit()
 
         ## Process each file
         for file_path in data_file_list:
@@ -178,7 +181,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             logging.debug('')
             logging.info('  {0}'.format(file_name))
 
-            station, crop_num = os.path.splitext(file_name)[0].rsplit('_',1)
+            station, crop_num = os.path.splitext(file_name)[0].split('_Crop_')
             logging.debug('    Station:         {0}'.format(station))
             logging.debug('    Crop Num:        {0}'.format(crop_num))
             if station == 'temp':
@@ -193,9 +196,9 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             ## Read data from file into record array (structured array)
             data_df = pd.read_table(
                 file_path, header=0, comment='#', sep=sep, engine='python')
+            logging.debug('\nFields: \n{0}'.format(data_df.columns.values))
             data_df[date_field] = pd.to_datetime(data_df[date_field])
             data_df['year'] = data_df[date_field].map(lambda x: x.year)
-            logging.debug('\nFields: \n{0}'.format(data_df.columns.values))
 
             ## Build list of unique years
             year_array = np.sort(np.unique(np.array(data_df['year']).astype(np.int)))
@@ -258,8 +261,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
                 station, crop_num, crop_year_start, crop_year_end)
             f = output_file(os.path.join(figure_ws, output_name+'.html'),
                             title=output_name)
-            print output_name
-            TOOLS = 'pan,xwheel_zoom,box_zoom,reset,save'
+            TOOLS = 'xpan,xwheel_zoom,box_zoom,reset,save'
 
             f1 = figure(
                 x_axis_type='datetime', 
@@ -278,7 +280,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             ##f1.xaxis.bounds = x_bounds
 
             f2 = figure(
-                x_axis_type = "datetime", 
+                x_axis_type = "datetime", x_range=f1.x_range, 
                 width=figure_size[0], height=figure_size[1],
                 tools=TOOLS, toolbar_location="right")
             f2.line(dt_array, kc_array, color='blue', legend='Kc')
@@ -292,7 +294,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             ##f2.xaxis.bounds = x_bounds
 
             f3 = figure(
-                x_axis_type = "datetime", 
+                x_axis_type = "datetime", x_range=f1.x_range, 
                 width=figure_size[0], height=figure_size[1],
                 tools=TOOLS, toolbar_location="right")
             f3.line(dt_array, precip_array, color='blue', legend='PPT')
@@ -334,8 +336,8 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
         logging.exception('Unhandled Exception Error\n\n')
             
     finally:
-        ##pass
-        raw_input('\nPress ENTER to close')
+        pass
+        ##raw_input('\nPress ENTER to close')
 
 ################################################################################
 
@@ -363,11 +365,11 @@ def query_yes_no(question, default="yes"):
     valid = {"yes": True, "y": True, "ye": True,
              "no": False, "n": False}
     if default is None:
-        prompt = " [y/n] "
+        prompt = " [y/n]: "
     elif default == "yes":
-        prompt = " [Y/n] "
+        prompt = " [Y/n]: "
     elif default == "no":
-        prompt = " [y/N] "
+        prompt = " [y/N]: "
     else:
         raise ValueError("invalid default answer: '%s'" % default)
 
