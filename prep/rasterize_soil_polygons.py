@@ -19,8 +19,8 @@ import numpy as np
 
 import gdal_common as gdc
 
-def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'], 
-         overwrite_flag=False, pyramids_flag=False, stats_flag=False):
+def main(gis_ws, prop_list=['all'], overwrite_flag=False, 
+         pyramids_flag=False, stats_flag=False):
     """Convert soil polygon shapefiles to raster
 
     Snap to latest CDL rasters (in CDL workspace) with an albers projection
@@ -29,9 +29,6 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
         gis_ws (str): Folder/workspace path of the GIS data for the project
         prop_list (list): String of the soil types to build
             (i.e. awc, clay, sand, all)
-        extent_path (str): file path to study area shapefile
-        extent_buffer (float): distance to buffer input extent
-            Units will be the same as the extent spatial reference
         overwrite_flag (bool): If True, overwrite output rasters
         pyramids_flag (bool): If True, build pyramids/overviews
             for the output rasters 
@@ -41,28 +38,20 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
         None
     """
     input_soil_ws = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\statsgo'
-    folder_fmt = 'gsmsoil_{0}'
-    polygon_fmt = 'gsmsoilmu_a_us_{0}_albers.shp'
+    folder_fmt = 'gsmsoil_{}'
+    polygon_fmt = 'gsmsoilmu_a_us_{}_albers.shp'
     output_soil_ws = os.path.join(gis_ws, 'statsgo')
 
-    ## Reference all output rasters to CDL
-    input_cdl_path = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\cdl\2010_30m_cdls.img'
-    output_osr = gdc.raster_path_osr(input_cdl_path)
-    output_cs = gdc.raster_path_cellsize(input_cdl_path)[0]
-    output_x, output_y = gdc.raster_path_origin(input_cdl_path)
-    output_wkt = gdc.osr_proj(output_osr)
-    ##output_osr = gdc.proj4_osr(
-    ##    "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
-    ##output_cs = 30
-    ##output_x, output_y = 15, 15
+    scratch_ws = os.path.join(gis_ws, 'scratch')
+    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
 
     ## Soil polygons have a float and integer field
-    field_fmt = '{0}'
-    ##field_fmt = '{0}_INT'
+    field_fmt = '{}'
+    ##field_fmt = '{}_INT'
 
-    raster_fmt = '{0}_30m_albers.img'
-    ##raster_fmt = '{0}_2013_30m_cdls.img'
-    ##raster_fmt = 'gsmsoil_{0}_integer.img'
+    raster_fmt = '{}_30m_albers.img'
+    ##raster_fmt = '{}_2010_30m_cdls.img'
+    ##raster_fmt = 'gsmsoil_{}_integer.img'
 
     output_format = 'HFA'
     output_type = 'Float32'
@@ -73,7 +62,7 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
     if pyramids_flag:
         levels = '2 4 8 16 32 64 128'
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
-    logging.info('Soil Property:   {0}'.format(', '.join(prop_list)))
+    logging.info('Soil Property:   {}'.format(', '.join(prop_list)))
     if prop_list == ['all']:
         prop_list = ['awc', 'clay', 'sand']
 
@@ -86,9 +75,11 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
         logging.error(('\nERROR: The input soil folder {} '+
                        'does not exist').format(input_soil_ws))
         sys.exit()
-    elif not os.path.isfile(extent_path):
-        logging.error(('\nERROR: The extent shapefile {} '+
-                       'does not exist').format(extent_path))
+    elif not os.path.isfile(zone_raster_path):
+        logging.error(
+            ('\nERROR: The zone raster {} does not exist'+
+             '\n  Try re-running "build_study_area_raster.py"').format(
+             zone_raster_path))
         sys.exit()
     if not os.path.isdir(output_soil_ws):
         os.makedirs(output_soil_ws)
@@ -100,6 +91,18 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
         remove_file(temp_polygon_path)
         ##subprocess.call(['gdalmanage', 'delete', '-f', '', temp_polygon_path])
 
+    ## Reference all output rasters zone raster
+    zone_raster_ds = gdal.Open(zone_raster_path)
+    output_osr = gdc.raster_ds_osr(zone_raster_ds)
+    output_wkt = gdc.raster_ds_proj(zone_raster_ds)
+    output_cs = gdc.raster_ds_cellsize(zone_raster_ds)[0]
+    output_x, output_y = gdc.raster_ds_origin(zone_raster_ds)
+    output_extent = gdc.raster_ds_extent(zone_raster_ds)
+    zone_raster_ds = None
+    logging.debug('\nStudy area properties')
+    logging.debug('  Output OSR: {}'.format(output_osr))
+    logging.debug('  Output Extent: {}'.format(output_extent))   
+    logging.debug('  Output cellsize: {}'.format(output_cs))
 
     ## Process each soil property
     for prop_str in prop_list:
@@ -108,16 +111,6 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
             folder_fmt.format(prop_str), polygon_fmt.format(prop_str))
         output_raster_path = os.path.join(
             output_soil_ws, raster_fmt.format(prop_str))
-
-        ## Get the extent from a raster/shapefile
-        clip_osr = gdc.feature_path_osr(extent_path)
-        logging.debug('Clip OSR: {}'.format(clip_osr))
-        clip_extent = gdc.path_extent(extent_path)
-        logging.debug('Clip Extent: {}'.format(clip_extent))
-        if extent_buffer is not None:
-            logging.debug('Buffering: {}'.format(extent_buffer))
-            clip_extent.buffer_extent(extent_buffer)
-            logging.debug('Clip Extent: {}'.format(clip_extent))
 
         if not os.path.isfile(input_polygon_path):
             logging.info('The soil polygon {} does not '+
@@ -131,7 +124,7 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
             logging.info('Projecting shapefile')
             ## Project study area extent to the input/soil spatial reference
             input_osr = gdc.feature_path_osr(input_polygon_path)
-            input_extent = gdc.project_extent(clip_extent, clip_osr, input_osr)
+            input_extent = gdc.project_extent(output_extent, output_osr, input_osr)
             logging.debug('Input Extent: {}'.format(input_extent))
             subprocess.call(
                 ['ogr2ogr', '-overwrite', '-preserve_fid',
@@ -141,15 +134,11 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
                  temp_polygon_path, input_polygon_path])
 
             logging.info('Rasterizing shapefile')
-            ## Project study area extent to the output/CDL spatial reference
-            clip_extent = gdc.project_extent(clip_extent, clip_osr, output_osr)
-            clip_extent.adjust_to_snap('EXPAND', output_x, output_y, output_cs)
-            logging.debug('Clip Extent: {}'.format(clip_extent))
             subprocess.call(
                 ['gdal_rasterize', '-of', output_format, '-a', soil_field,
                  '-a_nodata', str(output_nodata),
-                 '-init', str(output_nodata)] +
-                ['-te'] + str(clip_extent).split() + 
+                 '-init', str(output_nodata), '-co', 'COMPRESSED=YES'] +
+                ['-te'] + str(output_extent).split() + 
                 ['-tr', str(output_cs), str(output_cs), '-ot', output_type,  
                  temp_polygon_path, output_raster_path])
             
@@ -159,12 +148,12 @@ def main(gis_ws, extent_path, extent_buffer=None, prop_list=['all'],
             
         if stats_flag and os.path.isfile(output_raster_path):
             logging.info('Computing statistics')
-            logging.debug('  {0}'.format(output_raster_path))
+            logging.debug('  {}'.format(output_raster_path))
             subprocess.call(['gdalinfo', '-stats', '-nomd', output_raster_path])
 
         if pyramids_flag and os.path.isfile(output_raster_path):
             logging.info('Building pyramids')
-            logging.debug('  {0}'.format(output_raster_path))
+            logging.debug('  {}'.format(output_raster_path))
             subprocess.call(['gdaladdo', '-ro', output_raster_path] + levels.split())
 
 ################################################################################
@@ -182,12 +171,6 @@ def arg_parse():
     parser.add_argument(
         '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
         help='GIS workspace/folder')
-    parser.add_argument(
-        '--extent', required=True, metavar='FILE',
-        help='Study area shapefile')
-    parser.add_argument(
-        '--buffer', default=None, metavar='FLOAT', type=float,
-        help='Extent buffer')
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true', 
         help='Force overwrite of existing files')
@@ -209,8 +192,6 @@ def arg_parse():
     ## Convert input file to an absolute path
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
-    if args.extent and os.path.isfile(os.path.abspath(args.extent)):
-        args.extent = os.path.abspath(args.extent)
     return args
 
 ################################################################################
@@ -224,6 +205,5 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, prop_list=args.soil,
-         extent_path=args.extent, extent_buffer=args.buffer,
          overwrite_flag=args.overwrite, pyramids_flag=args.pyramids, 
          stats_flag=args.stats)

@@ -51,31 +51,31 @@ def main(gis_ws, block_size=32768, mask_flag=False,
 
     ## Check input folders
     if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {0} '+
+        logging.error('\nERROR: The GIS workspace {} '+
                       'does not exist\n'.format(gis_ws))
         sys.exit()
     elif not os.path.isdir(cdl_ws):
-        logging.error('\nERROR: The CDL workspace {0} '+
+        logging.error('\nERROR: The CDL workspace {} '+
                       'does not exist\n'.format(cdl_ws))
         sys.exit()
     elif not os.path.isdir(dem_ws):
-        logging.error('\nERROR: The DEM workspace {0} '+
+        logging.error('\nERROR: The DEM workspace {} '+
                       'does not exist\n'.format(dem_ws))
         sys.exit()
     elif mask_flag and not os.path.isfile(zone_raster_path):
         logging.error(
-            ('\nERROR: The zone raster {0} does not exist\n'+
+            ('\nERROR: The zone raster {} does not exist\n'+
              '  Try re-running "clip_cdl_raster.py"').format(cdl_ws))
         sys.exit()
-    logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
-    logging.info('CDL Workspace:   {0}'.format(cdl_ws))
-    logging.info('DEM Workspace:   {0}\n'.format(dem_ws))
+    logging.info('\nGIS Workspace:   {}'.format(gis_ws))
+    logging.info('CDL Workspace:   {}'.format(cdl_ws))
+    logging.info('DEM Workspace:   {}\n'.format(dem_ws))
 
     ## Check input files
     input_dem_path = os.path.join(dem_ws, input_dem_name)
     output_dem_path = os.path.join(dem_ws, output_dem_name)
     if not os.path.isfile(input_dem_path):
-        logging.error('\nERROR: The raster {0} does not exist'.format(
+        logging.error('\nERROR: The raster {} does not exist'.format(
             input_soil_path))
         sys.exit()
 
@@ -91,7 +91,7 @@ def main(gis_ws, block_size=32768, mask_flag=False,
         subprocess.call(['gdalmanage', 'delete', output_dem_path])
     if os.path.isfile(input_dem_path) and not os.path.isfile(output_dem_path):
         logging.info('\nCopying DEM raster')
-        logging.debug('{0}'.format(input_dem_path))
+        logging.debug('{}'.format(input_dem_path))
         subprocess.call(
             ['gdal_translate', '-of', 'HFA',
              input_dem_path, output_dem_path])
@@ -122,12 +122,12 @@ def main(gis_ws, block_size=32768, mask_flag=False,
 
     if stats_flag and os.path.isfile(output_dem_path):
         logging.info('Computing statistics')
-        logging.debug('  {0}'.format(output_dem_path))
+        logging.debug('  {}'.format(output_dem_path))
         subprocess.call(['gdalinfo', '-stats', '-nomd', output_dem_path])
 
     if pyramids_flag and os.path.isfile(output_dem_path):
         logging.info('Building pyramids')
-        logging.debug('  {0}'.format(output_dem_path))
+        logging.debug('  {}'.format(output_dem_path))
         subprocess.call(['gdaladdo', '-ro', output_dem_path] + levels.split())
        
 ################################################################################

@@ -37,11 +37,12 @@ def main(gis_ws, prop_list=['all'], block_size=32768, mask_flag=False,
         pyramids_flag (bool): If True, build pyramids/overviews
             for the output rasters 
         stats_flag (bool): If True, compute statistics for the output rasters
+
     Returns:
         None
     """
-    input_soil_fmt = '{0}_30m_albers.img'
-    output_soil_fmt = '{0}_2010_30m_cdls.img'
+    input_soil_fmt = '{}_30m_albers.img'
+    output_soil_fmt = '{}_2010_30m_cdls.img'
 
     soil_ws = os.path.join(gis_ws, 'statsgo')
     cdl_ws = os.path.join(gis_ws, 'cdl')
@@ -53,41 +54,41 @@ def main(gis_ws, prop_list=['all'], block_size=32768, mask_flag=False,
 
     ## Check input folders
     if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {0} '+
+        logging.error('\nERROR: The GIS workspace {} '+
                       'does not exist\n'.format(gis_ws))
         sys.exit()
     elif not os.path.isdir(cdl_ws):
-        logging.error('\nERROR: The CDL workspace {0} '+
+        logging.error('\nERROR: The CDL workspace {} '+
                       'does not exist\n'.format(cdl_ws))
         sys.exit()
     elif not os.path.isdir(soil_ws):
-        logging.error('\nERROR: The soil workspace {0} '+
+        logging.error('\nERROR: The soil workspace {} '+
                       'does not exist\n'.format(soil_ws))
         sys.exit()
     elif mask_flag and not os.path.isfile(zone_raster_path):
         logging.error(
-            ('\nERROR: The zone raster {0} does not exist\n'+
+            ('\nERROR: The zone raster {} does not exist\n'+
              '  Try re-running "clip_cdl_raster.py"').format(cdl_ws))
         sys.exit()
-    logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
-    logging.info('CDL Workspace:   {0}'.format(cdl_ws))
-    logging.info('Soil Workspace:  {0}'.format(soil_ws))
+    logging.info('\nGIS Workspace:   {}'.format(gis_ws))
+    logging.info('CDL Workspace:   {}'.format(cdl_ws))
+    logging.info('Soil Workspace:  {}'.format(soil_ws))
 
     if pyramids_flag:
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
         levels = '2 4 8 16 32 64 128'
 
-    logging.info('Soil Property:   {0}'.format(', '.join(prop_list)))
+    logging.info('Soil Property:   {}'.format(', '.join(prop_list)))
     if prop_list == ['all']:
         prop_list = ['awc', 'clay', 'sand']
 
     ## Process existing soil rasters (from rasterize script)
     for prop_str in prop_list:
-        logging.info('\nSoil: {0}'.format(prop_str.upper()))
+        logging.info('\nSoil: {}'.format(prop_str.upper()))
         input_soil_path = os.path.join(soil_ws, input_soil_fmt.format(prop_str))
         output_soil_path = os.path.join(soil_ws, output_soil_fmt.format(prop_str))
         if not os.path.isfile(input_soil_path):
-            logging.error('\nERROR: The raster {0} does not exist'.format(
+            logging.error('\nERROR: The raster {} does not exist'.format(
                 input_soil_path))
             continue
 
@@ -97,7 +98,7 @@ def main(gis_ws, prop_list=['all'], block_size=32768, mask_flag=False,
         if (os.path.isfile(input_soil_path) and
             not os.path.isfile(output_soil_path)):
             logging.info('\nCopying soil raster')
-            logging.debug('{0}'.format(input_soil_path))
+            logging.debug('{}'.format(input_soil_path))
             subprocess.call(
                 ['gdal_translate', '-of', 'HFA',
                  input_soil_path, output_soil_path])
@@ -133,12 +134,12 @@ def main(gis_ws, prop_list=['all'], block_size=32768, mask_flag=False,
 
         if stats_flag and os.path.isfile(output_soil_path):
             logging.info('Computing statistics')
-            logging.debug('  {0}'.format(output_soil_path))
+            logging.debug('  {}'.format(output_soil_path))
             subprocess.call(['gdalinfo', '-stats', '-nomd', output_soil_path])
 
         if pyramids_flag and os.path.isfile(output_soil_path):
             logging.info('Building pyramids')
-            logging.debug('  {0}'.format(output_soil_path))
+            logging.debug('  {}'.format(output_soil_path))
             subprocess.call(['gdaladdo', '-ro', output_soil_path] + levels.split())
        
 ################################################################################

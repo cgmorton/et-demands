@@ -21,17 +21,14 @@ import gdal_common as gdc
 
 ################################################################################
 
-def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
-         overwrite_flag=False, pyramids_flag=False, stats_flag=False):
+def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False, 
+pyramids_flag=False, stats_flag=False):
     """Merge, project, and clip NED tiles
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
         tile_ws (str): Folder/workspace path of the DEM tiles
         dem_cs (int): DEM cellsize (10 or 30m)
-        extent_path (str): file path to study area shapefile
-        extent_buffer (float): distance to buffer input extent
-            Units will be the same as the extent spatial reference
         overwrite_flag (bool): If True, overwrite existing files
         pyramids_flag (bool): If True, build pyramids/overviews
             for the output rasters 
@@ -46,21 +43,14 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
     output_units = 'METERS'
     dem_ws = os.path.join(gis_ws, 'dem')
 
+    scratch_ws = os.path.join(gis_ws, 'scratch')
+    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
+
     ## Use 1 degree snap point and "cellsize" to get 1x1 degree tiles
     tile_osr = gdc.epsg_osr(4269)
+    tile_buffer = 0.5
     tile_x, tile_y, tile_cs = 0, 0, 1
 
-    ## Reference all output rasters to CDL
-    input_cdl_path = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\cdl\2010_30m_cdls.img'
-    output_osr = gdc.raster_path_osr(input_cdl_path)
-    output_cs = gdc.raster_path_cellsize(input_cdl_path)[0]
-    output_x, output_y = gdc.raster_path_origin(input_cdl_path)
-    output_wkt = gdc.osr_proj(output_osr)
-    ##output_osr = gdc.proj4_osr(
-    ##    "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
-    ##output_cs = 30
-    ##output_x, output_y = 15, 15
-    
     ## Input error checking
     if not os.path.isdir(gis_ws):
         logging.error('\nERROR: The GIS workspace {} '+
@@ -70,9 +60,11 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
         logging.error('\nERROR: The DEM tile workspace {} '+
                       'does not exist'.format(tile_ws))
         sys.exit()
-    elif not os.path.isfile(extent_path):
-        logging.error(('\nERROR: The extent shapefile {} '+
-                       'does not exist').format(extent_path))
+    elif not os.path.isfile(zone_raster_path):
+        logging.error(
+            ('\nERROR: The zone raster {} does not exist'+
+             '\n  Try re-running "build_study_area_raster.py"').format(
+             zone_raster_path))
         sys.exit()
     elif output_units not in ['FEET', 'METERS']:
         logging.error('\nERROR: The output units must be FEET or METERS\n')
@@ -109,70 +101,50 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
         levels = '2 4 8 16 32 64 128'
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
-    ## Get the extent of each feature
-    ## DEADBEEF - Why is this being done for each feature separately?
-    input_list = []
-    shp_driver = ogr.GetDriverByName('ESRI Shapefile')
-    input_ds = shp_driver.Open(extent_path, 1)
-    input_osr = gdc.feature_ds_osr(input_ds)
-    input_layer = input_ds.GetLayer()
-    input_ftr = input_layer.GetNextFeature()
-    while input_ftr:
-        input_geom = input_ftr.GetGeometryRef()
-        input_extent = gdc.extent(input_geom.GetEnvelope())
-        input_extent = input_extent.ogrenv_swap()
-        input_extent.buffer_extent(extent_buffer)
-        input_ftr = input_layer.GetNextFeature()    
-        logging.debug('Input Extent: {0}'.format(input_extent))
+    ## Reference all output rasters zone raster
+    zone_raster_ds = gdal.Open(zone_raster_path)
+    output_osr = gdc.raster_ds_osr(zone_raster_ds)
+    output_wkt = gdc.raster_ds_proj(zone_raster_ds)
+    output_cs = gdc.raster_ds_cellsize(zone_raster_ds)[0]
+    output_x, output_y = gdc.raster_ds_origin(zone_raster_ds)
+    output_extent = gdc.raster_ds_extent(zone_raster_ds)
+    zone_raster_ds = None
+    logging.debug('\nStudy area properties')
+    logging.debug('  Output OSR: {}'.format(output_osr))
+    logging.debug('  Output Extent: {}'.format(output_extent))   
+    logging.debug('  Output cellsize: {}'.format(output_cs))
+            
+    ## Project study area extent to DEM tile coordinate system
+    tile_extent = gdc.project_extent(output_extent, output_osr, tile_osr)
+    logging.debug('Output Extent: {}'.format(tile_extent))
 
-        ## Project study area extent to input raster coordinate system
-        tile_extent = gdc.project_extent(
-            input_extent, input_osr, tile_osr)
-        logging.debug('GCS Extent: {0}'.format(tile_extent))
+    ## Extent needed to select 1x1 degree tiles
+    tile_extent.buffer_extent(tile_buffer)
+    tile_extent.adjust_to_snap('EXPAND', tile_x, tile_y, tile_cs)
+    logging.debug('Tile Extent: {}'.format(tile_extent))
 
-        ## Extent needed to select 1x1 degree tiles
-        tile_extent.adjust_to_snap('EXPAND', tile_x, tile_y, tile_cs)
-        ##tile_extent.buffer_extent(0.1)
-        logging.debug('GCS Extent: {0}'.format(tile_extent))
-
-        ## Get list of avaiable tiles that intersect the extent
-        input_list.extend([
-            os.path.join(tile_ws, tile_fmt.format(lat, -lon))
-            for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
-            for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])
-    input_list = sorted(list(set(input_list)))
+    ## Get list of available tiles that intersect the extent
+    input_path_list = sorted(list(set([
+        os.path.join(tile_ws, tile_fmt.format(lat, -lon))
+        for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
+        for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])))
     logging.debug('Tiles')
-    for item in input_list:
-        logging.debug('  {0}'.format(item))
-
-    ## Get the study area extent from a shapefile
-    clip_osr = gdc.feature_path_osr(extent_path)
-    logging.debug('\nClip OSR: {}'.format(clip_osr))
-    clip_extent = gdc.path_extent(extent_path)
-    logging.debug('Clip Extent: {}'.format(clip_extent))
-    if extent_buffer is not None:
-        logging.debug('Buffering: {}'.format(extent_buffer))
-        clip_extent.buffer_extent(extent_buffer)
-        logging.debug('Clip Extent: {}'.format(clip_extent))
-
-    ## Project study area extent to the output/CDL spatial reference
-    output_extent = gdc.project_extent(clip_extent, clip_osr, output_osr)
-    output_extent.adjust_to_snap('EXPAND', output_x, output_y, output_cs)
-    logging.debug('Output Extent: {0}'.format(output_extent))
+    for input_path in input_path_list:
+        logging.debug('  {}'.format(input_path))
    
     ## Calculate using GDAL utilities
-    if input_list:
+    if input_path_list:
         logging.info('Merging tiles')
         if os.path.isfile(dem_gcs_path) and overwrite_flag:
             subprocess.call(
                 ['gdalmanage', 'delete', '-f', 'HFA', dem_gcs_path])
         if not os.path.isfile(dem_gcs_path):
             subprocess.call(
-                ['set', 'GDAL_DATA={0}\Lib\site-packages\osgeo\data\gdal'.format(sys.exec_prefix)],
+                ['set', 'GDAL_DATA={}\Lib\site-packages\osgeo\data\gdal'.format(sys.exec_prefix)],
                 shell=True)
             subprocess.call(
                 ['gdal_merge.py', '-o', dem_gcs_path, '-of', 'HFA',
-                 '-co', 'COMPRESSED=YES', '-a_nodata', str(f32_nodata)] + input_list,
+                 '-co', 'COMPRESSED=YES', '-a_nodata', str(f32_nodata)] + input_path_list,
                 shell=True)
 
     ## Convert DEM from meters to feet
@@ -180,9 +152,9 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
         ## DEADBEEF - This won't run when called through subprocess?
         ##subprocess.call(
         ##    ['gdal_calc.py', '-A', dem_gcs_path,
-        ##     '--outfile={0}'.format(dem_feet_path), '--calc="0.3048*A"',
+        ##     '--outfile={}'.format(dem_feet_path), '--calc="0.3048*A"',
         ##     '--format', 'HFA', '--co', 'COMPRESSED=YES',
-        ##     '--NoDataValue={0}'.format(str(f32_nodata)),
+        ##     '--NoDataValue={}'.format(str(f32_nodata)),
         ##     '--type', 'Float32', '--overwrite'],
         ##    cwd=dem_ws, shell=True)
         ##dem_gcs_path = dem_feet_path
@@ -214,19 +186,19 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
     if stats_flag:
         logging.info('Computing statistics')
         if os.path.isfile(dem_proj_path):
-            logging.debug('  {0}'.format(dem_proj_path))
+            logging.debug('  {}'.format(dem_proj_path))
             subprocess.call(['gdalinfo', '-stats', '-nomd', dem_proj_path])
         if os.path.isfile(dem_hs_path):
-            logging.debug('  {0}'.format(dem_hs_path))
+            logging.debug('  {}'.format(dem_hs_path))
             subprocess.call(['gdalinfo', '-stats', '-nomd', dem_hs_path])
 
     if pyramids_flag:
         logging.info('\nBuilding pyramids')
         if os.path.isfile(dem_proj_path):
-            logging.debug('  {0}'.format(dem_proj_path))
+            logging.debug('  {}'.format(dem_proj_path))
             subprocess.call(['gdaladdo', '-ro', dem_proj_path] + levels.split())
         if os.path.isfile(dem_hs_path):
-            logging.debug('  {0}'.format(dem_hs_path))
+            logging.debug('  {}'.format(dem_hs_path))
             subprocess.call(['gdaladdo', '-ro', dem_hs_path] + levels.split())
         ##subprocess.call(
         ##    ['gdaladdo', '-ro', '--config', 'USE_RRD', 'YES',
@@ -261,12 +233,6 @@ def arg_parse():
         default=os.path.join(os.getcwd(), 'dem', 'tiles'),
         help='GIS workspace/folder')
     parser.add_argument(
-        '--extent', required=True, metavar='FILE',
-        help='Study area shapefile')
-    parser.add_argument(
-        '--buffer', default=10000, metavar='FLOAT', type=float,
-        help='Extent buffer')
-    parser.add_argument(
         '-cs', '--cellsize', default=30, metavar='INT', type=int,
         choices=(10, 30), help='DEM cellsize (10 or 30m)')
     parser.add_argument(
@@ -288,8 +254,6 @@ def arg_parse():
         args.gis = os.path.abspath(args.gis)
     if args.tiles and os.path.isdir(os.path.abspath(args.tiles)):
         args.tiles = os.path.abspath(args.tiles)
-    if args.extent and os.path.isfile(os.path.abspath(args.extent)):
-        args.extent = os.path.abspath(args.extent)
     return args
 
 ################################################################################
@@ -303,6 +267,5 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, tile_ws=args.tiles,
-         extent_path=args.extent, extent_buffer=args.buffer, 
          dem_cs=args.cellsize, overwrite_flag=args.overwrite,
          pyramids_flag=args.pyramids, stats_flag=args.stats)

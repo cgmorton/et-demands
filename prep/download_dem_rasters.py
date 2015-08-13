@@ -21,8 +21,7 @@ import gdal_common as gdc
 
 ################################################################################
 
-def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
-         overwrite_flag=False):
+def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
     """Download NED tiles that intersect the study_area
 
     Script assumes DEM data is in 1x1 WGS84 degree tiles
@@ -35,9 +34,6 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
         gis_ws (str): Folder/workspace path of the GIS data for the project
         tile_ws (str): Folder/workspace path of the DEM tiles
         dem_cs (int): DEM cellsize (10 or 30m)
-        extent_path (str): file path to study area shapefile
-        extent_buffer (float): distance to buffer input extent
-            Units will be the same as the extent spatial reference
         overwrite_flag (bool): If True, overwrite existing files
         
     Returns:
@@ -54,12 +50,15 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
         tile_fmt = 'imgn{0:02d}w{1:03d}_1.img'
     else:
         logging.error('\nERROR: The input cellsize must be 10 or 30\n')
-        sys.exit()
-        
+        sys.exit()    
 
     ## Use 1 degree snap point and "cellsize" to get 1x1 degree tiles
     tile_osr = gdc.epsg_osr(4269)
+    tile_buffer = 0.5
     tile_x, tile_y, tile_cs = 0, 0, 1
+
+    scratch_ws = os.path.join(gis_ws, 'scratch')
+    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
 
     ## Output folders
     dem_ws = os.path.join(gis_ws, 'dem')
@@ -70,45 +69,44 @@ def main(gis_ws, tile_ws, dem_cs, extent_path, extent_buffer,
         logging.error('\nERROR: The GIS workspace {} '+
                       'does not exist'.format(gis_ws))
         sys.exit()
-    elif not os.path.isfile(extent_path):
-        logging.error(('\nERROR: The extent shapefile {} '+
-                       'does not exist').format(extent_path))
+    elif not os.path.isfile(zone_raster_path):
+        logging.error(
+            ('\nERROR: The zone raster {} does not exist'+
+             '\n  Try re-running "build_study_area_raster.py"').format(
+             zone_raster_path))
         sys.exit()
     if not os.path.isdir(tile_ws):
         os.makedirs(tile_ws)
 
-    ## Get the extent of each feature
-    lat_lon_list = []
-    shp_driver = ogr.GetDriverByName('ESRI Shapefile')
-    input_ds = shp_driver.Open(extent_path, 1)
-    input_osr = gdc.feature_ds_osr(input_ds)
-    input_layer = input_ds.GetLayer()
-    input_ftr = input_layer.GetNextFeature()
-    while input_ftr:
-        input_geom = input_ftr.GetGeometryRef()
-        input_extent = gdc.extent(input_geom.GetEnvelope())
-        input_extent = input_extent.ogrenv_swap()
-        input_extent.buffer_extent(extent_buffer)
-        input_ftr = input_layer.GetNextFeature()    
-        logging.debug('Input Extent: {0}'.format(input_extent))
+    ## Reference all output rasters zone raster
+    zone_raster_ds = gdal.Open(zone_raster_path)
+    output_osr = gdc.raster_ds_osr(zone_raster_ds)
+    output_wkt = gdc.raster_ds_proj(zone_raster_ds)
+    output_cs = gdc.raster_ds_cellsize(zone_raster_ds)[0]
+    output_x, output_y = gdc.raster_ds_origin(zone_raster_ds)
+    output_extent = gdc.raster_ds_extent(zone_raster_ds)
+    output_ullr = clip_extent.ul_lr_swap()
+    zone_raster_ds = None
+    logging.debug('\nStudy area properties')
+    logging.debug('  Output OSR: {}'.format(output_osr))
+    logging.debug('  Output Extent: {}'.format(zone_extent))   
+    logging.debug('  Output cellsize: {}'.format(output_cs))
+    logging.debug('  Output UL/LR: {}'.format(output_ullr))
+        
+    ## Project study area extent to DEM tile coordinate system
+    tile_extent = gdc.project_extent(output_extent, output_osr, tile_osr)
+    logging.debug('Output Extent: {}'.format(tile_extent))
 
-        ## Project study area extent to input raster coordinate system
-        output_extent = gdc.project_extent(
-            input_extent, input_osr, tile_osr)
-        logging.debug('Output Extent: {0}'.format(output_extent))
+    ## Extent needed to select 1x1 degree tiles
+    tile_extent.buffer_extent(tile_buffer)
+    tile_extent.adjust_to_snap('EXPAND', tile_x, tile_y, tile_cs)
+    logging.debug('Tile Extent: {}'.format(tile_extent))
 
-        ## Extent needed to select 1x1 degree tiles
-        tile_extent = output_extent.copy()
-        tile_extent.buffer_extent(0.1)
-        tile_extent.adjust_to_snap('EXPAND', tile_x, tile_y, tile_cs)
-        logging.debug('Tile Extent: {0}'.format(tile_extent))
-
-        ## Get list of avaiable tiles that intersect the extent
-        lat_lon_list.extend([
-            (lat, -lon)
-            for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
-            for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])
-    lat_lon_list = sorted(list(set(lat_lon_list)))
+    ## Get list of available tiles that intersect the extent
+    lat_lon_list = sorted(list(set([
+        (lat, -lon)
+        for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
+        for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])))
 
     ## Attempt to download the tiles
     logging.info('Downloading')
@@ -147,12 +145,6 @@ def arg_parse():
         default=os.path.join(os.getcwd(), 'dem', 'tiles'),
         help='GIS workspace/folder')
     parser.add_argument(
-        '--extent', required=True, metavar='FILE',
-        help='Study area shapefile')
-    parser.add_argument(
-        '--buffer', default=10000, metavar='FLOAT', type=float,
-        help='Extent buffer')
-    parser.add_argument(
         '-cs', '--cellsize', default=30, metavar='INT', type=int,
         choices=(10, 30), help='DEM cellsize (10 or 30m)')
     parser.add_argument(
@@ -168,8 +160,6 @@ def arg_parse():
         args.gis = os.path.abspath(args.gis)
     if args.tiles and os.path.isdir(os.path.abspath(args.tiles)):
         args.tiles = os.path.abspath(args.tiles)
-    if args.extent and os.path.isfile(os.path.abspath(args.extent)):
-        args.extent = os.path.abspath(args.extent)
     return args
  
 ################################################################################
@@ -183,5 +173,4 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, tile_ws=args.tiles,
-         extent_path=args.extent, extent_buffer=args.buffer, 
          dem_cs=args.cellsize, overwrite_flag=args.overwrite)

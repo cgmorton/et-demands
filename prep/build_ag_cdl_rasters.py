@@ -19,7 +19,7 @@ from osgeo import gdal, ogr, osr
 
 import gdal_common as gdc
 
-def main(gis_ws, block_size=16384, mask_flag=False, 
+def main(gis_ws, block_size=32768, mask_flag=False, 
          overwrite_flag=False, pyramids_flag=False, stats_flag=False,
          agland_nodata=0, agmask_nodata=0):
     """Mask CDL values for non-agricultural pixels
@@ -41,8 +41,8 @@ def main(gis_ws, block_size=16384, mask_flag=False,
 
     """
 
-    agmask_fmt = 'agmask_{0}'
-    agland_fmt = 'agland_{0}'
+    agmask_fmt = 'agmask_{}'
+    agland_fmt = 'agland_{}'
 
     cdl_ws = os.path.join(gis_ws, 'cdl')
     scratch_ws = os.path.join(gis_ws, 'scratch')  
@@ -69,20 +69,20 @@ def main(gis_ws, block_size=16384, mask_flag=False,
 
     ## Check input folders
     if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {0} '+
+        logging.error('\nERROR: The GIS workspace {} '+
                       'does not exist\n'.format(gis_ws))
         sys.exit()
     elif not os.path.isdir(cdl_ws):
-        logging.error('\nERROR: The CDL workspace {0} '+
+        logging.error('\nERROR: The CDL workspace {} '+
                       'does not exist\n'.format(cdl_ws))
         sys.exit()
     elif mask_flag and not os.path.isfile(zone_raster_path):
         logging.error(
-            ('\nERROR: The zone raster {0} does not exist\n'+
+            ('\nERROR: The zone raster {} does not exist\n'+
              '  Try re-running "clip_cdl_raster.py"').format(cdl_ws))
         sys.exit()
-    logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
-    logging.info('CDL Workspace:   {0}'.format(cdl_ws))
+    logging.info('\nGIS Workspace:   {}'.format(gis_ws))
+    logging.info('CDL Workspace:   {}'.format(cdl_ws))
     
     if pyramids_flag:
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
@@ -97,7 +97,7 @@ def main(gis_ws, block_size=16384, mask_flag=False,
         logging.info('\nReading CDL color table')
         cdl_path = os.path.join(cdl_ws, raster_name)
         if not os.path.isfile(cdl_path):
-            logging.error('\nERROR: The CDL raster {0} '+
+            logging.error('\nERROR: The CDL raster {} '+
                           'does not exist\n'.format(cdl_path))
             sys.exit()
         cdl_raster_ds = gdal.Open(cdl_path, 0)
@@ -118,12 +118,12 @@ def main(gis_ws, block_size=16384, mask_flag=False,
         del cdl_raster_ds, cdl_band, cdl_rat
 
         ## Copy the input raster to hold the ag data
-        logging.debug('{0}'.format(agland_path))
+        logging.debug('{}'.format(agland_path))
         if os.path.isfile(agland_path) and overwrite_flag:
             subprocess.call(['gdalmanage', 'delete', agland_path])
         if not os.path.isfile(agland_path):
             logging.info('Copying CDL raster')
-            logging.debug('{0}'.format(cdl_path))
+            logging.debug('{}'.format(cdl_path))
             subprocess.call(
                 ['gdal_translate', '-of', 'HFA', cdl_path, agland_path])
                 ## '-a_nodata', agland_nodata
@@ -155,7 +155,7 @@ def main(gis_ws, block_size=16384, mask_flag=False,
 
         ## Build an empty output raster to hold the ag mask
         logging.info('\nBuilding empty ag mask raster')
-        logging.debug('{0}'.format(agmask_path))
+        logging.debug('{}'.format(agmask_path))
         if os.path.isfile(agmask_path) and overwrite_flag:
             subprocess.call(['gdalmanage', 'delete', agmask_path])
         if not os.path.isfile(agmask_path):
@@ -211,19 +211,21 @@ def main(gis_ws, block_size=16384, mask_flag=False,
         if stats_flag:
             logging.info('Computing statistics')
             if os.path.isfile(agland_path):
-                logging.debug('{0}'.format(agland_path))
-                subprocess.call(['gdalinfo', '-stats', '-nomd', agland_path])
+                logging.debug('{}'.format(agland_path))
+                subprocess.call(
+                    ['gdalinfo', '-stats', '-nomd', '-noct', '-norat', agland_path])
             if os.path.isfile(agmask_path):
-                logging.debug('{0}'.format(agmask_path))
-                subprocess.call(['gdalinfo', '-stats', '-nomd', agmask_path])
+                logging.debug('{}'.format(agmask_path))
+                subprocess.call(
+                    ['gdalinfo', '-stats', '-nomd', '-noct', '-norat', agmask_path])
 
         if pyramids_flag:
             logging.info('Building pyramids')
             if os.path.isfile(agland_path):
-                logging.debug('{0}'.format(agland_path))
+                logging.debug('{}'.format(agland_path))
                 subprocess.call(['gdaladdo', '-ro', agland_path] + levels.split())
             if os.path.isfile(agmask_path):
-                logging.debug('{0}'.format(agmask_path))
+                logging.debug('{}'.format(agmask_path))
                 subprocess.call(['gdaladdo', '-ro', agmask_path] + levels.split())
 
 ################################################################################
