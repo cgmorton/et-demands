@@ -2,7 +2,7 @@
 # Name:         et_demands_spatial_cell_properties.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2015-08-12
+# Created       2015-08-13
 # Python:       2.7
 #--------------------------------
 
@@ -540,7 +540,7 @@ def main(gis_ws, latlon_flag=False,
             u_cursor.updateRow(row) 
 
     ## Calculate default values
-    logging.info('\nCalculating default values')
+    ##logging.info('\nCalculating default values')
     ##logging.info('  {0:10s}: {1}'.format(active_flag_field, active_flag_default))
     ##arcpy.CalculateField_management(
     ##    et_cells_path, active_flag_field, active_flag_default, 'PYTHON')

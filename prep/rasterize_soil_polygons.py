@@ -2,7 +2,7 @@
 # Name:         rasterize_soil_polygons.py
 # Purpose:      Convert soil polygons to raster
 # Author:       Charles Morton
-# Created       2015-08-12
+# Created       2015-08-13
 # Python:       2.7
 #--------------------------------
 

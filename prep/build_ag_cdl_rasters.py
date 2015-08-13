@@ -2,7 +2,7 @@
 # Name:         build_ag_cdl_rasters.py
 # Purpose:      Build ag land and ag mask rasters from cropland rasters
 # Author:       Charles Morton
-# Created       2015-08-12
+# Created       2015-08-13
 # Python:       2.7
 #--------------------------------
 
@@ -19,8 +19,8 @@ from osgeo import gdal, ogr, osr
 
 import gdal_common as gdc
 
-def main(gis_ws, block_size=16384, overwrite_flag=False,
-         pyramids_flag=False, stats_flag=False,
+def main(gis_ws, block_size=16384, mask_flag=False, 
+         overwrite_flag=False, pyramids_flag=False, stats_flag=False,
          agland_nodata=0, agmask_nodata=0):
     """Mask CDL values for non-agricultural pixels
 
@@ -29,6 +29,7 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
         block_size (int): Maximum block size to use for raster processing
+        mask_flag (bool): If True, mask pixels outside extent shapefile
         overwrite_flag (bool): If True, overwrite output rasters
         pyramids_flag (bool): If True, build pyramids/overviews
             for the output rasters 
@@ -44,6 +45,8 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
     agland_fmt = 'agland_{0}'
 
     cdl_ws = os.path.join(gis_ws, 'cdl')
+    scratch_ws = os.path.join(gis_ws, 'scratch')  
+    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')   
 
     ## Ag landuses are 1, all others in state are 0, outside state is nodata
     ## Crop 61 is fallow/idle and was excluded from analysis
@@ -73,6 +76,11 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
         logging.error('\nERROR: The CDL workspace {0} '+
                       'does not exist\n'.format(cdl_ws))
         sys.exit()
+    elif mask_flag and not os.path.isfile(zone_raster_path):
+        logging.error(
+            ('\nERROR: The zone raster {0} does not exist\n'+
+             '  Try re-running "clip_cdl_raster.py"').format(cdl_ws))
+        sys.exit()
     logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
     logging.info('CDL Workspace:   {0}'.format(cdl_ws))
     
@@ -97,7 +105,9 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
         cdl_rows, cdl_cols = gdc.raster_ds_shape(cdl_raster_ds)
         cdl_extent = gdc.geo_extent(cdl_geo, cdl_rows, cdl_cols)
         cdl_proj = gdc.raster_ds_proj(cdl_raster_ds)
-        cdl_cs = 30
+        ## DEADBEEF - Why is this hardcoded?
+        cdl_cellsize = 30
+        ##cdl_cellsize = gdc.raster_ds_cellsize(cdl_raster_ds)[0]
         cdl_band = cdl_raster_ds.GetRasterBand(1)
         cdl_rat = cdl_band.GetDefaultRAT()
         cdl_classname_dict = dict()
@@ -107,7 +117,7 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
         cdl_raster_ds = None
         del cdl_raster_ds, cdl_band, cdl_rat
 
-        ## Copy the input raster
+        ## Copy the input raster to hold the ag data
         logging.debug('{0}'.format(agland_path))
         if os.path.isfile(agland_path) and overwrite_flag:
             subprocess.call(['gdalmanage', 'delete', agland_path])
@@ -116,9 +126,7 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
             logging.debug('{0}'.format(cdl_path))
             subprocess.call(
                 ['gdal_translate', '-of', 'HFA', cdl_path, agland_path])
-            ## '-a_nodata', agland_nodata
-            ##subprocess.call([
-            ##    'gdaladdo', '-ro', agland_path, '2 4 8 16 32 64 128'])
+                ## '-a_nodata', agland_nodata
             
             ## Set the nodata value after copying
             ##agland_ds = gdal.Open(agland_path, 1)
@@ -145,7 +153,7 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
             agland_band.SetDefaultRAT(agland_rat)
             agland_ds = None
 
-        ## Build an empty output raster to hold the data
+        ## Build an empty output raster to hold the ag mask
         logging.info('\nBuilding empty ag mask raster')
         logging.debug('{0}'.format(agmask_path))
         if os.path.isfile(agmask_path) and overwrite_flag:
@@ -154,7 +162,7 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
             gdc.build_empty_raster(
                 agmask_path, band_cnt=1, output_dtype=np.uint8, 
                 output_nodata=agmask_nodata, output_proj=cdl_proj,
-                output_cs=cdl_cs, output_extent=cdl_extent)
+                output_cs=cdl_cellsize, output_extent=cdl_extent)
 
             ## Set the nodata value after initializing
             agmask_ds = gdal.Open(agmask_path, 1)
@@ -167,15 +175,18 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
         logging.debug('  Input cols/rows: {0}/{1}'.format(cdl_cols, cdl_rows))
         for b_i, b_j in gdc.block_gen(cdl_rows, cdl_cols, block_size):
             logging.info('  Block  y: {0:5d}  x: {1:5d}'.format(b_i, b_j))
-
             ## Read in data for block
             cdl_array = gdc.raster_to_block(
                 cdl_path, b_i, b_j, block_size,
                 fill_value=0, return_nodata=False)
-            logging.debug(cdl_array)
             cdl_mask = np.zeros(cdl_array.shape, dtype=np.bool)
             remap_mask = np.zeros(cdl_array.shape, dtype=np.bool)
-            logging.debug(cdl_mask)
+            
+            ## Mask CDL values outside extent shapefile
+            if mask_flag and os.path.isfile(zone_raster_path):
+                zone_array = gdc.raster_to_block(
+                    zone_raster_path, b_i, b_j, block_size)
+                cdl_array[zone_array == 0] = 0           
 
             ## Reclassify to 1 for ag and 0 for non-ag
             for [start, end, value] in agmask_remap:
@@ -185,20 +196,16 @@ def main(gis_ws, block_size=16384, overwrite_flag=False,
                 remap_mask |= (cdl_array >= start) & (cdl_array <= end)
             cdl_mask[remap_mask] = True
             del remap_mask
-            logging.debug(cdl_mask)
 
             ## Set non-ag areas in agmask to nodata
             cdl_mask[~cdl_mask] = agmask_nodata
-            logging.debug(cdl_mask)
 
             ## Set non-ag areas in aglands to nodata
             cdl_array[~cdl_mask] = agland_nodata
-            logging.debug(cdl_array)
 
             gdc.block_to_raster(cdl_array, agland_path, b_i, b_j, block_size)
-            gdc.block_to_raster(
-                cdl_mask.astype(np.uint8), agmask_path,
-                b_i, b_j, block_size)
+            gdc.block_to_raster(cdl_mask.astype(np.uint8), agmask_path,
+                                b_i, b_j, block_size)
             del cdl_array, cdl_mask
 
         if stats_flag:
@@ -231,6 +238,9 @@ def arg_parse():
     parser.add_argument(
         '-bs', '--blocksize', default=16384, type=int, metavar='N',
         help='Block size')
+    parser.add_argument(
+        '--mask', default=None, action='store_true', 
+        help='Mask pixels outside extent shapefile')
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing files')
@@ -267,6 +277,6 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, block_size=args.blocksize,
-         overwrite_flag=args.overwrite,
+         mask_flag=args.mask, overwrite_flag=args.overwrite,
          pyramids_flag=args.pyramids, stats_flag=args.stats,
          agland_nodata=args.agland_nodata, agmask_nodata=args.agmask_nodata)

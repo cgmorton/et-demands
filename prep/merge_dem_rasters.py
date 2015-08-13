@@ -2,7 +2,7 @@
 # Name:         merge_dem_rasters.py
 # Purpose:      Prepare NED DEM rasters
 # Author:       Charles Morton
-# Created       2015-08-12
+# Created       2015-08-13
 # Python:       2.7
 #--------------------------------
 

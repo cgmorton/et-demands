@@ -2,12 +2,13 @@
 # Name:         clip_cdl_raster.py
 # Purpose:      Clip CDL rasters in order to build agland rasters
 # Author:       Charles Morton
-# Created       2015-08-12
+# Created       2015-08-13
 # Python:       2.7
 #--------------------------------
 
 import argparse
 import datetime as dt
+import glob
 import logging
 import os
 import subprocess
@@ -17,12 +18,13 @@ from osgeo import gdal, ogr, osr
 
 import gdal_common as gdc
 
-def main(gis_ws, extent_path, extent_buffer=None,
+def main(gis_ws, cdl_year, extent_path, extent_buffer=None,
          overwrite_flag=False, pyramids_flag=False, stats_flag=False):
     """Clip CDL rasters to a target extent and rebuild color table
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
+        cdl_year (int): Cropland Data Layer year
         extent_path (str): file path to study area shapefile
         extent_buffer (float): distance to buffer input extent
             Units will be the same as the extent spatial reference
@@ -32,16 +34,23 @@ def main(gis_ws, extent_path, extent_buffer=None,
     Returns:
         None
     """
-    input_cdl_path = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\cdl\2010_30m_cdls.img'
-    ##input_cdl_path = r'D:\Projects\NLDAS_Demands\common\gis\cdl\2013_30m_cdls.img'
-    ##input_cdl_path = r'N:\Texas\ETDemands\common\gis\cdl\2013_30m_cdls.img'
-
     cdl_year = 2010
+
+    input_cdl_path = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\cdl\{}_30m_cdls.img'.format(cdl_year)
+    ##input_cdl_path = r'U:\GIS-DATA\Cropland_Data_Layer\{}_30m_cdls.img'.format(cdl_year)
+    ##input_cdl_path = r'D:\Projects\NLDAS_Demands\common\gis\cdl\{}_30m_cdls.img'.format(cdl_year)
+    ##input_cdl_path = r'N:\Texas\ETDemands\common\gis\cdl\{}_30m_cdls.img'.format(cdl_year)
+
     cdl_ws = os.path.join(gis_ws, 'cdl')
     clip_path = os.path.join(cdl_ws, '{}_30m_cdls.img'.format(cdl_year))
 
+    scratch_ws = os.path.join(gis_ws, 'scratch')
+    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
+    zone_polygon_path = os.path.join(scratch_ws, 'zone_polygon.shp')
+
     ## Reference all output rasters to CDL
     output_osr = gdc.raster_path_osr(input_cdl_path)
+    output_proj = gdc.raster_path_proj(input_cdl_path)
     output_cs = gdc.raster_path_cellsize(input_cdl_path)[0]
     output_x, output_y = gdc.raster_path_origin(input_cdl_path)
     ##output_osr = gdc.proj4_osr(
@@ -69,40 +78,67 @@ def main(gis_ws, extent_path, extent_buffer=None,
         sys.exit()
     if not os.path.isdir(cdl_ws):
         os.makedirs(cdl_ws)
-    logging.info('\nGIS Workspace:  {}'.format(gis_ws))
-    logging.info('CDL Workspace:  {}'.format(cdl_ws))
+    if not os.path.isdir(scratch_ws):
+        os.makedirs(scratch_ws)
+    logging.info('\nGIS Workspace:      {}'.format(gis_ws))
+    logging.info('CDL Workspace:      {}'.format(cdl_ws))
+    logging.info('Scratch Workspace:  {}'.format(scratch_ws))
 
     ## Overwrite
     if os.path.isfile(clip_path) or overwrite_flag:
         subprocess.call(['gdalmanage', 'delete', clip_path])
         ##remove_file(clip_path)
+    if os.path.isfile(zone_raster_path) and overwrite_flag:
+        subprocess.call(['gdalmanage', 'delete', zone_raster_path])
+    if os.path.isfile(zone_polygon_path) and overwrite_flag:
+        remove_file(zone_polygon_path)
+        ##subprocess.call(['gdalmanage', 'delete', zone_polygon_path])
 
-    ## Clip
-    if not os.path.isfile(clip_path):
-        ## Get the study area extent from a shapefile
-        clip_osr = gdc.feature_path_osr(extent_path)
-        logging.debug('Clip OSR: {}'.format(clip_osr))
-        clip_extent = gdc.path_extent(extent_path)
-        logging.debug('Clip Extent: {}'.format(clip_extent))
-        if extent_buffer is not None:
-            logging.debug('Buffering: {}'.format(extent_buffer))
-            clip_extent.buffer_extent(extent_buffer)
-            logging.debug('Clip Extent: {}'.format(clip_extent))
-            
-        ## Project study area extent to the output/CDL spatial reference
-        clip_extent = gdc.project_extent(clip_extent, clip_osr, output_osr)
-        clip_extent.adjust_to_snap('EXPAND', output_x, output_y, output_cs)
-        logging.debug('Clip Extent: {0}'.format(clip_extent))
-
-        ##gdal_translate uses ul/lr corners, not extent
-        clip_ullr = clip_extent.ul_lr_swap()
-        logging.debug('Clip UL/LR:  {0}'.format(clip_ullr))
+    ## Project extent shapefile to CDL spatial reference
+    if not os.path.isfile(zone_polygon_path):
+        ## Project study area extent to the input/CDL spatial reference
+        logging.info('Projecting extent shapefile') 
+        subprocess.call(
+            ['ogr2ogr', '-overwrite', '-preserve_fid', '-t_srs', str(output_proj),
+             zone_polygon_path, extent_path])
+             
+    ## Get the study area extent from the projected shapefile
+    clip_osr = gdc.feature_path_osr(zone_polygon_path)
+    logging.debug('Clip OSR: {}'.format(clip_osr))
+    clip_extent = gdc.path_extent(extent_path)
+    logging.debug('Clip Extent: {}'.format(clip_extent))
+    
+    ## This will buffer in the CDL spatial reference & units
+    if extent_buffer is not None:
+        logging.debug('Buffering: {}'.format(extent_buffer))
+        clip_extent.buffer_extent(extent_buffer)
+        logging.debug('Clip Extent: {}'.format(clip_extent)) 
+    clip_extent.adjust_to_snap('EXPAND', output_x, output_y, output_cs)
+    logging.debug('Clip Extent: {0}'.format(clip_extent))
+    
+    ##gdal_translate uses ul/lr corners, not extent
+    clip_ullr = clip_extent.ul_lr_swap()
+    logging.debug('Clip UL/LR:  {0}'.format(clip_ullr))
+    
+    ## Rasterize extent shapefile for masking in other scripts
+    if not os.path.isfile(zone_raster_path) and os.path.isfile(zone_polygon_path):
+        logging.info('Rasterizing shapefile')
+        subprocess.call(
+            ['gdal_rasterize', '-of', 'HFA', '-ot', 'Byte', 
+             '-burn', '1', '-init', '0', '-a_nodata', '255'] + 
+            ['-te'] + str(clip_extent).split() + 
+            ['-tr', str(output_cs), str(output_cs), 
+             zone_polygon_path, zone_raster_path])
+        ##remove_file(zonse_polygon_path)
         
+    ## Clip
+    if not os.path.isfile(clip_path):     
         subprocess.call(
             ['gdal_translate', '-of', 'HFA']+
             ['-projwin'] + str(clip_ullr).split() +
             ['-a_ullr'] + str(clip_ullr).split() + 
             [input_cdl_path, clip_path])
+        ## , '-a_srs', 'output_proj'
         ##subprocess.call(
         ##    ['gdalwarp', '-overwrite', '-of', 'HFA']+
         ##    ['-te'] + str(clip_extent).split() +
@@ -120,7 +156,7 @@ def main(gis_ws, extent_path, extent_buffer=None,
                 row_i, input_rat.GetColOfUsage(2))
         input_ds = None
         del input_ds, input_band, input_rat
-
+    
         ## Set class names in the clipped CDL raster
         logging.info('Write RAT',)
         clip_ds = gdal.Open(clip_path, 1)
@@ -148,7 +184,8 @@ def main(gis_ws, extent_path, extent_buffer=None,
     if stats_flag and os.path.isfile(clip_path):
         logging.info('Computing statistics')
         logging.debug('  {0}'.format(clip_path))
-        subprocess.call(['gdalinfo', '-stats', '-nomd', clip_path])
+        subprocess.call(
+            ['gdalinfo', '-stats', '-nomd', '-noct', '-norat', clip_path])
 
     ## Pyramids
     if pyramids_flag and os.path.isfile(clip_path):
@@ -158,6 +195,12 @@ def main(gis_ws, extent_path, extent_buffer=None,
 
 ################################################################################
 
+def remove_file(file_path):
+    """Remove a feature/raster and all of its anciallary files"""
+    file_ws = os.path.dirname(file_path)
+    for file_name in glob.glob(os.path.splitext(file_path)[0]+".*"):
+        os.remove(os.path.join(file_ws, file_name))
+
 def arg_parse():
     parser = argparse.ArgumentParser(
         description='Clip CDL Rasters',
@@ -166,13 +209,17 @@ def arg_parse():
         '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
         help='GIS workspace/folder')
     parser.add_argument(
+        '--year', default=2010, metavar='INT', type=int,
+        choices=(2010, 2011, 2012, 2013, 2014),
+        help='Extent buffer')
+    parser.add_argument(
         '--extent', required=True, metavar='FILE',
         help='Study area shapefile')
     parser.add_argument(
         '--buffer', default=None, metavar='FLOAT', type=float,
         help='Extent buffer')
     parser.add_argument(
-        '--overwrite', default=None, action='store_true',
+        '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing files')
     parser.add_argument(
         '--pyramids', default=None, action='store_true',
@@ -202,6 +249,7 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, extent_path=args.extent, extent_buffer=args.buffer, 
+    main(gis_ws=args.gis, cdl_year=args.year,
+         extent_path=args.extent, extent_buffer=args.buffer, 
          overwrite_flag=args.overwrite, pyramids_flag=args.pyramids,
          stats_flag=args.stats)

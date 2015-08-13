@@ -2,7 +2,7 @@
 # Name:         download_dem_rasters.py
 # Purpose:      Download NED tiles
 # Author:       Charles Morton
-# Created       2015-08-12
+# Created       2015-08-13
 # Python:       2.7
 #--------------------------------
 

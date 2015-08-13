@@ -2,7 +2,7 @@
 # Name:         build_ag_dem_rasters.py
 # Purpose:      Extract DEM data for ag CDL pixels
 # Author:       Charles Morton
-# Created       2015-08-12
+# Created       2015-08-13
 # Python:       2.7
 #--------------------------------
 
@@ -21,8 +21,8 @@ import gdal_common as gdc
 
 ################################################################################
 
-def main(gis_ws, block_size=32768, overwrite_flag=False,
-         pyramids_flag=False, stats_flag=False):
+def main(gis_ws, block_size=32768, mask_flag=False, 
+         overwrite_flag=False, pyramids_flag=False, stats_flag=False):
     """Mask DEM values for non-agricultural pixels
 
     Use CDL derived agmask (in CDL workspace) to define agricultural pixels
@@ -30,6 +30,7 @@ def main(gis_ws, block_size=32768, overwrite_flag=False,
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
         block_size (int): Maximum block size to use for raster processing
+        mask_flag (bool): If True, mask pixels outside extent shapefile
         overwrite_flag (bool): If True, overwrite existing files
         pyramids_flag (bool): If True, build pyramids/overviews
             for the output rasters 
@@ -42,6 +43,8 @@ def main(gis_ws, block_size=32768, overwrite_flag=False,
 
     dem_ws = os.path.join(gis_ws, 'dem')
     cdl_ws = os.path.join(gis_ws, 'cdl')
+    scratch_ws = os.path.join(gis_ws, 'scratch')  
+    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')         
 
     agland_path = os.path.join(cdl_ws, 'agland_2010_30m_cdls.img')
     agmask_path = os.path.join(cdl_ws, 'agmask_2010_30m_cdls.img')
@@ -58,6 +61,11 @@ def main(gis_ws, block_size=32768, overwrite_flag=False,
     elif not os.path.isdir(dem_ws):
         logging.error('\nERROR: The DEM workspace {0} '+
                       'does not exist\n'.format(dem_ws))
+        sys.exit()
+    elif mask_flag and not os.path.isfile(zone_raster_path):
+        logging.error(
+            ('\nERROR: The zone raster {0} does not exist\n'+
+             '  Try re-running "clip_cdl_raster.py"').format(cdl_ws))
         sys.exit()
     logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
     logging.info('CDL Workspace:   {0}'.format(cdl_ws))
@@ -94,12 +102,17 @@ def main(gis_ws, block_size=32768, overwrite_flag=False,
         input_cols, input_rows))
     for b_i, b_j in gdc.block_gen(input_rows, input_cols, block_size):
         logging.debug('  Block  y: {0:5d}  x: {1:5d}'.format(b_i, b_j))
-
         ## Read in data for block
         agmask_array = gdc.raster_to_block(
             agmask_path, b_i, b_j, block_size, return_nodata=False)
         dem_array, dem_nodata = gdc.raster_to_block(
             input_dem_path, b_i, b_j, block_size, return_nodata=True)
+                        
+        ## Mask CDL values outside extent shapefile
+        if mask_flag and os.path.isfile(zone_raster_path):
+            zone_array = gdc.raster_to_block(
+                zone_raster_path, b_i, b_j, block_size)
+            dem_array[zone_array == 0] = dem_nodata           
 
         ## Set dem values for non-ag pixels to nodata
         dem_array[~agmask_array.astype(np.bool)] = dem_nodata
@@ -130,6 +143,9 @@ def arg_parse():
         '-bs', '--blocksize', default=32768, type=int, metavar='N',
         help='Block size')
     parser.add_argument(
+        '--mask', default=None, action='store_true', 
+        help='Mask pixels outside extent shapefile')
+    parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true', 
         help='Overwrite existing file')
     parser.add_argument(
@@ -158,6 +174,6 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis,
-         block_size=args.blocksize, overwrite_flag=args.overwrite,
+    main(gis_ws=args.gis, block_size=args.blocksize, 
+         mask_flag=args.mask, overwrite_flag=args.overwrite,
          pyramids_flag=args.pyramids, stats_flag=args.stats)
