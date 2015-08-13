@@ -43,11 +43,9 @@ def main(gis_ws, study_area_path, study_area_buffer=None, cdl_year=2010,
     ##input_cdl_path = r'D:\Projects\NLDAS_Demands\common\gis\cdl\{}_30m_cdls.img'.format(cdl_year)
     ##input_cdl_path = r'N:\Texas\ETDemands\common\gis\cdl\{}_30m_cdls.img'.format(cdl_year)
 
-    cdl_ws = os.path.join(gis_ws, 'cdl')
-    clip_path = os.path.join(cdl_ws, '{}_30m_cdls.img'.format(cdl_year))
-
     scratch_ws = os.path.join(gis_ws, 'scratch')
     zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
+    zone_polygon_path = os.path.join(scratch_ws, 'zone_polygon.shp')
 
     ## Reference all output rasters to CDL
     output_osr = gdc.raster_path_osr(input_cdl_path)
@@ -77,12 +75,9 @@ def main(gis_ws, study_area_path, study_area_buffer=None, cdl_year=2010,
             ('\nERROR: The extent shapefile {} '+
              'does not exist').format(study_area_path))
         sys.exit()
-    if not os.path.isdir(cdl_ws):
-        os.makedirs(cdl_ws)
     if not os.path.isdir(scratch_ws):
         os.makedirs(scratch_ws)
     logging.info('\nGIS Workspace:      {}'.format(gis_ws))
-    logging.info('CDL Workspace:      {}'.format(cdl_ws))
     logging.info('Scratch Workspace:  {}'.format(scratch_ws))
 
     ## Overwrite
@@ -132,7 +127,7 @@ def main(gis_ws, study_area_path, study_area_buffer=None, cdl_year=2010,
         logging.info('Computing statistics')
         logging.debug('  {}'.format(zone_raster_path))
         subprocess.call(
-            ['gdalinfo', '-stats', '-nomd', '-noct', '-norat', clip_path])
+            ['gdalinfo', '-stats', '-nomd', '-noct', '-norat', zone_raster_path])
 
     ## Pyramids
     if pyramids_flag and os.path.isfile(zone_raster_path):

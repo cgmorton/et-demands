@@ -6,7 +6,7 @@ Study Area
     Convert the study area shapefile to a raster that all other scripts will reference
     Make sure to set/adjust the extent path and buffer arguments
     The buffer units are the same as the CDL raster (meters)
-        python bin\build_study_area_raster.py --extent huc8\wbdhu8_albers.shp --buffer 300 -o --stats
+        python ..\..\et-demands\prep\build_study_area_raster.py -shp huc8\wbdhu8_albers.shp --buffer 300 -o --stats
 
 CDL
     Clip the CDL raster on the network drive to the study area extent
