@@ -1,5 +1,5 @@
 #--------------------------------
-# Name:         et_demands_spatial_cell_properties.py
+# Name:         et_demands_zonal_stats.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
 # Created       2015-08-13
@@ -16,22 +16,22 @@ import sys
 
 import arcpy
 
-def main(gis_ws, latlon_flag=False,
+def main(gis_ws, cdl_year=2010, huc=8, latlon_flag=False,
          overwrite_flag=False, cleanup_flag=False):
     """Calculate zonal statistics needed to run ET-Demands model
 
     Args:
-        gis_ws: Folder/workspace path of the GIS data for the project
+        gis_ws (str): Folder/workspace path of the GIS data for the project
+        cdl_year (int): Cropland Data Layer year
+        huc_level (int): HUC level
         lat_lon_flag (bool): If True, calculate lat/lon values for each cell
         overwrite_flag (bool): If True, overwrite existing files
-        cleanup_flag (bool): 
+        cleanup_flag (bool): If True, remove temporary files
+
     Returns:
         None
     """
     logging.info('\nCalculating ET-Demands Zonal Stats')
-
-    ##
-    cdl_year = 2010
 
     zone_path = os.path.join(gis_ws, 'huc8', 'wbdhu8_albers.shp')
     zone_field = 'HUC8'
@@ -45,11 +45,6 @@ def main(gis_ws, latlon_flag=False,
     ##    gis_ws, 'counties', 'county_nrcs_a_mbr_albers.shp')
     ##zone_field = 'FIPS_I'
     ##zone_field = 'COUNTYNAME'
-    
-    table_fmt = '{0}_huc8.dbf'
-    ##table_fmt = '{0}_nldas4km.dbf'
-    ##table_fmt = '{0}_nldas12km.dbf'
-    ##table_fmt = '{0}_county.dbf'
 
     cell_name_fmt = 'HUC8 '
     ##cell_name_fmt = 'NLDAS 4km '
@@ -57,21 +52,22 @@ def main(gis_ws, latlon_flag=False,
     ##cell_name_fmt = 'NLDAS_4km_{0}'
 
     gdb_flag = False
-
     if gdb_flag:
-        gdb_path = r'D:\Projects\CAT_Basins\AltusOK\et-demands_py\et_demands.gdb'
-        ##et_cells_path = os.path.join(gdb_path, 'et_cells')
+        gdb_path = os.path.join(os.path.dirname(gis_ws), 'et-demands_py\et_demands.gdb')
+        ##gdb_path = r'D:\Projects\CAT_Basins\AltusOK\et-demands_py\et_demands.gdb'
+        et_cells_path = os.path.join(gdb_path, 'et_cells')
     else:
         et_cells_path = os.path.join(gis_ws, 'ETCells.shp')
 
     cdl_ws = os.path.join(gis_ws, 'cdl')
     dem_ws = os.path.join(gis_ws, 'dem')
     soil_ws = os.path.join(gis_ws, 'statsgo')
-    huc8_ws = os.path.join(gis_ws, 'huc8')
+    huc_ws = os.path.join(gis_ws, 'huc{}'.format(huc))
 
     agland_path = os.path.join(cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
     agmask_path = os.path.join(cdl_ws, 'agmask_{}_30m_cdls.img'.format(cdl_year))
-    huc8_path = os.path.join(huc8_ws, 'wbdhu8_albers.shp')
+    huc_path = os.path.join(huc_ws, 'wbdhu{}_albers.shp'.format(huc))
+    table_fmt = 'zone_{0}.dbf'
 
     ## Field names
     lat_field = 'LAT'
@@ -80,7 +76,7 @@ def main(gis_ws, latlon_flag=False,
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     station_id_field = 'STATION_ID'
-    huc8_field = 'HUC8'
+    huc_field = 'HUC{}'.format(huc)
     ##active_flag_field = 'ACTIVE_FLAG'
     ##irrig_flag_field = 'IRRIGATION_FLAG' 
 
@@ -246,15 +242,15 @@ def main(gis_ws, latlon_flag=False,
         logging.error('\nERROR: The soil workspace {0} '+
                       'does not exist\n'.format(soil_ws))
         sys.exit()
-    elif not os.path.isdir(huc8_ws):
-        logging.error('\nERROR: The HUC8 workspace {0} '+
-                      'does not exist\n'.format(huc8_ws))
+    elif not os.path.isdir(huc_ws):
+        logging.error('\nERROR: The HUC workspace {0} '+
+                      'does not exist\n'.format(huc_ws))
         sys.exit()
     logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
     logging.info('CDL Workspace:   {0}'.format(cdl_ws))
     logging.info('DEM Workspace:   {0}'.format(dem_ws))
     logging.info('Soil Workspace:  {0}'.format(soil_ws))
-    logging.info('HUC8 Workspace:  {0}'.format(huc8_ws))
+    logging.info('HUC Workspace:   {0}'.format(huc_ws))
 
     ## Check input files
     if not os.path.isfile(snap_raster):
@@ -269,9 +265,9 @@ def main(gis_ws, latlon_flag=False,
         logging.error('\nERROR: The agmask raster {0} '+
                       'does not exist\n'.format(agland_path))
         raise SystemExit()
-    elif not os.path.isfile(huc8_path):
-        logging.error('\nERROR: The HUC8 shapefile {0} '+
-                      'does not exist\n'.format(huc8_path))
+    elif not os.path.isfile(huc_path):
+        logging.error('\nERROR: The HUC shapefile {0} '+
+                      'does not exist\n'.format(huc_path))
         raise SystemExit()
     
     ##
@@ -336,11 +332,11 @@ def main(gis_ws, latlon_flag=False,
     if overwrite_flag and arcpy.Exists(et_cells_path):
         arcpy.Delete_management(et_cells_path)
     if not arcpy.Exists(et_cells_path):
-        ## Join the input shapefile to the HUC8 and read in the matches
+        ## Join the input shapefile to the HUC and read in the matches
         zone_field_list = [f.name for f in arcpy.ListFields(zone_path)]
-        zone_field_list.append(huc8_field)
+        zone_field_list.append(huc_field)
         ##zone_field_list.append('OBJECTID_1')
-        arcpy.SpatialJoin_analysis(zone_path, huc8_path, et_cells_path)
+        arcpy.SpatialJoin_analysis(zone_path, huc_path, et_cells_path)
         delete_field_list = [f.name for f in arcpy.ListFields(et_cells_path)
                              if f.name not in zone_field_list]
         logging.info('Deleting Fields')
@@ -379,9 +375,9 @@ def main(gis_ws, latlon_flag=False,
     if station_id_field not in field_list:
         logging.debug('  {0}'.format(station_id_field))
         arcpy.AddField_management(et_cells_path, station_id_field, 'LONG')
-    if huc8_field not in field_list:
-        logging.debug('  {0}'.format(huc8_field))
-        arcpy.AddField_management(et_cells_path, huc8_field, 'TEXT', '', '', 8)
+    if huc_field not in field_list:
+        logging.debug('  {0}'.format(huc_field))
+        arcpy.AddField_management(et_cells_path, huc_field, 'TEXT', '', '', 8)
 
     ## Status flags
     ##if active_flag_field not in field_list:
@@ -651,20 +647,26 @@ def cell_lat_lon_func(hru_param_path, lat_field, lon_field, gcs_sr):
 
 def arg_parse():
     parser = argparse.ArgumentParser(
-        description='ET-Demands Spatial Zonal Stats',
+        description='ET-Demands Zonal Stats',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
         help='GIS workspace/folder')
+    parser.add_argument(
+        '--year', default=2010, metavar='INT', type=int,
+        choices=(2010, 2011, 2012, 2013, 2014), help='CDL year')
+    parser.add_argument(
+        '--huc', default=8, metavar='INT', type=int,
+        choices=(8, 10), help='HUC level')
+    parser.add_argument(
+        '-ll', '--latlon', default=None, action='store_true',
+        help='Calculate lat/lon')
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing file')
     parser.add_argument(
         '--clean', default=None, action='store_true',
         help='Remove temporary datasets')
-    parser.add_argument(
-        '-ll', '--latlon', default=None, action='store_true',
-        help='Calculate lat/lon')
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
@@ -685,5 +687,6 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, latlon_flag=args.latlon,
+    main(gis_ws=args.gis, cdl_year=args.year,
+         huc=args.huc, latlon_flag=args.latlon,
          overwrite_flag=args.overwrite, cleanup_flag=args.clean)

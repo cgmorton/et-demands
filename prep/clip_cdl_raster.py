@@ -169,8 +169,7 @@ def arg_parse():
         help='GIS workspace/folder')
     parser.add_argument(
         '--year', default=2010, metavar='INT', type=int,
-        choices=(2010, 2011, 2012, 2013, 2014),
-        help='Extent buffer')
+        choices=(2010, 2011, 2012, 2013, 2014), help='CDL year')
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing files')

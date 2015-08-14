@@ -31,4 +31,4 @@ Soils
         python ..\..\et-demands\prep\build_ag_soils_rasters.py -o
 
 Zonal stats currently uses ArcPy/ArcGIS, this could be changed to GDAL 
-    python ..\..\et-demands\prep\et_demands_zonal_stats.py --mask -o --stats
+    python ..\..\et-demands\prep\et_demands_zonal_stats.py -o
