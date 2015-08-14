@@ -2,7 +2,7 @@
 # Name:         merge_dem_rasters.py
 # Purpose:      Prepare NED DEM rasters
 # Author:       Charles Morton
-# Created       2015-08-13
+# Created       2015-08-14
 # Python:       2.7
 #--------------------------------
 
@@ -144,7 +144,8 @@ pyramids_flag=False, stats_flag=False):
                 shell=True)
             subprocess.call(
                 ['gdal_merge.py', '-o', dem_gcs_path, '-of', 'HFA',
-                 '-co', 'COMPRESSED=YES', '-a_nodata', str(f32_nodata)] + input_path_list,
+                 '-co', 'COMPRESSED=YES', '-a_nodata',
+                 str(f32_nodata)] + input_path_list,
                 shell=True)
 
     ## Convert DEM from meters to feet

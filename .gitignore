@@ -3,4 +3,8 @@ __pycache__/
 *.py[cod]
 
 # CropET output folder/files
-example/cet/
+example
+example/cet
+example/cet_test
+
+todo.txt

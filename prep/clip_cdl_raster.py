@@ -93,7 +93,7 @@ def main(gis_ws, cdl_year=2010, overwrite_flag=False,
     ## Clip
     if not os.path.isfile(clip_path):     
         subprocess.call(
-            ['gdal_translate', '-of', 'HFA']+
+            ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES']+
             ['-projwin'] + str(output_ullr).split() +
             ['-a_ullr'] + str(output_ullr).split() + 
             [input_cdl_path, clip_path])

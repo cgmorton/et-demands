@@ -2,7 +2,7 @@
 # Name:         build_ag_soil_rasters.py
 # Purpose:      Extract soils data for ag CDL pixels
 # Author:       Charles Morton
-# Created       2015-08-13
+# Created       2015-08-14
 # Python:       2.7
 #--------------------------------
 
@@ -100,7 +100,7 @@ def main(gis_ws, prop_list=['all'], block_size=32768, mask_flag=False,
             logging.info('\nCopying soil raster')
             logging.debug('{}'.format(input_soil_path))
             subprocess.call(
-                ['gdal_translate', '-of', 'HFA',
+                ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES',
                  input_soil_path, output_soil_path])
 
         ## Get the size of the input raster

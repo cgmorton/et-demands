@@ -2,7 +2,7 @@
 # Name:         build_ag_dem_rasters.py
 # Purpose:      Extract DEM data for ag CDL pixels
 # Author:       Charles Morton
-# Created       2015-08-13
+# Created       2015-08-14
 # Python:       2.7
 #--------------------------------
 
@@ -93,7 +93,7 @@ def main(gis_ws, block_size=32768, mask_flag=False,
         logging.info('\nCopying DEM raster')
         logging.debug('{}'.format(input_dem_path))
         subprocess.call(
-            ['gdal_translate', '-of', 'HFA',
+            ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES',
              input_dem_path, output_dem_path])
 
     ## Set non-ag areas to nodata value

@@ -2,7 +2,7 @@
 # Name:         build_ag_cdl_rasters.py
 # Purpose:      Build ag land and ag mask rasters from cropland rasters
 # Author:       Charles Morton
-# Created       2015-08-13
+# Created       2015-08-14
 # Python:       2.7
 #--------------------------------
 
@@ -125,14 +125,15 @@ def main(gis_ws, block_size=32768, mask_flag=False,
             logging.info('Copying CDL raster')
             logging.debug('{}'.format(cdl_path))
             subprocess.call(
-                ['gdal_translate', '-of', 'HFA', cdl_path, agland_path])
+                ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES',
+                 cdl_path, agland_path])
                 ## '-a_nodata', agland_nodata
             
             ## Set the nodata value after copying
-            ##agland_ds = gdal.Open(agland_path, 1)
-            ##agland_band = agland_ds.GetRasterBand(1)
-            ##agland_band.SetNoDataValue(agland_nodata)
-            ##agland_ds = None
+            agland_ds = gdal.Open(agland_path, 1)
+            agland_band = agland_ds.GetRasterBand(1)
+            agland_band.SetNoDataValue(agland_nodata)
+            agland_ds = None
 
             ## Get the colormap from the input CDL raster
             logging.debug('Re-building raster attribute tables')
