@@ -16,7 +16,7 @@ import sys
 
 import arcpy
 
-def main(gis_ws, cdl_year=2010, huc=8, latlon_flag=False,
+def main(gis_ws, cdl_year=2010, huc=8, 
          overwrite_flag=False, cleanup_flag=False):
     """Calculate zonal statistics needed to run ET-Demands model
 
@@ -24,7 +24,6 @@ def main(gis_ws, cdl_year=2010, huc=8, latlon_flag=False,
         gis_ws (str): Folder/workspace path of the GIS data for the project
         cdl_year (int): Cropland Data Layer year
         huc_level (int): HUC level
-        lat_lon_flag (bool): If True, calculate lat/lon values for each cell
         overwrite_flag (bool): If True, overwrite existing files
         cleanup_flag (bool): If True, remove temporary files
 
@@ -429,9 +428,8 @@ def main(gis_ws, cdl_year=2010, huc=8, latlon_flag=False,
 
 
     ## Calculate lat/lon
-    if latlon_flag:
-        logging.info('Calculating lat/lon')
-        cell_lat_lon_func(et_cells_path, 'LAT', 'LON', output_sr.GCS)
+    logging.info('Calculating lat/lon')
+    cell_lat_lon_func(et_cells_path, 'LAT', 'LON', output_sr.GCS)
 
     ## Set CELL_ID and STATION_ID to NLDAS_ID
     arcpy.CalculateField_management(
@@ -659,9 +657,6 @@ def arg_parse():
         '--huc', default=8, metavar='INT', type=int,
         choices=(8, 10), help='HUC level')
     parser.add_argument(
-        '-ll', '--latlon', default=None, action='store_true',
-        help='Calculate lat/lon')
-    parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing file')
     parser.add_argument(
@@ -687,6 +682,5 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, cdl_year=args.year,
-         huc=args.huc, latlon_flag=args.latlon,
+    main(gis_ws=args.gis, cdl_year=args.year, huc=args.huc, 
          overwrite_flag=args.overwrite, cleanup_flag=args.clean)
