@@ -216,12 +216,13 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
                     ('    Cell_ID {} was not found in the '+
                      'station data').format(cell_id))
                 station_id, lat, lon, elev = '', '', '', ''
+            ## There is an extra/unused column in the template and excel files
             output_list = [
                 cell_id, cell_data[cell_name_field],
                 station_id, lat, lon, elev, permeability, 
                 '{:.4f}'.format(cell_data[awc_in_ft_field]), soil_depth,
                 cell_data[hydgrp_field], cell_data[hydgrp_num_field],
-                aridity]
+                aridity, '']
             output_f.write('\t'.join(map(str, output_list)) + '\n')
             del output_list
             del station_id, lat, lon, elev
