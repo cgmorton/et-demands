@@ -17,7 +17,7 @@ import sys
 
 import arcpy
 
-def main(gis_ws, area_threshold=1, dairy=5, beef=4,
+def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
          overwrite_flag=False, cleanup_flag=False):
     """Build static text files needed to run ET-Demands model
 
@@ -26,6 +26,7 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
         area_threshold (float): CDL area threshold [acres]
         dairy (int): Initial number of dairy hay cuttings
         beef (int): Initial number of beef hay cuttings
+        huc (int): HUC level
         lat_lon_flag (bool): If True, calculate lat/lon values for each cell
         overwrite_flag (bool): If True, overwrite existing files
         cleanup_flag (bool): If True, remove temporary files
@@ -42,7 +43,7 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
     irrigation = 1
     crops = 85
 
-    ## Read data from geodatabase
+    ## Read data from geodatabase or shapefile
     ## This would need to have been set True in the zonal stats scripts
     gdb_flag = False
     if gdb_flag:
@@ -53,12 +54,22 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
         et_cells_path = os.path.join(gis_ws, 'ETCells.shp')
 
     ## Eventually set these from the INI file?
+    station_ws = os.path.join(gis_ws, 'stations')
     project_ws = os.path.dirname(gis_ws)
     demands_ws = os.path.join(project_ws, 'et_demands_py')
 
     ## Sub folder names
     static_ws = os.path.join(demands_ws, 'static')
     pmdata_w = os.path.join(demands_ws, 'pmdata')
+
+    ## Weather station shapefile
+    ## Generate by selecting the target NLDAS 4km cell intersecting each HUC
+    station_path = os.path.join(station_ws, 'nldas_4km_dd_pts_cat_basins.shp')
+    station_id_field = 'NLDAS_ID'
+    station_zone_field = 'HUC{}'.format(huc)
+    station_lat_field = 'LAT'
+    station_lon_field = 'LON'
+    station_elev_field = 'ELEV'
 
     ## Hardcode template workspace for now
     template_ws = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\et-demands\static'
@@ -73,20 +84,19 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
                    cell_crops_name, cell_cuttings_name]
 
     ## Field names
-    lat_field = 'LAT'
-    lon_field = 'LON'
-    elev_field = 'ELEV'
+    cell_lat_field = 'LAT'
+    cell_lon_field = 'LON'
+    cell_elev_field = 'ELEV'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
-    station_id_field = 'STATION_ID'
-    huc_field = 'HUC{}'.format(huc)
-
     awc_field = 'AWC'
     clay_field = 'CLAY'
     sand_field = 'SAND'
     awc_in_ft_field = 'AWC_IN_FT'
     hydgrp_num_field = 'HYDGRP_NUM'
     hydgrp_field = 'HYDGRP'
+    ##station_id_field = 'STATION_ID'
+    ##huc_field = 'HUC{}'.format(huc)
     ##permeability_field = 'PERMEABILITY' 
     ##soil_depth_field = 'SOIL_DEPTH' 
     ##aridity_field = 'ARIDITY'
@@ -97,6 +107,10 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
     if not os.path.isdir(gis_ws):
         logging.error('\nERROR: The GIS workspace {0} '+
                       'does not exist\n'.format(gis_ws))
+        sys.exit()
+    if not os.path.isdir(station_ws):
+        logging.error('\nERROR: The station workspace {0} '+
+                      'does not exist\n'.format(station_ws))
         sys.exit()
     elif not os.path.isdir(project_ws):
         logging.error('\nERROR: The project workspace {0} '+
@@ -111,6 +125,7 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
     ##if not os.path.isdir(pmdata_ws):
     ##    os.makedirs(pmdata_ws)
     logging.info('\nGIS Workspace:      {0}'.format(gis_ws))
+    logging.debug('Station Workspace:  {0}'.format(station_ws))
     logging.info('Project Workspace:  {0}'.format(project_ws))
     logging.info('Demands Workspace:  {0}'.format(demands_ws))
     logging.info('Static Workspace:   {0}'.format(static_ws))
@@ -120,6 +135,10 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
     if not arcpy.Exists(et_cells_path):
         logging.error('\nERROR: The ET Cell shapefile {} '+
                       'does not exist\n'.format(et_cells_path))
+        sys.exit()
+    elif not arcpy.Exists(station_path):
+        logging.error('\nERROR: The station shapefile {} '+
+                      'does not exist\n'.format(station_path))
         sys.exit()
     for static_name in static_list:
         if not os.path.isfile(os.path.join(template_ws, static_name)):
@@ -132,11 +151,38 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
     if not os.path.isdir(static_ws):
         os.makedirs(static_ws)
 
-    ##
-    ##arcpy.CheckOutExtension('Spatial')
-    ##arcpy.env.pyramid = 'NONE 0'
-    ##arcpy.env.overwriteOutput = overwrite_flag
-    ##arcpy.env.parallelProcessingFactor = 8
+
+    logging.info('\nReading station shapefile')
+    logging.debug('  {}'.format(station_path))
+    fields = [station_zone_field, station_id_field, station_elev_field,
+              station_lat_field, station_lon_field]
+    logging.debug('  Fields: {}'.format(fields))
+    station_data_dict = defaultdict(dict)
+    with arcpy.da.SearchCursor(station_path, fields) as s_cursor:
+        for row in s_cursor:
+            for field in fields[1:]:
+                ## Key/match on strings even if ID is an integer
+                station_data_dict[str(row[0])][field] = row[fields.index(field)]
+    for k,v in station_data_dict.iteritems():
+        logging.debug('  {0}: {1}'.format(k, v))
+
+    logging.info('\nReading ET Cell Zonal Stats')
+    logging.debug('  {}'.format(et_cells_path))
+    crop_field_list = sorted([
+        f.name for f in arcpy.ListFields(et_cells_path)
+        if re.match('CROP_\d{2}', f.name)])
+    fields = [cell_id_field, cell_name_field, cell_lat_field,
+              awc_in_ft_field, clay_field, sand_field,
+              hydgrp_num_field, hydgrp_field]
+    fields = fields + crop_field_list
+    logging.debug('  Fields: {}'.format(fields))
+    cell_data_dict = defaultdict(dict)
+    with arcpy.da.SearchCursor(et_cells_path, fields) as s_cursor:
+        for row in s_cursor:
+            for field in fields[1:]:
+                ## Key/match on strings even if ID is an integer
+                cell_data_dict[str(row[0])][field] = row[fields.index(field)]
+
 
     logging.info('\nCopying template static files')
     for static_name in static_list:
@@ -148,22 +194,6 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
         ##    os.path.join(template_ws, static_name),
         ##    os.path.join(static_ws, crop_params_name))
 
-    logging.info('\nReading ET Cell Zonal Stats')
-    logging.debug('  {}'.format(et_cells_path))
-    crop_field_list = sorted([
-        f.name for f in arcpy.ListFields(et_cells_path)
-        if re.match('CROP_\d{2}', f.name)])
-    fields = [cell_id_field, cell_name_field, lat_field,
-              awc_in_ft_field, clay_field, sand_field,
-              hydgrp_num_field, hydgrp_field]
-    fields = fields + crop_field_list
-    logging.debug('  Fields: {}'.format(fields))
-    data_dict = defaultdict(dict)
-    with arcpy.da.SearchCursor(et_cells_path, fields) as s_cursor:
-        for row in s_cursor:
-            for field in fields[1:]:
-                data_dict[row[0]][field] = row[fields.index(field)]
-
     logging.info('\nWriting static text files')
     cell_props_path = os.path.join(static_ws, cell_props_name)
     cell_crops_path = os.path.join(static_ws, cell_crops_name)
@@ -172,22 +202,43 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
     crop_coefs_path = os.path.join(static_ws, crop_coefs_name)
 
     ## Write cell properties
-    logging.info('  {}'.format(cell_props_path))
+    logging.debug('  {}'.format(cell_props_path))
     with open(cell_props_path, 'a') as output_f:
-        for cell_id, cell_data in sorted(data_dict.iteritems()):
+        for cell_id, cell_data in sorted(cell_data_dict.iteritems()):
+            if cell_id in station_data_dict.keys():
+                station_data = station_data_dict[cell_id]
+                station_id = station_data[station_id_field]
+                lat = '{:>9.4f}'.format(station_data[station_lat_field])
+                lon = '{:>9.4f}'.format(station_data[station_lon_field])
+                elev = '{:.2f}'.format(station_data[station_elev_field])
+            else:
+                logging.debug(
+                    ('    Cell_ID {} was not found in the '+
+                     'station data').format(cell_id))
+                station_id, lat, lon, elev = '', '', '', ''
             output_list = [
-                cell_id, cell_data[cell_name_field], '', '', '', '',
-                permeability, cell_data[awc_in_ft_field], soil_depth,
+                cell_id, cell_data[cell_name_field],
+                station_id, lat, lon, elev, permeability, 
+                '{:.4f}'.format(cell_data[awc_in_ft_field]), soil_depth,
                 cell_data[hydgrp_field], cell_data[hydgrp_num_field],
                 aridity]
             output_f.write('\t'.join(map(str, output_list)) + '\n')
             del output_list
+            del station_id, lat, lon, elev
 
     ## Write cell crops
-    logging.info('  {}'.format(cell_crops_path))
+    logging.debug('  {}'.format(cell_crops_path))
     with open(cell_crops_path, 'a') as output_f:
-        for cell_id, cell_data in sorted(data_dict.iteritems()):
-            output_list = [cell_id, cell_data[cell_name_field], '', irrigation]
+        for cell_id, cell_data in sorted(cell_data_dict.iteritems()):
+            if cell_id in station_data_dict.keys():
+                station_id = station_data_dict[cell_id][station_id_field]
+            else:
+                logging.debug(
+                    ('    Cell_ID {} was not found in the '+
+                     'station data').format(cell_id))
+                station_id = ''
+            output_list = [
+                cell_id, cell_data[cell_name_field], station_id, irrigation]
             crop_list = ['CROP_{:02d}'.format(i) for i in range(1,crops+1)]
             crop_area_list = [
                 cell_data[crop] if crop in cell_data.keys() else 0
@@ -199,11 +250,12 @@ def main(gis_ws, area_threshold=1, dairy=5, beef=4,
             del crop_list, crop_area_list, crop_flag_list, output_list
 
     ## Write cell cuttings
-    logging.info('  {}'.format(cell_cuttings_path))
+    logging.debug('  {}'.format(cell_cuttings_path))
     with open(cell_cuttings_path, 'a') as output_f:
-        for cell_id, cell_data in sorted(data_dict.iteritems()):
+        for cell_id, cell_data in sorted(cell_data_dict.iteritems()):
             output_list = [
-                cell_id, cell_data[cell_name_field], cell_data[lat_field],
+                cell_id, cell_data[cell_name_field],
+                '{:>9.4f}'.format(cell_data[cell_lat_field]),
                 dairy_cuttings, beef_cuttings, 0, 0]
             output_f.write('\t'.join(map(str, output_list)) + '\n')
             del output_list
@@ -218,7 +270,7 @@ def arg_parse():
         '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
         help='GIS workspace/folder')
     parser.add_argument(
-        '--acres', default=1, type=float, 
+        '--acres', default=10, type=float, 
         help='Crop area threshold')
     parser.add_argument(
         '--dairy', default=5, type=int, 
@@ -226,6 +278,9 @@ def arg_parse():
     parser.add_argument(
         '--beef', default=4, type=int, 
         help='Number of beef hay cuttings')
+    parser.add_argument(
+        '--huc', default=8, metavar='INT', type=int,
+        choices=(8, 10), help='HUC level')
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing file')
@@ -253,5 +308,5 @@ if __name__ == '__main__':
     logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, area_threshold=args.acres,
-         dairy=args.dairy, beef=args.beef,
+         dairy_cuttings=args.dairy, beef_cuttings=args.beef, huc=args.huc,
          overwrite_flag=args.overwrite, cleanup_flag=args.clean)

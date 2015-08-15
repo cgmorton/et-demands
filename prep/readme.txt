@@ -30,5 +30,14 @@ Soils
     Extract the soil values for each CDL ag pixel
         python ..\..\et-demands\prep\build_ag_soils_rasters.py -o
 
-Zonal stats currently uses ArcPy/ArcGIS, this could be changed to GDAL 
-    python ..\..\et-demands\prep\et_demands_zonal_stats.py -o
+Zonal Stats     
+    Zonal stats currently uses ArcPy/ArcGIS, this could be changed to GDAL 
+    "huc" argument can be set to 10 if reference HUC10 zones
+        python ..\..\et-demands\prep\et_demands_zonal_stats.py -o --huc 8
+        
+Static
+    Build static text files from templates
+    "acres" argument sets the area threshold acres for turning on the crop flag
+    "huc" argument can be set to 10 if reference HUC10 zones
+    A lot of parameters are currently hardcoded in this script but could eventually be read from an INI file
+        python ..\..\et-demands\prep\build_static_files.py -o --huc 8 --acres 10

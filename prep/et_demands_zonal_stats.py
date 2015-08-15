@@ -2,7 +2,7 @@
 # Name:         et_demands_zonal_stats.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2015-08-13
+# Created       2015-08-14
 # Python:       2.7
 #--------------------------------
 
@@ -23,7 +23,7 @@ def main(gis_ws, cdl_year=2010, huc=8,
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
         cdl_year (int): Cropland Data Layer year
-        huc_level (int): HUC level
+        huc (int): HUC level
         overwrite_flag (bool): If True, overwrite existing files
         cleanup_flag (bool): If True, remove temporary files
 
@@ -32,8 +32,16 @@ def main(gis_ws, cdl_year=2010, huc=8,
     """
     logging.info('\nCalculating ET-Demands Zonal Stats')
 
-    zone_path = os.path.join(gis_ws, 'huc8', 'wbdhu8_albers.shp')
-    zone_field = 'HUC8'
+    ## DEADBEEF - Hardcode for now
+    if huc == 10:
+        zone_path = os.path.join(gis_ws, 'huc10', 'wbdhu10_albers.shp')
+        zone_field = 'HUC10'
+        cell_name_fmt = 'HUC10 '
+    elif huc == 8:
+        zone_path = os.path.join(gis_ws, 'huc8', 'wbdhu8_albers.shp')
+        zone_field = 'HUC8'
+        cell_name_fmt = 'HUC8 '
+
     ##zone_path = os.path.join(gis_ws, 'nldas_4km', 'nldas_4km_albers_sub.shp')
     ##zone_field = 'NLDAS_ID'
     ##zone_path = os.path.join(gis_ws, 'nldas_4km', 'nldas_4km_albers.shp')
@@ -45,7 +53,6 @@ def main(gis_ws, cdl_year=2010, huc=8,
     ##zone_field = 'FIPS_I'
     ##zone_field = 'COUNTYNAME'
 
-    cell_name_fmt = 'HUC8 '
     ##cell_name_fmt = 'NLDAS 4km '
     ##cell_name_fmt = 'HUC8_{0}'
     ##cell_name_fmt = 'NLDAS_4km_{0}'
@@ -69,26 +76,25 @@ def main(gis_ws, cdl_year=2010, huc=8,
     table_fmt = 'zone_{0}.dbf'
 
     ## Field names
-    lat_field = 'LAT'
-    lon_field = 'LON'
-    elev_field = 'ELEV'
+    cell_lat_field = 'LAT'
+    cell_lon_field = 'LON'
+    cell_elev_field = 'ELEV'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     station_id_field = 'STATION_ID'
     huc_field = 'HUC{}'.format(huc)
-    ##active_flag_field = 'ACTIVE_FLAG'
-    ##irrig_flag_field = 'IRRIGATION_FLAG' 
-
     awc_field = 'AWC'
     clay_field = 'CLAY'
     sand_field = 'SAND'
     awc_in_ft_field = 'AWC_IN_FT'
     hydgrp_num_field = 'HYDGRP_NUM'
     hydgrp_field = 'HYDGRP'
+
+    ##active_flag_field = 'ACTIVE_FLAG'
+    ##irrig_flag_field = 'IRRIGATION_FLAG' 
     ##permeability_field = 'PERMEABILITY' 
     ##soil_depth_field = 'SOIL_DEPTH' 
-    ##aridity_field = 'ARIDITY'
-    
+    ##aridity_field = 'ARIDITY'    
     ##dairy_cutting_field = 'DAIRY_CUTTINGS'
     ##beef_cutting_field = 'BEEF_CUTTINGS'
     
@@ -293,13 +299,13 @@ def main(gis_ws, cdl_year=2010, huc=8,
             os.path.dirname(gdb_path), os.path.basename(gdb_path))
 
     raster_list = [
-        [elev_field, 'MEAN', os.path.join(dem_ws, 'ned_30m_albers.img')],
+        [cell_elev_field, 'MEAN', os.path.join(dem_ws, 'ned_30m_albers.img')],
         [awc_field, 'MEAN', os.path.join(soil_ws, 'awc_30m_albers.img')],
         [clay_field, 'MEAN', os.path.join(soil_ws, 'clay_30m_albers.img')],
         [sand_field, 'MEAN', os.path.join(soil_ws, 'sand_30m_albers.img')],
         ['AG_COUNT', 'SUM', agmask_path],
         ['AG_ACRES', 'SUM', agmask_path],
-        ['AG_'+elev_field, 'MEAN', os.path.join(
+        ['AG_'+cell_elev_field, 'MEAN', os.path.join(
             dem_ws, 'dem_{}_30m_cdls.img'.format(cdl_year))],
         ['AG_'+awc_field, 'MEAN', os.path.join(
             soil_ws, 'awc_{}_30m_cdls.img'.format(cdl_year))],
@@ -356,24 +362,24 @@ def main(gis_ws, cdl_year=2010, huc=8,
     ## Add lat/lon fields
     logging.info('Adding Fields')
     field_list = [f.name for f in arcpy.ListFields(et_cells_path)]
-    if lat_field not in field_list:
-        logging.debug('  {0}'.format(lat_field))
-        arcpy.AddField_management(et_cells_path, lat_field, 'DOUBLE')
+    if cell_lat_field not in field_list:
+        logging.debug('  {0}'.format(cell_lat_field))
+        arcpy.AddField_management(et_cells_path, cell_lat_field, 'DOUBLE')
         lat_lon_flag = True
-    if lon_field not in field_list:
-        logging.debug('  {0}'.format(lon_field))
-        arcpy.AddField_management(et_cells_path, lon_field, 'DOUBLE')
+    if cell_lon_field not in field_list:
+        logging.debug('  {0}'.format(cell_lon_field))
+        arcpy.AddField_management(et_cells_path, cell_lon_field, 'DOUBLE')
         lat_lon_flag = True
     ## Cell/station ID
     if cell_id_field not in field_list:
         logging.debug('  {0}'.format(cell_id_field))
-        arcpy.AddField_management(et_cells_path, cell_id_field, 'LONG')
+        arcpy.AddField_management(et_cells_path, cell_id_field, 'TEXT', '', '', 24)
     if cell_name_field not in field_list:
         logging.debug('  {0}'.format(cell_name_field))
-        arcpy.AddField_management(et_cells_path, cell_name_field, 'TEXT', '', '', 20)
+        arcpy.AddField_management(et_cells_path, cell_name_field, 'TEXT', '', '', 48)
     if station_id_field not in field_list:
         logging.debug('  {0}'.format(station_id_field))
-        arcpy.AddField_management(et_cells_path, station_id_field, 'LONG')
+        arcpy.AddField_management(et_cells_path, station_id_field, 'TEXT', '', '', 24)
     if huc_field not in field_list:
         logging.debug('  {0}'.format(huc_field))
         arcpy.AddField_management(et_cells_path, huc_field, 'TEXT', '', '', 8)
@@ -433,13 +439,13 @@ def main(gis_ws, cdl_year=2010, huc=8,
 
     ## Set CELL_ID and STATION_ID to NLDAS_ID
     arcpy.CalculateField_management(
-        et_cells_path, cell_id_field, '!{0}!'.format(zone_field), 'PYTHON')
+        et_cells_path, cell_id_field, 'str(!{0}!)'.format(zone_field), 'PYTHON')
     arcpy.CalculateField_management(
         et_cells_path, cell_name_field,
         '"{0}"+str(!{1}!)'.format(cell_name_fmt, zone_field), 'PYTHON')
         ##'"NLDAS 4km "+str(!{0}!)'.format(zone_field), 'PYTHON')
     arcpy.CalculateField_management(
-        et_cells_path, station_id_field, '!{0}!'.format(zone_field), 'PYTHON')
+        et_cells_path, station_id_field, 'str(!{0}!)'.format(zone_field), 'PYTHON')
 
     ## Remove existing (could use overwrite instead)
     zone_proj_path = os.path.join(table_ws, zone_proj_name)
@@ -515,10 +521,10 @@ def main(gis_ws, cdl_year=2010, huc=8,
     ## Calculate AWC in in/feet
     logging.info('Calculating elevation in feet')
     arcpy.CalculateField_management(
-        et_cells_path, elev_field, '!{0}! * 3.28084'.format(elev_field), 'PYTHON')
+        et_cells_path, cell_elev_field, '!{0}! * 3.28084'.format(cell_elev_field), 'PYTHON')
     arcpy.CalculateField_management(
-        et_cells_path, 'AG_'+elev_field,
-        '!{0}! * 3.28084'.format('AG_'+elev_field), 'PYTHON')
+        et_cells_path, 'AG_'+cell_elev_field,
+        '!{0}! * 3.28084'.format('AG_'+cell_elev_field), 'PYTHON')
 
     ## Calculate hydrologic group
     logging.info('Calculating hydrologic group')
@@ -604,12 +610,13 @@ def main(gis_ws, cdl_year=2010, huc=8,
     crop_number_list = sorted(list(set([
         crop_num for crop_dict in zone_crop_dict.values()
         for crop_num in crop_dict.keys()])))
-    logging.info('Crop number list: '+', '.join(map(str, crop_number_list)))
+    logging.debug('Crop number list: '+', '.join(map(str, crop_number_list)))
     crop_field_list = sorted([
         'CROP_{0:02d}'.format(crop_num) for crop_num in crop_number_list])
-    logging.info('Crop field list: '+', '.join(crop_field_list))
+    logging.debug('Crop field list: '+', '.join(crop_field_list))
 
     ## Add fields for CDL values
+    logging.info('Writing crop zonal stats')
     for field_name in crop_field_list:
         if field_name not in field_list:
             logging.debug('  {0}'.format(field_name))

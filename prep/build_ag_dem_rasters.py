@@ -76,7 +76,7 @@ def main(gis_ws, block_size=32768, mask_flag=False,
     output_dem_path = os.path.join(dem_ws, output_dem_name)
     if not os.path.isfile(input_dem_path):
         logging.error('\nERROR: The raster {} does not exist'.format(
-            input_soil_path))
+            input_dem_path))
         sys.exit()
 
     if pyramids_flag:
