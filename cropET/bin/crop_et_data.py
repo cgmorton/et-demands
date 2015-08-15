@@ -145,12 +145,36 @@ class CropETData():
         self.refet['names_line'] = config.getint(refet_sec, 'names_line')
         self.refet['delimiter'] = config.get(refet_sec, 'delimiter')
         
-        ## Field names and units
+        ## Field names and units      
+        ## Date can be read directly or computed from year, month, and day
         try: 
-            self.refet['fields']['date'] = config.get(refet_sec, 'date_field')
+            self.refet['fields']['date'] = config.get(weather_sec, 'date_field')
         except: 
-            logging.error('  ERROR: REFET date_field must set in the INI')
-            sys.exit()
+            self.refet['fields']['date'] = None
+        try: 
+            self.refet['fields']['year'] = config.get(weather_sec, 'year_field')
+            self.refet['fields']['month'] = config.get(weather_sec, 'month_field')
+            self.refet['fields']['day'] = config.get(weather_sec, 'day_field')
+        except: 
+            self.refet['fields']['year'] = None
+            self.refet['fields']['month'] = None
+            self.refet['fields']['day'] = None
+        if self.refet['fields']['date'] is not None:
+            logging.debug('  REFET: Reading date from date column')
+        elif (self.refet['fields']['year'] is not None and
+              self.refet['fields']['month'] is not None and
+              self.refet['fields']['day'] is not None):
+            logging.debug('  REFET: Reading date from year, month, and day columns')
+        else:
+            logging.error('  ERROR: REFET date_field (or year, month, and '+
+                          'day fields) must be set in the INI')
+            sys.exit()                  
+        ##try: 
+        ##    self.refet['fields']['date'] = config.get(refet_sec, 'date_field')
+        ##except: 
+        ##    logging.error('  ERROR: REFET date_field must set in the INI')
+        ##    sys.exit()
+
         try: 
             self.refet['fields']['etref'] = config.get(refet_sec, 'etref_field')
         except: 
@@ -185,11 +209,36 @@ class CropETData():
         self.weather['header_lines'] = config.getint(weather_sec, 'header_lines')
         self.weather['names_line'] = config.getint(weather_sec, 'names_line')
         self.weather['delimiter'] = config.get(weather_sec, 'delimiter')
+
+        ## Field names and units      
+        ## Date can be read directly or computed from year, month, and day
+        try: 
+            self.weather['fields']['date'] = config.get(weather_sec, 'date_field')
+        except: 
+            self.weather['fields']['date'] = None
+        try: 
+            self.weather['fields']['year'] = config.get(weather_sec, 'year_field')
+            self.weather['fields']['month'] = config.get(weather_sec, 'month_field')
+            self.weather['fields']['day'] = config.get(weather_sec, 'day_field')
+        except: 
+            self.weather['fields']['year'] = None
+            self.weather['fields']['month'] = None
+            self.weather['fields']['day'] = None
+        if self.weather['fields']['date'] is not None:
+            logging.debug('  WEATHER: Reading date from date column')
+        elif (self.weather['fields']['year'] is not None and
+              self.weather['fields']['month'] is not None and
+              self.weather['fields']['day'] is not None):
+            logging.debug('  WEATHER: Reading date from year, month, and day columns')
+        else:
+            logging.error('  ERROR: WEATHER date_field (or year, month, and '+
+                          'day fields) must be set in the INI')
+            sys.exit()                  
         
         ## Field names 
         ## The following fields are mandatory 
         ## DEADBEEF - Are snow and snow depth required?
-        field_list = ['date', 'tmin', 'tmax', 'ppt', 'rs', 'wind']
+        field_list = ['tmin', 'tmax', 'ppt', 'rs', 'wind']
         for f_name in field_list:
             try: 
                 self.weather['fields'][f_name] = config.get(
@@ -257,8 +306,8 @@ class CropETData():
             sys.exit()
         ## Check units
         units_list = (
-            ['c', 'mm', 'm/s', 'mj/m2', 'kg/kg'] + 
-            ['k', 'f', 'in*100', 'in', 'w/m^2'])
+            ['c', 'mm', 'm/s', 'mj/m2', 'mj/m^2', 'kg/kg'] + 
+            ['k', 'f', 'in*100', 'in', 'w/m2', 'w/m^2'])
         for k,v in self.weather['units'].items():
             if v is not None and v.lower() not in units_list:
                 logging.error(
@@ -277,6 +326,7 @@ class CropETData():
         Returns:
             None
         """
+        
         a = np.loadtxt(fn, delimiter=delimiter, dtype='str')
         ## Klamath file has one header, other has two lines
         if a[0,0] == 'ET Cell ID':
@@ -330,10 +380,24 @@ class CropETData():
         """
         with open(fn, 'r') as fp:
             a = fp.readlines()
+            
+        ## ET Cell ID may not be the first column in older files
+        ## Older excel files had ID as the second column in the cuttings tab
+        ## Try to find it in the header row
+        try:
+            ##header = a[1].split(delimiter)
+            cell_id_index = a[1].split(delimiter).index('ET Cell ID')
+        except:
+            cell_id_index = None
+            
         a = a[skip_rows:]
         for i, line in enumerate(a):
             row = line.split(delimiter)
-            cell_id = row[1]
+            if cell_id_index is not None:
+                cell_id = row[cell_id_index]
+            else:
+                cell_id = row[0]
+            ##cell_id = row[1]
             if cell_id not in self.et_cells.keys():
                 logging.error(
                     'crop_et_data.static_mean_cuttings(), cell_id %s not found' % cell_id)

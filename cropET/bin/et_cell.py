@@ -132,7 +132,12 @@ class ETCell():
                     field_key, field_units))
                     
         ## Convert date strings to datetimes
-        self.refet_pd['date'] = pd.to_datetime(self.refet_pd['date'])
+        if refet['fields']['date'] is not None:
+            self.refet_pd['date'] = pd.to_datetime(self.refet_pd['date'])
+        else:
+            self.refet_pd['date'] = self.refet_pd[['year', 'month', 'day']].apply(
+                lambda s : datetime.datetime(*s),axis = 1)
+        ##self.refet_pd['date'] = pd.to_datetime(self.refet_pd['date'])
         self.refet_pd.set_index('date', inplace=True)
         self.refet_pd['doy'] = [int(ts.strftime('%j')) for ts in self.refet_pd.index]
         
@@ -182,7 +187,7 @@ class ETCell():
         for field_key, field_units in weather['units'].items():
             if field_units is None:
                 continue
-            elif field_units.lower() in ['c', 'mm', 'm/s', 'mj/m2', 'kg/kg']:
+            elif field_units.lower() in ['c', 'mm', 'm/s', 'mj/m2', 'mj/m^2', 'kg/kg']:
                 continue
             elif field_units.lower() == 'k':
                 self.weather_pd[field_key] -= 273.15
@@ -193,14 +198,19 @@ class ETCell():
                 self.weather_pd[field_key] *= 0.254
             elif field_units.lower() == 'in':
                 self.weather_pd[field_key] *= 25.4
-            elif field_units.lower() == 'w/m^2':
+            elif field_units.lower() in ['w/m2', 'w/m^2']:
                 self.weather_pd[field_key] *= 0.0864
             else:
                 logging.error('\n ERROR: Unknown {0} units {1}'.format(
                     field_key, field_units))
 
         ## Convert date strings to datetimes
-        self.weather_pd['date'] = pd.to_datetime(self.weather_pd['date'])
+        if weather['fields']['date'] is not None:
+            self.weather_pd['date'] = pd.to_datetime(self.weather_pd['date'])
+        else:
+            self.weather_pd['date'] = self.weather_pd[['year', 'month', 'day']].apply(
+                lambda s : datetime.datetime(*s),axis = 1)
+        ##self.weather_pd['date'] = pd.to_datetime(self.weather_pd['date'])
         self.weather_pd.set_index('date', inplace=True)
         self.weather_pd['doy'] = [int(ts.strftime('%j')) for ts in self.weather_pd.index]
                     
@@ -221,7 +231,7 @@ class ETCell():
             'q' in self.weather_pd.columns):
             self.weather_pd['tdew'] = util.tdew_from_ea(util.ea_from_q(
                 util.pair_from_elev(0.3048 * self.stn_elev), 
-                self.weather_pd['q'].values()))
+                self.weather_pd['q'].values))
 
         ## Compute RH from Tdew and Tmax
         if ('rh_min' not in self.weather_pd.columns and 
