@@ -252,7 +252,7 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
                 aridity, '']
             output_f.write('\t'.join(map(str, output_list)) + '\n')
             del output_list
-            del station_id, lat, lon, elev
+            del station_id, station_lat, station_lon, station_elev
 
     ## Write cell crops
     logging.debug('  {}'.format(cell_crops_path))
