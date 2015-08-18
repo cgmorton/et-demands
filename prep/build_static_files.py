@@ -2,7 +2,7 @@
 # Name:         et_demands_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2015-08-14
+# Created       2015-08-18
 # Python:       2.7
 #--------------------------------
 
@@ -35,6 +35,10 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
         None
     """
     logging.info('\nBuilding ET-Demands Static Files')
+
+    ## Input units
+    cell_elev_units = 'FEET'
+    station_elev_units = 'FEET'
 
     ## Default values
     permeability = -999
@@ -69,7 +73,7 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
     station_zone_field = 'HUC{}'.format(huc)
     station_lat_field = 'LAT'
     station_lon_field = 'LON'
-    station_elev_field = 'ELEV'
+    station_elev_field = 'ELEV_FT'
 
     ## Hardcode template workspace for now
     template_ws = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\et-demands\static'
@@ -86,7 +90,7 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
     ## Field names
     cell_lat_field = 'LAT'
     cell_lon_field = 'LON'
-    cell_elev_field = 'ELEV'
+    cell_elev_field = 'ELEV_FT'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     awc_field = 'AWC'
@@ -151,7 +155,19 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
     if not os.path.isdir(static_ws):
         os.makedirs(static_ws)
 
+    ## Check units
+    if station_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
+        logging.error(
+            ('\nERROR: Station elevation units {} are invalid\n'+
+             '  Units must be METERS or FEET').format(station_elev_units))
+        sys.exit()
+    elif cell_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
+        logging.error(
+            ('\nERROR: ET Cell elevation units {} are invalid\n'+
+             '  Units must be METERS or FEET').format(cell_elev_units))
+        sys.exit()
 
+    ## Read Weather station\NLDAS cell station data
     logging.info('\nReading station shapefile')
     logging.debug('  {}'.format(station_path))
     fields = [station_zone_field, station_id_field, station_elev_field,
@@ -166,12 +182,13 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
     for k,v in station_data_dict.iteritems():
         logging.debug('  {0}: {1}'.format(k, v))
 
+    ## ReadET Cell zonal stats
     logging.info('\nReading ET Cell Zonal Stats')
     logging.debug('  {}'.format(et_cells_path))
     crop_field_list = sorted([
         f.name for f in arcpy.ListFields(et_cells_path)
         if re.match('CROP_\d{2}', f.name)])
-    fields = [cell_id_field, cell_name_field, cell_lat_field,
+    fields = [cell_id_field, cell_name_field, cell_lat_field, cell_elev_field,
               awc_in_ft_field, clay_field, sand_field,
               hydgrp_num_field, hydgrp_field]
     fields = fields + crop_field_list
@@ -182,6 +199,16 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
             for field in fields[1:]:
                 ## Key/match on strings even if ID is an integer
                 cell_data_dict[str(row[0])][field] = row[fields.index(field)]
+
+    ## Covert elevation units if necessary
+    if station_elev_units.upper() in ['METERS', 'M']:
+        logging.debug('  Convert station elevation from meters to feet')
+        for k in station_data_dict.iterkeys():
+            station_data_dict[k][station_elev_field] /= 0.3048
+    if cell_elev_units.upper() in ['METERS', 'M']:
+        logging.debug('  Convert et cell elevation from meters to feet')
+        for k in cell_data_dict.iterkeys():
+            cell_data_dict[k][cell_elev_field] /= 0.3048
 
 
     logging.info('\nCopying template static files')
@@ -208,9 +235,9 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
             if cell_id in station_data_dict.keys():
                 station_data = station_data_dict[cell_id]
                 station_id = station_data[station_id_field]
-                lat = '{:>9.4f}'.format(station_data[station_lat_field])
-                lon = '{:>9.4f}'.format(station_data[station_lon_field])
-                elev = '{:.2f}'.format(station_data[station_elev_field])
+                station_lat = '{:>9.4f}'.format(station_data[station_lat_field])
+                station_lon = '{:>9.4f}'.format(station_data[station_lon_field])
+                station_elev = '{:.2f}'.format(station_data[station_elev_field])
             else:
                 logging.debug(
                     ('    Cell_ID {} was not found in the '+
@@ -219,7 +246,7 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
             ## There is an extra/unused column in the template and excel files
             output_list = [
                 cell_id, cell_data[cell_name_field],
-                station_id, lat, lon, elev, permeability, 
+                station_id, station_lat, station_lon, station_elev, permeability, 
                 '{:.4f}'.format(cell_data[awc_in_ft_field]), soil_depth,
                 cell_data[hydgrp_field], cell_data[hydgrp_num_field],
                 aridity, '']

@@ -2,7 +2,7 @@
 # Name:         et_demands_zonal_stats.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2015-08-14
+# Created       2015-08-18
 # Python:       2.7
 #--------------------------------
 
@@ -32,6 +32,11 @@ def main(gis_ws, cdl_year=2010, huc=8,
     """
     logging.info('\nCalculating ET-Demands Zonal Stats')
 
+    ## Input elevation units
+    dem_elev_units = 'METERS'
+    ## Output elevation units
+    cell_elev_units = 'FEET'
+    
     ## DEADBEEF - Hardcode for now
     if huc == 10:
         zone_path = os.path.join(gis_ws, 'huc10', 'wbdhu10_albers.shp')
@@ -78,7 +83,7 @@ def main(gis_ws, cdl_year=2010, huc=8,
     ## Field names
     cell_lat_field = 'LAT'
     cell_lon_field = 'LON'
-    cell_elev_field = 'ELEV'
+    cell_elev_field = 'ELEV_FT'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     station_id_field = 'STATION_ID'
@@ -275,6 +280,18 @@ def main(gis_ws, cdl_year=2010, huc=8,
                       'does not exist\n'.format(huc_path))
         raise SystemExit()
     
+    ## Check units
+    if dem_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
+        logging.error(
+            ('\nERROR: DEM elevation units {} are invalid\n'+
+             '  Units must be METERS or FEET').format(dem_elev_units))
+        sys.exit()
+    elif cell_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
+        logging.error(
+            ('\nERROR: ET Cell elevation units {} are invalid\n'+
+             '  Units must be METERS or FEET').format(cell_elev_units))
+        sys.exit()
+
     ##
     arcpy.CheckOutExtension('Spatial')
     arcpy.env.pyramid = 'NONE 0'
@@ -507,7 +524,7 @@ def main(gis_ws, cdl_year=2010, huc=8,
                 row[1] = zs_dict.pop(row[0], 0)
                 u_cursor.updateRow(row) 
 
-    ## Calculate AWC in in/feet
+    ## Calculate agricultural area in acres
     logging.info('\nCalculating agricultural acreage')
     arcpy.CalculateField_management(
         et_cells_path, 'AG_ACRES',
@@ -518,13 +535,27 @@ def main(gis_ws, cdl_year=2010, huc=8,
     arcpy.CalculateField_management(
         et_cells_path, awc_in_ft_field, '!{0}! * 12'.format(awc_field), 'PYTHON')
 
-    ## Calculate AWC in in/feet
-    logging.info('Calculating elevation in feet')
-    arcpy.CalculateField_management(
-        et_cells_path, cell_elev_field, '!{0}! * 3.28084'.format(cell_elev_field), 'PYTHON')
-    arcpy.CalculateField_management(
-        et_cells_path, 'AG_'+cell_elev_field,
-        '!{0}! * 3.28084'.format('AG_'+cell_elev_field), 'PYTHON')
+    ## Convert elevation units
+    if (dem_elev_units.upper() in ['METERS', 'M'] and 
+        cell_elev_units.upper() in ['FEET', 'FT']):
+        logging.info('Converting elevation to feet')
+        arcpy.CalculateField_management(
+            et_cells_path, cell_elev_field, 
+            '!{0}! / 0.3048'.format(cell_elev_field), 'PYTHON')
+        arcpy.CalculateField_management(
+            et_cells_path, 'AG_'+cell_elev_field,
+            '!{0}! / 0.3048'.format('AG_'+cell_elev_field), 'PYTHON')
+    elif (dem_elev_units.upper() in ['FEET', 'FT'] and 
+          cell_elev_units.upper() in ['METERS', 'M']):
+        logging.info('Converting elevation to meters')
+        arcpy.CalculateField_management(
+            et_cells_path, cell_elev_field, 
+            '!{0}! * 0.3048'.format(cell_elev_field), 'PYTHON')
+        arcpy.CalculateField_management(
+            et_cells_path, 'AG_'+cell_elev_field,
+            '!{0}! * 0.3048'.format('AG_'+cell_elev_field), 'PYTHON')
+    else:
+        pass
 
     ## Calculate hydrologic group
     logging.info('Calculating hydrologic group')
