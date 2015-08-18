@@ -77,15 +77,40 @@ class CropETData():
         self.basin_id = config.get(crop_et_sec, 'basin_id')
         logging.info('  Basin: {}'.format(self.basin_id))
 
+        ## Flags
+        self.daily_output_flag = config.getboolean(
+            crop_et_sec, 'daily_stats_flag')
+        self.monthly_output_flag = config.getboolean(
+            crop_et_sec, 'monthly_stats_flag')
+        self.annual_output_flag = config.getboolean(
+            crop_et_sec, 'annual_stats_flag')
+
         ## Input/output folders
-        pmdata_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'pmdata_folder'))
         static_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'static_folder'))
-        self.output_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'et_folder'))
-        self.stats_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'et_folder'))
-        if not os.path.isdir(self.output_ws):
-           os.makedirs(self.output_ws)
-        if not os.path.isdir(self.stats_ws):
-           os.makedirs(self.stats_ws)
+        if self.daily_output_flag:
+            try:
+                self.daily_output_ws = os.path.join(
+                    self.project_ws, config.get(crop_et_sec, 'daily_output_folder'))
+                if not os.path.isdir(self.daily_output_ws):
+                   os.makedirs(self.daily_output_ws)
+            except:
+                self.daily_output_ws = None
+        if self.monthly_output_flag:
+            try:
+                self.monthly_output_ws = os.path.join(
+                    self.project_ws, config.get(crop_et_sec, 'monthly_output_folder'))
+                if not os.path.isdir(self.monthly_output_ws):
+                   os.makedirs(self.monthly_output_ws)
+            except:
+                self.monthly_output_ws = None             
+        if self.annual_output_flag:
+            try:
+                self.annual_output_ws = os.path.join(
+                    self.project_ws, config.get(crop_et_sec, 'annual_output_folder'))
+                if not os.path.isdir(self.annual_output_ws):
+                   os.makedirs(self.annual_output_ws)
+            except:
+                self.annual_output_ws = None
 
         ## Input/output folders
         start_date = config.get(crop_et_sec, 'start_date')
@@ -134,8 +159,21 @@ class CropETData():
         self.refet = {}
         self.refet['fields'] = {}
         self.refet['units'] = {}
-        self.refet['ws'] = os.path.join(
-            self.project_ws, config.get(refet_sec, 'refet_folder'))
+        self.refet['ws'] = config.get(refet_sec, 'refet_folder')
+        ## The refet folder could be a full or relative path
+        ## Assume relative paths or from the project folder
+        if os.path.isdir(self.refet['ws']):
+            pass
+        elif (not os.path.isdir(self.refet['ws']) and
+              os.path.isdir(os.path.join(project_ws, self.refet['ws']))):
+            self.refet['ws'] = os.path.join(project_ws, self.refet['ws'])
+        else:
+            logging.error('ERROR: The refet folder {} does not exist'.format(
+                self.refet['ws']))
+            sys.exit()
+        ## DEADBEEF   
+        ##self.refet['ws'] = os.path.join(
+        ##    self.project_ws, config.get(refet_sec, 'refet_folder'))
         self.refet['type'] = config.get(refet_sec, 'refet_type').lower()
         if self.refet['type'] not in ['eto', 'etr']:
             logging.error('  ERROR: RefET type must be ETo or ETr')
@@ -203,8 +241,21 @@ class CropETData():
         self.weather = {}
         self.weather['fields'] = {}
         self.weather['units'] = {}
-        self.weather['ws'] = os.path.join(
-            self.project_ws, config.get(weather_sec, 'weather_folder'))
+        self.weather['ws'] = config.get(weather_sec, 'weather_folder')
+        ## The weather folder could be a full or relative path
+        ## Assume relative paths or from the project folder
+        if os.path.isdir(self.weather['ws']):
+            pass
+        elif (not os.path.isdir(self.weather['ws']) and
+              os.path.isdir(os.path.join(project_ws, self.weather['ws']))):
+            self.weather['ws'] = os.path.join(project_ws, self.weather['ws'])
+        else:
+            logging.error('ERROR: The refet folder {} does not exist'.format(
+                self.weather['ws']))
+            sys.exit()
+        ## DEADBEEF   
+        ##self.weather['ws'] = os.path.join(
+        ##    self.project_ws, config.get(weather_sec, 'weather_folder'))
         self.weather['format'] = config.get(weather_sec, 'name_format')
         self.weather['header_lines'] = config.getint(weather_sec, 'header_lines')
         self.weather['names_line'] = config.getint(weather_sec, 'names_line')

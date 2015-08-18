@@ -73,40 +73,101 @@ def crop_cycle(data, et_cell, debug_flag=False):
         ## Run ET-Demands
         crop_day_loop(data, et_cell, crop, foo, debug_flag)
         
-        ## Write output
-        ## Merge the crop and weather data frames to form the output
-        output_pd = pd.merge(
-            foo.crop_pd, et_cell.weather_pd[['ppt']], 
-            ##foo.crop_pd, et_cell.weather_pd[['ppt', 't30']], 
-            left_index=True, right_index=True)
-        ## Rename the output columns
-        output_pd.index.rename('Date', inplace=True)
-        output_pd = output_pd.rename(columns = {
-            'doy':'DOY', 'ppt':'PPT', 'etref':'PMETo',
-            'et_act':'ETact', 'et_pot':'ETpot', 'et_bas':'ETbas',
-            'kc_act':'Kc', 'kc_bas':'Kcb',
-            'niwr':'NIWR', 'irrigation':'Irrigation', 'runoff':'Runoff', 
-            'dperc':'DPerc', 'season':'Season'}) 
-            ##'t30':'T30', 
-        output_path = os.path.join(
-            data.output_ws, '%s_Crop_%s.csv' % (et_cell.cell_id, crop.class_number))
-        ## Set the output column order
-        output_columns = [
-            'DOY', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-            'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
-        if not data.kc_flag:
-            output_columns.remove('Kc')
-            output_columns.remove('Kcb')
-        if not data.niwr_flag:
-            output_columns.remove('NIWR')
-        ## Write the output file
-        with open(output_path, 'w') as output_f:
-            output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
-            output_pd.to_csv(
-                output_f, sep=',', columns=output_columns, 
-                float_format='%10.6f')
-            output_f.close()
-        ##break
+        ## Merge the crop and weather data frames to form the daily output
+        if (data.daily_output_flag or 
+            data.monthly_output_flag or 
+            data.annual_output_flag):
+            daily_output_pd = pd.merge(
+                foo.crop_pd, et_cell.weather_pd[['ppt']], 
+                ##foo.crop_pd, et_cell.weather_pd[['ppt', 't30']], 
+                left_index=True, right_index=True)
+            ## Rename the output columns
+            daily_output_pd.index.rename('Date', inplace=True)
+            daily_output_pd = daily_output_pd.rename(columns = {
+                'doy':'DOY', 'ppt':'PPT', 'etref':'PMETo',
+                'et_act':'ETact', 'et_pot':'ETpot', 'et_bas':'ETbas',
+                'kc_act':'Kc', 'kc_bas':'Kcb',
+                'niwr':'NIWR', 'irrigation':'Irrigation', 'runoff':'Runoff', 
+                'dperc':'DPerc', 'season':'Season'}) 
+                ##'t30':'T30', 
+        ## Compute monthly and annual stats before modifying daily format below
+        if data.monthly_output_flag:
+            monthly_resample_func = {
+                'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
+                'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum, 
+                'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 'Season':np.sum}
+            monthly_output_pd = daily_output_pd.resample('MS', how=monthly_resample_func)
+        if data.annual_output_flag:
+            resample_func = {
+                'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
+                'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum,
+                'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 'Season':np.sum}
+            annual_output_pd = daily_output_pd.resample('AS', how=resample_func)
+         
+        ## Write daily output
+        if data.daily_output_flag:
+            daily_output_pd['Year'] = daily_output_pd.index.year
+            daily_output_pd['Month'] = daily_output_pd.index.month
+            daily_output_pd['Day'] = daily_output_pd.index.day
+            daily_output_pd['Year'] = daily_output_pd['Year'].map(lambda x: ' %4d' % x)
+            daily_output_pd['Month'] = daily_output_pd['Month'].map(lambda x: ' %2d' % x)
+            daily_output_pd['Day'] = daily_output_pd['Day'].map(lambda x: ' %2d' % x)
+            daily_output_pd['DOY'] = daily_output_pd['DOY'].map(lambda x: ' %3d' % x)
+            daily_output_pd['Season'] = daily_output_pd['Season'].map(lambda x: ' %1d' % x)
+            ##daily_output_pd['Irrigation'] = daily_output_pd['Irrigation'].map(lambda x: ' %10.6f' % x)
+            daily_output_path = os.path.join(
+                data.daily_output_ws, '%s_Crop_%s.csv' % (et_cell.cell_id, crop.class_number))
+            ## Set the output column order
+            daily_output_columns = [
+                'Year', 'Month', 'Day', 'DOY', 
+                'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
+                'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            if not data.kc_flag:
+                daily_output_columns.remove('Kc')
+                daily_output_columns.remove('Kcb')
+            if not data.niwr_flag:
+                daily_output_columns.remove('NIWR')
+            with open(daily_output_path, 'w') as daily_output_f:
+                daily_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
+                daily_output_pd.to_csv(
+                    daily_output_f, sep=',', columns=daily_output_columns, 
+                    float_format='%10.6f', date_format='%Y-%m-%d')
+            del daily_output_pd, daily_output_path, daily_output_columns
+
+        ## Write monthly statistics
+        if data.monthly_output_flag:
+            monthly_output_pd['Year'] = monthly_output_pd.index.year
+            monthly_output_pd['Month'] = monthly_output_pd.index.month
+            monthly_output_pd['Year'] = monthly_output_pd['Year'].map(lambda x: ' %4d' % x)
+            monthly_output_pd['Month'] = monthly_output_pd['Month'].map(lambda x: ' %2d' % x)
+            monthly_output_pd['Season'] = monthly_output_pd['Season'].map(lambda x: ' %2d' % x)
+            monthly_output_path = os.path.join(
+                data.monthly_output_ws, '%s_Monthly_Crop_%s.csv' % (et_cell.cell_id, crop.class_number))
+            monthly_output_columns = [
+                'Year', 'Month', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
+                'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            with open(monthly_output_path, 'w') as monthly_output_f:
+                monthly_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
+                monthly_output_pd.to_csv(
+                    monthly_output_f, sep=',', columns=monthly_output_columns, 
+                    float_format=' %8.4f', date_format='%Y-%m')
+            del monthly_output_pd, monthly_output_path, monthly_output_columns
+
+        ## Write annual statistics
+        if data.annual_output_flag:
+            annual_output_pd['Year'] = annual_output_pd.index.year
+            annual_output_pd['Season'] = annual_output_pd['Season'].map(lambda x: ' %3d' % x)
+            annual_output_path = os.path.join(
+                data.annual_output_ws, '%s_Annual_Crop_%s.csv' % (et_cell.cell_id, crop.class_number))
+            annual_output_columns = [
+                'Year', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
+                'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            with open(annual_output_path, 'w') as annual_output_f:
+                annual_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
+                annual_output_pd.to_csv(
+                    annual_output_f, sep=',', columns=annual_output_columns, 
+                    float_format=' %9.4f', date_format='%Y', index = False)
+            del annual_output_pd, annual_output_path, annual_output_columns
 
 def crop_day_loop(data, et_cell, crop, foo, debug_flag=False):
     """
