@@ -85,6 +85,18 @@ class CropETData():
         self.annual_output_flag = config.getboolean(
             crop_et_sec, 'annual_stats_flag')
 
+        ## For testing, allow the user to process a subset of the crops
+        try: 
+            self.crop_skip_list = config.get(crop_et_sec, 'crop_skip_list').split(',')
+            self.crop_skip_list = [int(c.strip()) for c in self.crop_skip_list]
+        except: 
+            self.crop_skip_list = []
+        try: 
+            self.crop_test_list = config.get(crop_et_sec, 'crop_test_list').split(',')
+            self.crop_test_list = [int(c.strip()) for c in self.crop_test_list]
+        except: 
+            self.crop_test_list = []
+            
         ## Input/output folders
         static_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'static_folder'))
         if self.daily_output_flag:

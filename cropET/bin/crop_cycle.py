@@ -53,6 +53,10 @@ def crop_cycle(data, et_cell, debug_flag=False):
             logging.debug('Crop %2d %s' % (crop_num, crop))
             logging.debug('  NOT USED')
             continue
+        elif ((data.crop_skip_list and crop_num in data.crop_skip_list) or 
+              (data.crop_test_list and crop_num not in data.crop_test_list)):
+            logging.debug('  SKIPPING')
+            continue               
         else:      
             logging.warning('Crop %2d %s' % (crop_num, crop))                 
         logging.debug(
@@ -116,7 +120,7 @@ def crop_cycle(data, et_cell, debug_flag=False):
             daily_output_pd['Season'] = daily_output_pd['Season'].map(lambda x: ' %1d' % x)
             ##daily_output_pd['Irrigation'] = daily_output_pd['Irrigation'].map(lambda x: ' %10.6f' % x)
             daily_output_path = os.path.join(
-                data.daily_output_ws, '%s_Crop_%s.csv' % (et_cell.cell_id, crop.class_number))
+                data.daily_output_ws, '%s_daily_crop_%s.csv' % (et_cell.cell_id, crop.class_number))
             ## Set the output column order
             daily_output_columns = [
                 'Year', 'Month', 'Day', 'DOY', 
@@ -142,7 +146,7 @@ def crop_cycle(data, et_cell, debug_flag=False):
             monthly_output_pd['Month'] = monthly_output_pd['Month'].map(lambda x: ' %2d' % x)
             monthly_output_pd['Season'] = monthly_output_pd['Season'].map(lambda x: ' %2d' % x)
             monthly_output_path = os.path.join(
-                data.monthly_output_ws, '%s_Monthly_Crop_%s.csv' % (et_cell.cell_id, crop.class_number))
+                data.monthly_output_ws, '%s_monthly_crop_%s.csv' % (et_cell.cell_id, crop.class_number))
             monthly_output_columns = [
                 'Year', 'Month', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
                 'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
@@ -158,7 +162,7 @@ def crop_cycle(data, et_cell, debug_flag=False):
             annual_output_pd['Year'] = annual_output_pd.index.year
             annual_output_pd['Season'] = annual_output_pd['Season'].map(lambda x: ' %3d' % x)
             annual_output_path = os.path.join(
-                data.annual_output_ws, '%s_Annual_Crop_%s.csv' % (et_cell.cell_id, crop.class_number))
+                data.annual_output_ws, '%s_annual_crop_%s.csv' % (et_cell.cell_id, crop.class_number))
             annual_output_columns = [
                 'Year', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
                 'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
