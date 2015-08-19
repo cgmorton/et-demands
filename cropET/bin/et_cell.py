@@ -27,10 +27,12 @@ class ETCell():
 
     def set_crop_params(self, fn):
         """ List of <CropParameter> instances """
+        logging.info('  Reading crop parameters')
         self.crop_params = crop_parameters.read_crop_parameters(fn)
     
     def set_crop_coeffs(self, fn):
         """ List of <CropCoeff> instances """
+        logging.info('  Reading crop coefficients')
         self.crop_coeffs = crop_coefficients.read_crop_coefs(fn)
 
     def init_properties_from_row(self, data):

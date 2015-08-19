@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import logging
-import pprint
 import sys
 
 import numpy as np
@@ -57,7 +56,26 @@ class CropParameters:
             self.season = 'winter'
         else:
             self.gdd_trigger_doy = self.cgdd_main_doy
-            self.season = 'non-winter'
+            self.season = 'non-winter'   
+            
+        ## Pre-compute parameters instead of re-computing them daily
+        if self.flag_for_means_to_estimate_pl_or_gu == 3:
+            ## Compute planting or green-up date from fractional month
+            ## Putting in a date_of_pl_or_gu of "1" will return Jan. 15th
+            ## Putting in a date_of_pl_or_gu of "10" will return Oct. 15th
+            ## Putting in a date_of_pl_or_gu of "4.8333" will return Apr. 25th
+            self.month_of_pl_or_gu = int(self.date_of_pl_or_gu)
+            self.day_of_pl_or_gu = int(round(
+                (self.date_of_pl_or_gu - self.month_of_pl_or_gu) * 30.4))
+            if self.day_of_pl_or_gu < 0.5:  
+                self.day_of_pl_or_gu = 15
+            if self.month_of_pl_or_gu == 0:
+                ## vb code (DateSerial) apparently resolves Mo=0 to 12
+                self.date_of_pl_or_gu = 12
+                logging.info('  Changing date_of_pl_or_gu from 0 to 12')
+            ##self.doy_of_pl_or_gu = datetime.datetime(
+            ##    foo_day.year, self.month_of_pl_or_gu, 
+            ##    self.day_of_pl_or_gu).timetuple().tm_yday
 
     def __str__(self):
         """ """

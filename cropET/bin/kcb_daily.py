@@ -126,13 +126,17 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
             ## Estimate date based on long term mean
             ## Prohibit specifying start of season as long term less
             ##   40 days when it is before that date.
-            t30_lt = et_cell.climate['main_t30_lt']
+            t30_lt = et_cell.climate['main_t30_lt']           
             try:
                 longterm_pl = int(np.where(np.diff(np.array(
                     t30_lt > crop.t30_for_pl_or_gu_or_cgdd, 
                     dtype=np.int8)) > 0)[0][0]) + 1
             except TypeError:
                 logging.error('  kcb_daily(): error finding DOY index')
+                longterm_pl = 0
+            except IndexError:
+                logging.error('  kcb_daily(): error finding DOY index '+
+                              '(T30 didn\'t go above threshold?)')
                 longterm_pl = 0
 
             ## check if getting too late in season
@@ -202,20 +206,14 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     #### Flag_for_means_to_estimate_pl_or_gu Case 3 ####
     elif crop.flag_for_means_to_estimate_pl_or_gu == 3:
-        ## A date is used for planting or greenup
-        month = int(crop.date_of_pl_or_gu)
-        day = (crop.date_of_pl_or_gu - month) * 30.4
-        if day < 0.5:     
-            day = 15
-
-        ## vb code (DateSerial) apparently resolves Mo=0 to 12
-        if month == 0:
-            month = 12
-        doy = datetime.datetime(foo_day.year,month,day).timetuple().tm_yday
+        ## Planting or greenup day of year
+        doy = datetime.datetime(
+            foo_day.year, crop.month_of_pl_or_gu, 
+            crop.day_of_pl_or_gu).timetuple().tm_yday
 
         ## Modified next statement to get winter grain to et and irrigate in first year of run.  dlk  08/16/2012
         if (foo_day.doy == doy or
-            (foo_day.sdays == 1 and doy >= crop.gdd_trigger_doy )):    
+            (foo_day.sdays == 1 and doy >= crop.gdd_trigger_doy)):    
             foo.doy_start_cycle = doy
             foo.in_season = True
             ## Reset severe stress event flag
