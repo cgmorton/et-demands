@@ -49,14 +49,18 @@ class CropParameters:
         self.cn_fine_soil = int(v[31])
 
         ## Winter crop
-        self.cgdd_winter_doy = 274
-        self.cgdd_main_doy = 1
-        if self.curve_name == 'Winter Wheat':
-            self.gdd_trigger_doy = self.cgdd_winter_doy
-            self.season = 'winter'
+        if (self.class_number in [13, 14] or
+            self.curve_name.upper().strip() == 'WINTER WHEAT'):
+        ##if self.class_number in [13, 14] or self.curve_number == 2:
+        ##if self.class_number in [13, 14] or 'winter' in self.curve_name.lower():
+        ##if self.class_number in [13, 14, 40] or self.curve_number == 2:
+        ##if (self.class_number in [13, 14] or 
+        ##    'winter wheat' == self.curve_name.lower()):
+            self.gdd_trigger_doy = 274
+            self.winter_crop = True
         else:
-            self.gdd_trigger_doy = self.cgdd_main_doy
-            self.season = 'non-winter'   
+            self.gdd_trigger_doy = 1
+            self.winter_crop = False
             
         ## Pre-compute parameters instead of re-computing them daily
         if self.flag_for_means_to_estimate_pl_or_gu == 3:
@@ -83,12 +87,12 @@ class CropParameters:
 
     def set_winter_soil(self, crops=[]):
         """ """
+        pass
         #' setup curve number for antecedent II condition for winter covers
         #wscc = self.winter_surface_cover_class
         #self.cn_coarse_soil_winter = int(v[29])
         #self.cn_medium_soil_winter = int(v[30])
         #self.cn_fine_soil_winter   = int(v[31])
-
 
 def read_crop_parameters(fn):
     """Read in the crop parameter text file"""

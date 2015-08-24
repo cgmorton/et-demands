@@ -12,6 +12,7 @@ class InitializeCropCycle:
     aw3 = 0.
     cn2 = 0.
     cgdd = 0.0
+    cgdd_penalty = 0.
     cum_evap = 0.
     cum_evap_prev = 0.
     depl_ze = 0.
@@ -33,6 +34,7 @@ class InitializeCropCycle:
     fw_std = 0.
     fw_irr = 0.
     gdd = 0.0
+    gdd_penalty = 0.
     height_min = 0.
     height_max = 0.
     height = 0
@@ -81,11 +83,6 @@ class InitializeCropCycle:
 
     e = 0.
     doy_prev = 0
-    frost_flag = 0.
-    penalty = 0.
-    cgdd_penalty = 0.
-    cgdd_prev = 0.
-    pressure = 0.0
     n_cgdd = 0.
     n_pl_ec = 0.
     #tei = 0

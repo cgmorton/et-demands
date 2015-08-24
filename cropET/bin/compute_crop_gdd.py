@@ -29,15 +29,16 @@ def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
     ## ctCount = 13 and 14 are winter grain (irrigated and non-irrigated)
 
     ## winter grain '<------ specific value for crop number, changed to two ww crops Jan 07
-    if ((crop.class_number in [13,14] or 'WINTER' in crop.curve_name) and 
-        foo.doy_prev < crop.gdd_trigger_doy  and
-        foo_day.doy >= crop.gdd_trigger_doy):
+    if (crop.winter_crop and 
+        (foo.doy_prev < crop.gdd_trigger_doy and
+         foo_day.doy >= crop.gdd_trigger_doy)):
         foo.cgdd = 0.0
         foo.doy_start_cycle = 0    #' DOY 0 - reset planting date also
         foo.real_start = False   #' April 12, 2009 rga
         foo.in_season = False    #' July 30, 20120 dlk
-    elif (foo.doy_prev > crop.gdd_trigger_doy + 199 and
-          foo_day.doy < crop.gdd_trigger_doy + 199):
+    elif (not crop.winter_crop and 
+          (foo.doy_prev > (crop.gdd_trigger_doy + 199) and
+           foo_day.doy < (crop.gdd_trigger_doy + 199))):
         foo.cgdd = 0.0
         foo.doy_start_cycle = 0    #' DoY 0 - reset planting date also
         foo.real_start = False   #' April 12, 2009 rga
@@ -46,7 +47,7 @@ def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
 
     ## Calculate CGDD since trigger date
     ## Only needed if a crop
-    if crop.curve_number > 0:    
+    if crop.curve_number > 0:
         # use general GDD basis except for corn (crop types 7 thru 10), which require 86-50 method.
         # evaluate winter grain separately because of penalties during winter
         # Development of winter grain is followed through winter,
@@ -63,36 +64,36 @@ def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
         #      burning of leaves is assumed to occur and CGDD is reduced.
         #   On first day following -25 C TMin, CGDD prior to day is reduced by 30%.
 
-        if (crop.class_number in [13,14] or
-            crop.curve_name == 'WINTER WHEAT'):
+        if crop.winter_crop:
             ## Winter wheat or winter grain
-            foo.gdd = 0.0
             if foo_day.tmin < -4.0:
-                # No growth if <-3C (was -3, now -4)
+                # No growth if < -3C (was -3, now -4)
                 foo.gdd = 0.0
             elif foo_day.tmean > crop.tbase:
                 # Simple method for all other crops
                 foo.gdd = foo_day.tmean - crop.tbase
-            foo.gdd = foo.gdd - foo.penalty
-            foo.penalty = 0.0
+            else:
+                foo.gdd = 0.0
+            foo.gdd -= foo.gdd_penalty
             foo.gdd = max(foo.gdd, 0.0)
             foo.cgdd += foo.gdd - foo.cgdd_penalty
-            foo.cgdd_penalty = 0.0
             foo.cgdd = max(0.0, foo.cgdd)
 
             # Set up for tommorrow's penalties for winter grain
+            # Set up for tomorrow's penalty for low TMin today (was 10), TMin was -5
             if foo_day.tmin < -10:
-                foo.penalty = 5.0
+                foo.gdd_penalty = 5.0
             else:
-                # Set up for tomorrow's penalty for low TMin today (was 10), TMin was -5
-                foo.penalty = 0.0
-            if foo_day.tmin < -25:
-                # Burn back on winter grain from severe cold if no snow cover
+                
+                foo.gdd_penalty = 0.0   
+            if foo_day.tmin < -25 and foo_day.snow_depth <= 0:
+                # Turn back on winter grain from severe cold if no snow cover
                 # Was 0.3
-                if foo_day.snow_depth <= 0:
-                    foo.cgdd_penalty = foo.cgdd * 0.1
+                foo.cgdd_penalty = foo.cgdd * 0.1
+            else:
+                foo.cgdd_penalty = 0.0
         elif crop.tbase < 0:
-            # Corn
+            ## Corn
             tmax_prev = foo_day.tmax
             tmin_prev = foo_day.tmin
             # TMax and TMin are subject to Tbase limits for corn
@@ -110,7 +111,7 @@ def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
             # Add tbase since it is artificially set negative as an indicator
             foo.cgdd += tmean_prev + crop.tbase
         elif foo_day.tmean > crop.tbase:
-            # Simple method for all other crops
+            ## Simple method for all other crops
             foo.gdd = foo_day.tmean - crop.tbase
             foo.cgdd += foo.gdd
             
@@ -122,5 +123,5 @@ def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
             ('compute_crop_gdd(): doy_start_cycle %d  crop_curve_number %d  '+
              'crop_class_num %d') %
             (foo.doy_start_cycle, crop.curve_number, crop.class_number))
-        logging.debug('compute_crop_gdd(): in_season %d' % (foo.in_season))
-        logging.debug('compute_crop_gdd(): GDD %.6f  CGDD %.6f' % (foo.gdd, foo.cgdd))
+        logging.debug('compute_crop_gdd(): in_season %d  GDD %.6f  CGDD %.6f' % 
+                      (foo.in_season, foo.gdd, foo.cgdd))
