@@ -2,7 +2,7 @@
 # Name:         split_vb_crop_daily_timeseries.py
 # Purpose:      Split daily data timeseries into separate files for each crop
 # Author:       Charles Morton
-# Created       2015-08-03
+# Created       2015-08-19
 # Python:       2.7
 #--------------------------------
 
@@ -258,7 +258,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
                 ##niwr_sub_array = np.delete(niwr_array, np.where(leap_array)[0])
 
                 ## Timeseries figures of daily data
-                output_name = '{0}_Crop_{1}.csv'.format(
+                output_name = '{0}_daily_crop_{1}.csv'.format(
                     station, crop_num)
                 output_path = os.path.join(output_ws, output_name)
 
@@ -288,11 +288,25 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
                 ## Crop coefficients
                 output_df['Kc'] = output_df['ETact'] / pmeto_array
                 output_df['Kcb'] = output_df['ETbas'] / pmeto_array
-                
+
+                ## Format the output columns
+                output_df['Year'] = output_df.index.year
+                output_df['Month'] = output_df.index.month
+                output_df['Day'] = output_df.index.day
+                output_df['Year'] = output_df['Year'].map(lambda x: ' %4d' % x)
+                output_df['Month'] = output_df['Month'].map(lambda x: ' %2d' % x)
+                output_df['Day'] = output_df['Day'].map(lambda x: ' %2d' % x)
+                output_df['DOY'] = output_df['DOY'].map(lambda x: ' %3d' % x)
+                ## This will convert negative "zeros" to positive
+                output_df['NIWR'] = np.round(output_df['NIWR'], 6)
+                output_df['Season'] = output_df['Season'].map(lambda x: ' %1d' % x)
+
                 ## Order the output columns
                 output_columns = [
-                    'DOY', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-                    'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+                    'Year', 'Month', 'Day', 'DOY',
+                    'PMETo', 'ETact', 'ETpot', 'ETbas',
+                    'Kc', 'Kcb', 'PPT', 'Irrigation', 'Runoff',
+                    'DPerc', 'NIWR', 'Season']
                 if not kc_flag:
                     output_columns.remove('Kc')
                     output_columns.remove('Kcb')
@@ -306,7 +320,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
                         output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
                     output_df.to_csv(
                         output_f, sep=',', columns=output_columns,
-                        float_format='%10.6f')
+                        float_format='%10.6f', date_format='%Y-%m-%d')
                 del output_df
                 
             ## Cleanup
@@ -386,6 +400,10 @@ def parse_args():
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
+
+    ## Convert PMData folder to an absolute path if necessary
+    if args.workspace and os.path.isdir(os.path.abspath(args.workspace)):
+        args.workspace = os.path.abspath(args.workspace)
     return args
 
 ################################################################################

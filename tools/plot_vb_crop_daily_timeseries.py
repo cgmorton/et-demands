@@ -532,6 +532,10 @@ def parse_args():
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
+
+    ## Convert PMData folder to an absolute path if necessary
+    if args.workspace and os.path.isdir(os.path.abspath(args.workspace)):
+        args.workspace = os.path.abspath(args.workspace)
     return args
 
 ################################################################################
