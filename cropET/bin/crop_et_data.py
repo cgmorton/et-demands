@@ -22,18 +22,6 @@ class CropETData():
         ## True sets crop 1 to nonpristine alfalfa w/cuttings
         self.crop_one_flag = True  
 
-        ## Also in crop_parameters.py
-        self.cgdd_main_doy = 1
-        self.cgdd_winter_doy = 274
-
-        ## Static file names
-        ## DEADBEEF - These needed to be pre-initialized/declared for some reason
-        self.cell_properties_path =  os.path.join('static', 'ETCellsProperties.txt')
-        self.cell_crops_path =  os.path.join('static', 'ETCellsCrops.txt')
-        self.cell_cuttings_path = os.path.join('static', 'MeanCuttings.txt')
-        self.crop_params_path = os.path.join('static', 'CropParams.txt')
-        self.crop_coefs_path = os.path.join('static', 'CropCoefs.txt')
-
     def __str__(self):
         """ """
         return '<Cropet_data>'
@@ -98,7 +86,8 @@ class CropETData():
             self.crop_test_list = []
             
         ## Input/output folders
-        static_ws = os.path.join(self.project_ws, config.get(crop_et_sec, 'static_folder'))
+        static_ws = os.path.join(
+            self.project_ws, config.get(crop_et_sec, 'static_folder'))
         if self.daily_output_flag:
             try:
                 self.daily_output_ws = os.path.join(
@@ -124,10 +113,6 @@ class CropETData():
             except:
                 self.annual_output_ws = None
 
-        ## Input/output folders
-        start_date = config.get(crop_et_sec, 'start_date')
-        end_date = config.get(crop_et_sec, 'end_date')
-
         ## Start/end date
         try:
             self.start_dt = datetime.strptime(config.get(
@@ -149,24 +134,30 @@ class CropETData():
         self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
 
         ## Static cell/crop files
-        static_list = [
-            [self.cell_properties_path, 'cell_properties_name', 'ETCellsProperties.txt'],
-            [self.cell_crops_path, 'cell_crops_name', 'ETCellsCrops.txt'],
-            [self.cell_cuttings_path, 'cell_cuttings_name', 'MeanCuttings.txt'],
-            [self.crop_params_path, 'crop_params_name', 'CropParams.txt'],
-            [self.crop_coefs_path, 'crop_coefs_name', 'CropCoefs.txt']]
-        for static_path, static_var, static_default in static_list:
+        def check_static_file(static_name, static_var):
             try:
-                static_name = config.get(crop_et_sec, static_var)
-                static_path = os.path.join(static_ws, static_name)
+                static_path = os.path.join(
+                    static_ws, config.get(crop_et_sec, static_var))
             except:
-                static_path = os.path.join(static_ws, static_default)
-                logging.debug('  {0} = {1}'.format(static_var, static_default))
+                static_path = os.path.join(static_ws, static_name)
+                logging.debug('  {0} = {1}'.format(static_var, static_name))
             if not os.path.isfile(static_path):
                 logging.error('ERROR: The static file {} does not exist'.format(
                     static_path))
                 sys.exit()
-                
+            else:
+                return static_path
+        self.cell_properties_path = check_static_file(
+            'ETCellsProperties.txt', 'cell_properties_name')
+        self.cell_crops_path = check_static_file(
+            'ETCellsCrops.txt', 'cell_crops_name')
+        self.cell_cuttings_path = check_static_file(
+            'MeanCuttings.txt', 'cell_cuttings_name')
+        self.crop_params_path = check_static_file(
+            'CropParams.txt', 'crop_params_name')
+        self.crop_coefs_path = check_static_file(
+            'CropCoefs.txt', 'crop_coefs_name')
+        
         ## RefET parameters
         self.refet = {}
         self.refet['fields'] = {}
