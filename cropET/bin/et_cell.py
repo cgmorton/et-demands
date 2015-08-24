@@ -76,11 +76,21 @@ class ETCell():
         ##self.cell_lat = float(data[13])
         ##self.cell_lon = float(data[14])
         ##self.cell_elev = float(data[15])
+        
+        ## Compute air pressure of the station/cell
+        self.air_pressure = util.pair_from_elev(0.3048 * self.stn_elev)
+        ##self.air_pressure = util.pair_from_elev(0.3048 * self.cell_elev)
 
     def init_crops_from_row(self, data, crop_numbers):
-        """ Parse the row of data """
+        """Parse the row of data
+        
+        There is code in kcb_daily to adjust cgdd_term using the crop flag as a multiplier
+        This code is currently commented out and crop_flags are being read in as booleans 
+
+        """
         self.irrigation_flag = int(data[3])
         self.crop_flags = dict(zip(crop_numbers, data[4:].astype(bool)))
+        ##self.crop_flags = dict(zip(crop_numbers, data[4:]))
         self.ncrops = len(self.crop_flags)
 
     def init_cuttings_from_row(self, data):
@@ -232,8 +242,7 @@ class ETCell():
         if ('tdew' not in self.weather_pd.columns and 
             'q' in self.weather_pd.columns):
             self.weather_pd['tdew'] = util.tdew_from_ea(util.ea_from_q(
-                util.pair_from_elev(0.3048 * self.stn_elev), 
-                self.weather_pd['q'].values))
+                self.air_pressure, self.weather_pd['q'].values))
 
         ## Compute RH from Tdew and Tmax
         if ('rh_min' not in self.weather_pd.columns and 
@@ -344,14 +353,14 @@ class ETCell():
     def subset_weather_data(self, start_dt=None, end_dt=None): 
         """Subset the dataframes based on the start and end date"""
         if start_dt is not None:
-            self.refet_pd = self.refet_pd[self.refet_pd.date >= start_dt]
-            self.weather_pd = self.weather_pd[self.weather_pd.date >= start_dt]
-            self.climate_pd = self.climate_pd[self.climate_pd.date >= start_dt]
+            self.refet_pd = self.refet_pd[self.refet_pd.index >= start_dt]
+            self.weather_pd = self.weather_pd[self.weather_pd.index >= start_dt]
+            self.climate_pd = self.climate_pd[self.climate_pd.index >= start_dt]
         if end_dt is not None:
-            self.refet_pd = self.refet_pd[self.refet_pd.date <= end_dt]
-            ##self.refet_pd = self.refet_pd.ix[self.refet_pd.date <= end_dt]
-            self.weather_pd = self.weather_pd[self.weather_pd.date <= end_dt]
-            self.climate_pd = self.climate_pd[self.climate_pd.date <= end_dt]
+            self.refet_pd = self.refet_pd[self.refet_pd.index <= end_dt]
+            ##self.refet_pd = self.refet_pd.ix[self.refet_pd.index <= end_dt]
+            self.weather_pd = self.weather_pd[self.weather_pd.index <= end_dt]
+            self.climate_pd = self.climate_pd[self.climate_pd.index <= end_dt]
         return True
         
 

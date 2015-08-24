@@ -29,28 +29,23 @@ def es_ice_from_t(t):
     return 0.6108 * np.exp((21.87 * t) / (t + 265.5)) 
 
 
-def is_winter(data, foo_day):
+def is_winter(et_cell, foo_day):
     """Determine if the input day is in a winter month
 
     Args:
-        data (): ?
+        et_cell (): ?
         foo_day (): ?
         
     Returns:
         A boolean that is True if the input day is in a winter month
     """
-    if data.cgdd_main_doy < 183:
+    if et_cell.stn_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
+    ##if et_cell.cell_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
         ## Northern hemisphere
-        if foo_day.month < 4 or foo_day.month > 10:
-            return True
-        else:
-            return False
+        return True
     else:
         ## Southern hemisphere
-        if foo_day.month <= 10 and foo_day.month >= 4:
-            return True 
-        else:
-            return False
+        return False
 
 def pair_from_elev(elevation):
     """Calculates air pressure as a function of elevation
@@ -74,6 +69,18 @@ def ea_from_q(p, q):
         NumPy array of vapor pressures [kPa]
     """
     return p * q / (0.622 + 0.378 * q)
+    
+def q_from_ea(ea, p):
+    """Calculates specific humidity from vapor pressure and pressure
+
+    Args:
+        ea: NumPy array of vapor pressures [kPa]
+        p: NumPy array of pressures [kPa]
+
+    Returns:
+        NumPy array of ]specific humidities [kg / kg]
+    """
+    return 0.622 * ea / (p - 0.378 * ea)
 
 def tdew_from_ea(ea):
     """Calculates vapor pressure at a given temperature
