@@ -2,7 +2,7 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-08-11
+# Created       2015-08-20
 # Python:       2.7
 #--------------------------------
 
@@ -24,15 +24,15 @@ import pandas as pd
 
 ################################################################################
 
-def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
+def main(project_ws, figure_show_flag=None, figure_save_flag=None,
          figure_size=(1000,300), start_date=None, end_date=None):
     """Plot full daily data by crop
 
     Args:
-        pmdata_ws (str):
-        figure_show_flag (bool):
-        figure_save_flag (bool):
-        figure_size (tuple):
+        project_ws (str): project_ws
+        figure_show_flag (bool): if True, show figures
+        figure_save_flag (bool): if True, save figures
+        figure_size (tuple): width, height of figure in pixels
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
 
@@ -45,7 +45,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
     ##stats_folder = 'Stats'
 
     ## Output names
-    figure_folder  = 'plots'
+    figure_folder  = 'daily_plots'
 
     ## These crops will not be processed (if set)
     crop_skip_list = [44, 45, 46]
@@ -87,7 +87,7 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
 
     try:
         logging.info('\nPlot mean daily data by crop')
-        logging.info('  PMData Folder: {0}'.format(pmdata_ws))
+        logging.info('  Project Folder: {0}'.format(project_ws))
 
         ## If save and show flags were not set, prompt user
         logging.info('')
@@ -97,16 +97,16 @@ def main(pmdata_ws, figure_show_flag=None, figure_save_flag=None,
             figure_show_flag = query_yes_no('Show Figures', 'no')
 
         ## Input workspaces
-        et_ws = os.path.join(pmdata_ws, et_folder)
-        ##stats_ws = os.path.join(pmdata_ws, stats_folder)
+        et_ws = os.path.join(project_ws, et_folder)
+        ##stats_ws = os.path.join(project_ws, stats_folder)
 
         ## Output workspaces
-        figure_ws = os.path.join(pmdata_ws, figure_folder)
+        figure_ws = os.path.join(project_ws, figure_folder)
 
         ## Check workspaces
-        if not os.path.isdir(pmdata_ws):
+        if not os.path.isdir(project_ws):
             logging.error(
-                '\nERROR: The pmdata folder {0} could be found\n'.format(pmdata_ws))
+                '\nERROR: The project folder {0} could be found\n'.format(project_ws))
             sys.exit()
         if not os.path.isdir(et_ws):
             logging.error(
@@ -412,9 +412,9 @@ def parse_args():
         description='Plot Crop Daily Timeseries',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
+        'workspace', nargs='?', default=os.path.join(os.getcwd()),
         ##'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
-        'workspace', nargs='?', default=os.path.join(os.getcwd(), 'pmdata'),
-        help='PMData Folder', metavar='FOLDER')
+        help='Project Folder', metavar='FOLDER')
     parser.add_argument(
         '--size', default=(1000, 300), type=int,
         nargs=2, metavar=('WIDTH','HEIGHT'),
@@ -438,6 +438,10 @@ def parse_args():
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
+
+    ## Convert project folder to an absolute path if necessary
+    if args.workspace and os.path.isdir(os.path.abspath(args.workspace)):
+        args.workspace = os.path.abspath(args.workspace)
     return args
 
 ################################################################################
