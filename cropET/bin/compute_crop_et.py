@@ -14,10 +14,6 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     """crop et computations"""
     ##logging.debug('compute_crop_et()')
     compute_crop_gdd.compute_crop_gdd(data, crop, foo, foo_day, debug_flag)
-    if debug_flag:
-        logging.debug(
-            'compute_crop_et():  jdStartCycle %d  CGDD %.6f  GDD %.6f  TMean %.6f' %
-            (foo.doy_start_cycle, foo.cgdd, foo.gdd, foo_day.tmean))
 
     ## Calculate height of vegetation.  Call was moved up to this point 12/26/07 for use in adj. Kcb and kc_max
     calculate_height.calculate_height(crop, foo, debug_flag)
@@ -36,10 +32,10 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     #' ETo basis:  Switched over to this 12/2007 #' Allen and Huntington
     #' Note that U2 and RHmin were disabled when KcETr code was converted to ETr basis
-    #' these have been reactivated 12/2007 by Allen, based on daily wind and TDew
-    #' RHmin and U2 are computed in Climate subroutine called above
+    #'   these have been reactivated 12/2007 by Allen, based on daily wind and TDew
+    #' RHmin and U2 are computed in ETCell.set_weather_data()
 
-    #' m #'limit height for numerical stability
+    #' Limit height for numerical stability
     foo.height = max(0.05, foo.height) 
     if data.refet['type'] == 'eto':
         kc_max = ((0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rh_min - 45)) *
@@ -52,7 +48,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
         if crop.kc_max > 0.3:   
             kc_max = crop.kc_max
         else:
-            kc_max = 1
+            kc_max = 1.0
     else:
         sys.exit()
     
@@ -62,21 +58,48 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     ## Assign fraction of ground covered for each of three non-growing season cover types
     if crop.class_number not in [44, 45, 46]:
         pass
-    elif crop.class_number == 44:    #' bare soil  #.  changed Jan. 2007 for add. crop cats.
+    elif crop.class_number == 44:
+        ## Bare soil (changed Jan. 2007 for add. crop cats)  
         foo.fc = 0.0
-    elif crop.class_number == 45:    #' Mulched soil, including grain stubble  #.
+    elif crop.class_number == 45:
+        ## Mulched soil, including grain stubble
         foo.fc = 0.4
-    elif crop.class_number == 46:    #' Dormant turf/sod (winter time)  #.
-        foo.fc = 0.7 #' was 0.6
+    elif crop.class_number == 46:
+        ## Dormant turf/sod (winter time) (was 0.6)
+        foo.fc = 0.7
 
-    # kc_max and foo.fc for wintertime land use (Nov-Mar)
-    # wscc = 1 bare, 2 mulch, 3 sod
+    ## Kc_max and foo.fc for wintertime land use (Nov-Mar)
+    ## wscc = 1 bare, 2 mulch, 3 sod
     wscc = crop.winter_surface_cover_class
 
     # Assume that winter time is constrained to Nov-March in northern hemisphere
-    if util.is_winter(data, foo_day):    
-        # Bare soil
-        if crop.class_number == 44:
+    # Also set up kc_max for non-growing seasons for other crops
+    # Kc_max for wintertime land use (Nov-Mar)for non-growing season crops
+    if util.is_winter(et_cell, foo_day):   
+        if crop.class_number not in [44, 45, 46]:
+            ## Note that these are ETr based.  (Allen 12/2007)
+            ## Multiply by 1.2 (plus adj?) for ETo base
+            if wscc == 1:
+                ## bare soil
+                ## foo.fc is calculated below
+                if data.refet['type'] == 'eto':
+                    kc_max = 1.1
+                elif data.refet['type'] == 'etr':
+                    kc_max = 0.9
+            elif wscc == 2:
+                ## Mulched soil, including grain stubble
+                if data.refet['type'] == 'eto':
+                    kc_max = 1.0
+                elif data.refet['type'] == 'etr':
+                    kc_max = 0.85
+            elif wscc == 3:
+                ## Dormant turf/sod (winter time)
+                if data.refet['type'] == 'eto':
+                    kc_max = 0.95
+                elif data.refet['type'] == 'etr':
+                    kc_max = 0.8
+        elif crop.class_number == 44:
+            # Bare soil
             # Less soil heat in winter.
             if data.refet['type'] == 'eto':
                 # For ETo  (Allen 12/2007)
@@ -85,8 +108,8 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 # For ETr (Allen 3/2008)
                 kc_max = 0.9 
             foo.fc = 0.0
-        # Mulched soil, including grain stubble
         elif crop.class_number == 45:
+            # Mulched soil, including grain stubble
             if data.refet['type'] == 'eto':
                 # For ETo (0.85 * 1.2)  (Allen 12/2007)
                 kc_max = 1.0  
@@ -94,8 +117,8 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 # For ETr (Allen 3/2008)
                 kc_max = 0.85 
             foo.fc = 0.4
-        # Dormant turf/sod (winter time)
         elif crop.class_number == 46:
+            # Dormant turf/sod (winter time)
             if data.refet['type'] == 'eto':
                 # For ETo (0.8 * 1.2)  (Allen 12/2007)
                 kc_max = 0.95
@@ -105,30 +128,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             # Was 0.6
             foo.fc = 0.7 
 
-        #' also set up kc_max for nongrowing seasons for other crops
-        #' kc_max for wintertime land use (Nov-Mar)for nongrowing season crops
-
-        # (not ground cover class)
-        if crop.class_number < 44 or crop.class_number > 46:
-            if wscc == 1:    #' bare soil    #'note that these are ETr based.  Mult by 1.2 (plus adj?) for ETo base  *************
-                #' foo.fc is calculated below
-                if data.refet['type'] == 'eto':
-                    kc_max = 1.1 #' for ETo  #'Allen 12/2007 **********
-                elif data.refet['type'] == 'etr':    #' Allen 3/08
-                    kc_max = 0.9 #' for ETr
-            elif wscc == 2:    #' Mulched soil, including grain stubble
-                if data.refet['type'] == 'eto':
-                    kc_max = 1.0  #' for ETo (0.85 * 1.2)  #'Allen 12/2007 ************
-                elif data.refet['type'] == 'etr':
-                    kc_max = 0.85 #' for ETr
-            elif wscc == 3:    #' Dormant turf/sod (winter time)
-                if data.refet['type'] == 'eto':
-                    kc_max = 0.95 #' for ETo (0.8 * 1.2)  #'Allen 12/2007  **********
-                elif data.refet['type'] == 'etr':
-                    kc_max = 0.8 #' for ETr
-
     #' added 2/21/08 to make sure that a winter cover class is used if during non-growing season
-
     #' override Kc_bas assigned from kcb_daily() if non-growing season and not water
     if (not foo.in_season and
         (crop.class_number < 55 or crop.class_number > 57)):    
@@ -138,7 +138,6 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
         foo.kc_bas = foo.kc_bas_wscc[wscc] 
 
     #' limit kc_max to at least Kc_bas + .05
-
     kc_max = max(kc_max, foo.kc_bas + 0.05)
 
     #' kc_min is minimum evaporation for 0 ground cover under dry soil surface
@@ -152,7 +151,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     # Estimate height of vegetation for estimating fraction of ground cover
     #   for evaporation and fraction of ground covered by vegetation
-    if crop.class_number < 44 or crop.class_number > 46:
+    if crop.class_number not in [44, 45, 46]:
         if kc_max <= foo.kc_min:    
             kc_max = foo.kc_min + 0.001
         if foo.in_season:   
@@ -160,8 +159,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 #' heightcalc  #'call to heightcalc was moved to top of this subroutine 12/26/07 by Allen
                 foo.fc = ((foo.kc_bas - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
                 # limit so that few > 0
-                if foo.fc > 0.99:    
-                    foo.fc = 0.99 
+                foo.fc = min(foo.fc, 0.99)
             else:
                 foo.fc = 0.001
     if debug_flag:

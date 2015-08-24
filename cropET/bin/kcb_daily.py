@@ -256,29 +256,28 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
         #### crop.curve_type Case 1 ####
         if crop.curve_type == 1:
             ## Normalized cumulative growing degree days
-    
+            if debug_flag:
+                logging.debug(
+                    'kcb_daily(): cropclass_num %d  crop_one_flag %d  cycle %d' %
+                    (crop.class_number, data.crop_one_flag, foo.cycle))
+
             if foo.doy_start_cycle == foo_day.doy:     
                 foo.cgdd_at_planting = foo.cgdd
-            cgdd_in_season = foo.cgdd - foo.cgdd_at_planting
-            cgdd_in_season = max(0, cgdd_in_season)
+            cgdd_in_season = max(0, foo.cgdd - foo.cgdd_at_planting)
             cgdd_efc = crop.cgdd_for_efc
             cgdd_term = crop.cgdd_for_termination
     
             #' increase cumGDD_term in SW Idaho to create longer late season
             #' use value of cropFlags, if greater than 1 as scaler
     
-            ### This apparently does nothing, since crop_flags only either 0 or 1
-            # skip for now
-            #' <-------NOTE:  ONLY FUNCTIONAL FOR FLAG > 1.0, changed to >0, 1/2007
-            #If cropFlags(ETCellCount, ctCount) > 0.001:     
-            if et_cell.crop_flags[crop.class_number] > 0.001:
-                #' <---- Jan 2007, invoke always to catch flag < or > 1
-                cgdd_term = cgdd_term * et_cell.crop_flags[crop.class_number] 
+            ## Crop flags are currently forced to booleans when they are read in
+            ## Commenting out code below for now
+            #### TP - This apparently does nothing, since crop_flags only either 0 or 1
+            #### ONLY FUNCTIONAL FOR FLAG > 1.0, changed to >0, 1/2007
+            ##if et_cell.crop_flags[crop.class_number] > 0.001:
+            ##    #' <---- Jan 2007, invoke always to catch flag < or > 1
+            ##    cgdd_term *= et_cell.crop_flags[crop.class_number] 
             #' cgdd_efc is not effected, only period following EFC
-            if debug_flag:
-                logging.debug(
-                    'kcb_daily(): cropclass_num %d  crop_one_flag %d  cycle %d' %
-                    (crop.class_number, data.crop_one_flag, foo.cycle))
 
             ## Special case for ALFALFA hay (typical, beef or dairy)  ' 4/09
             if ((crop.class_number == 1 and data.crop_one_flag) or
@@ -321,15 +320,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                         logging.debug(
                             'kcb_daily(): beefCuttings %d  cycle %d  crop_curve_number %d  curve_number %d' %
                             (bcuttings, foo.cycle, crop.curve_number, curve_number))
-    
-                #' If ctCount = 2 and cycle > 3:     'dairy alfalfa 
-                #'  curve_number = Crop_curve_number(ctCount) + 2  'end cycle (going into fall/winter)
-                #' End If
-                #' If ctCount = 3 and cycle > 2:     'beef alfalfa 
-                #'  curve_number = Crop_curve_number(ctCount) + 2  'end cycle (going into fall/winter)
-                #' End If
-                #' return false
-
+                            
             if cgdd_in_season < cgdd_efc:    
                 foo.n_cgdd = cgdd_in_season / cgdd_efc
                 int_cgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_cgdd * 10))
@@ -379,9 +370,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                         ## Hold kcb equal to last entry until either cumGDD 
                         ##   terminations exceeded or killing frost
                         foo.kc_bas = et_cell.crop_coeffs[curve_number].data[lentry]
-                    logging.debug(
-                        'kcb_daily(): Kc_bas %.6f  int_cgdd %d  curve_number %d  lentry %s' %
-                        (foo.kc_bas, int_cgdd, curve_number, lentry))
+                    if debug_flag:
+                        logging.debug(
+                            'kcb_daily(): Kc_bas %.6f  int_cgdd %d  curve_number %d  lentry %s' %
+                            (foo.kc_bas, int_cgdd, curve_number, lentry))
                 else:
                     ## End of season by exceeding cumGDD for termination.
                     ## Set flag to 0
@@ -389,7 +381,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                     ## Note that for cumGDD based crops, there is no extension past computed end
                     foo.in_season = False 
                     foo.stress_event = False
-                    logging.debug('kcb_daily(): in_season0 %d' % (foo.in_season))
+                    logging.debug('kcb_daily(): curve_type 1  in_season %d' % (foo.in_season))
 
                     ## special case for ALFALFA   1 added 4/18/08
                     if (crop.class_number in [1,2,3] or
@@ -412,14 +404,15 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                         ##   and to set kcb to initial kcb value for first day following cutting.
                         foo.height = foo.height_min
                         foo.kc_bas = et_cell.crop_coeffs[curve_number].data[0]
-                        logging.debug(
-                            'kcb_daily(): Kc_bas %.6f  cgdd_at_planting %.6f' %
-                            (foo.kc_bas, foo.cgdd_at_planting))
+                        if debug_flag:
+                            logging.debug(
+                                'kcb_daily(): Kc_bas %.6f  cgdd_at_planting %.6f' %
+                                (foo.kc_bas, foo.cgdd_at_planting))
 
                 ## First alfalfa crop (typical production alfalfa) where kcb is reduced   '4/18/08...
                 if (crop.class_number == 1 and data.crop_one_flag):
                     #' xxx...apply only if cropOneToggle is set (4/09)
-                    foo.kc_bas = foo.kc_bas * data.crop_one_reducer 
+                    foo.kc_bas *= data.crop_one_reducer
                     logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
                     
             ## Use this here only to invoke a total length limit
@@ -434,8 +427,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 ## End season
                 foo.in_season = False #' This section added Jan. 2007
                 foo.stress_event = False
-                logging.debug('kcb_daily(): in_season1 %d' % (foo.in_season))
-
+                logging.debug('kcb_daily(): curve_type 1  in_season %d' % (foo.in_season))
 
         #### crop.curve_type Case 2 ####
         elif crop.curve_type == 2:
@@ -491,7 +483,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 else:
                     foo.in_season = False
                     foo.stress_event = False #' reset severe stress event flag
-                    logging.debug('kcb_daily(): in_season2 %d' % (foo.in_season))
+                    logging.debug('kcb_daily(): curve_type 2  in_season %d' % (foo.in_season))
 
         #### crop.curve_type Case 3 ####
         elif crop.curve_type == 3:
@@ -504,12 +496,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
             foo.n_pl_ec = days_into_season / crop.time_for_efc
             if foo.n_pl_ec < 1:    
                 int_pl_ec = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_pl_ec * 10.))
-                #kcb = cropco_val(curve_number, int_pl_ec) + (n_pl_ec * 10 - int_pl_ec) _
-                #    * (cropco_val(curve_number, int_pl_ec + 1) - cropco_val(curve_number, int_pl_ec))
                 foo.kc_bas = (
                     et_cell.crop_coeffs[curve_number].data[int_pl_ec] +
                     (foo.n_pl_ec * 10 - int_pl_ec) *
-                    (et_cell.crop_coeffs[curve_number].data[int_pl_ec+1] -
+                    (et_cell.crop_coeffs[curve_number].data[int_pl_ec + 1] -
                      et_cell.crop_coeffs[curve_number].data[int_pl_ec]))
                 logging.debug(
                     ('kcb_daily(): Kc_bas %.6f  n_pl_ec %d  '+
@@ -532,7 +522,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                     foo.kc_bas = (
                         et_cell.crop_coeffs[curve_number].data[int_pl_ec] +
                         (nDaysafterEFC - int_pl_ec) *
-                        (et_cell.crop_coeffs[curve_number].data[int_pl_ec+1] -
+                        (et_cell.crop_coeffs[curve_number].data[int_pl_ec + 1] -
                          et_cell.crop_coeffs[curve_number].data[int_pl_ec]))
                     logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
                 else:
@@ -549,8 +539,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                     else:
                         foo.in_season = False
                         foo.stress_event = False #' reset severe stress event flag
-                        logging.debug('kcb_daily(): in_season4 %d' % (foo.in_season))
-
+                        logging.debug('kcb_daily(): curve_type 3  in_season %d' % (foo.in_season))
 
         #### crop.curve_type Case 4 ####
         elif crop.curve_type == 4:
@@ -593,18 +582,19 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
             if foo.n_pl_ec <= 1:    
                 int_pl_ec = min(
                     foo.max_lines_in_crop_curve_table - 1, int(foo.n_pl_ec * 10))
+                et_cell.crop_coeffs[curve_number].data[int_pl_ec]
                 foo.kc_bas = (
-                    cropco_val(curve_number, int_pl_ec) +
+                    et_cell.crop_coeffs[curve_number].data[int_pl_ec] +
                     (foo.n_pl_ec * 10 - int_pl_ec) *
-                    (cropco_val(curve_number, int_pl_ec + 1) -
-                     cropco_val(curve_number, int_pl_ec)))
+                    (et_cell.crop_coeffs[curve_number].data[int_pl_ec + 1] -
+                     et_cell.crop_coeffs[curve_number].data[int_pl_ec]))
                 logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
             else:
                 ## Beyond end of season
                 foo.in_season = False
                 foo.stress_event = False #' reset severe stress event flag
-                logging.debug('kcb_daily(): in_season5 %d' % (foo.in_season))
-
+                logging.debug('kcb_daily(): curve_type 4  in_season %d' % (foo.in_season))
+        #### crop.curve_type end if ####
 
 
         ## Following is discounting for cold shock to alfalfa gets reset on Jan 1
@@ -641,9 +631,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                      foo_day.doy, foo_day.year))
                 foo.in_season = False
                 foo.stress_event = False
-                logging.debug('kcb_daily(): in_season6 %d' % (foo.in_season))
+                logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
 
-                ## DEADBEEF - This is not currently implemented
+                ## DEADBEEF - Not currently implemented
                 ### Print cutting information to a review file if alfalfa hay for select stations
                 ##if crop.class_number == 2:     
                 ##    output_str = ""
@@ -664,6 +654,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 ##    #output_str = output_str & DFormat(DoY, " #####")
                 ##    #PrintLine(cb2FNum, output_str)
 
+            ## DEADBEEF - The only purpose of this section appears to be for logging
             ## End of year, no killing frost on alfalfa
             elif (((crop.class_number == 2 or crop.class_number == 3) or
                    (crop.class_number > 3 and 
@@ -692,7 +683,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 ##    #output_str = output_str & DFormat(DoY, " #####")
                 ##    #PrintLine(cb2FNum, output_str)
 
-        ## This kcb is not adjusted for climate 'keep track of this for debugging
+        ## This kcb is not adjusted for climate (keep track of this for debugging)
         kcb_noadj = foo.kc_bas
 
     ## Sub in winter time kcb if before or after season
@@ -723,20 +714,19 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
     elif crop.class_number in [55, 56, 57]:
         if crop.class_number == 55:
             if data.refet['type'] == 'eto':
-                ## For ETo basis 'Allen 12/26/07....
                 ## Note that these values are substantially different from FAO56
                 foo.kc_bas = 1.05
-            elif data.refet['type'] == 'etr':     #' Allen 3/6/08
-                foo.kc_bas = 0.6 #' for ETr basis
+            elif data.refet['type'] == 'etr':
+                foo.kc_bas = 0.6
         elif crop.class_number == 56:
             ## This is a place holder, since an aerodynamic function is used
             foo.kc_bas = 0.3 
-            foo.kc_bas = open_water_evap.open_water_evap(foo, foo_day)
+            ##foo.kc_bas = open_water_evap.open_water_evap(cell, foo_day)
         elif crop.class_number == 57:
             if data.refet['type'] == 'eto':
-                foo.kc_bas = 0.85 #' for ETo basis 'Allen 12/26/07
-            elif data.refet['type'] == 'etr':     #' Allen 3/6/08
-                foo.kc_bas = 0.7 #' for ETr basis
+                foo.kc_bas = 0.85
+            elif data.refet['type'] == 'etr':    
+                foo.kc_bas = 0.7
         logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
         
         ## Water has only 'kcb'
@@ -750,26 +740,21 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     ## Save kcb value for use tomorrow in case curve needs to be extended until frost
     foo.kc_bas_prev = foo.kc_bas 
-
+    
     ## Adjustment to kcb moved here 2/21/08 to catch when during growing season
     ## Limit crop height for numerical stability
     foo.height = max(foo.height, 0.05)
 
-    ## RHmin and U2 are computed in Climate subroutine
+    ## RHmin and U2 are computed in ETCell.set_weather_data()
     ## Allen 3/26/08
     if data.refet['type'] == 'eto':
         #' ******'12/26/07
-        logging.debug(
-            'kcb_daily(): Kcb0 %.6f  U2 %.6f  RHmin %.6f  Height %.6f' % 
-            (foo.kc_bas, foo_day.u2, foo_day.rh_min, foo.height))
         foo.kc_bas = (
             foo.kc_bas + (0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rh_min - 45)) *
             (foo.height / 3) ** 0.3) 
-        logging.debug('kcb_daily(): Kcb %.6f' % (foo.kc_bas))
+        logging.debug(
+            'kcb_daily(): Kcb %.6f  U2 %.6f  RHmin %.6f  Height %.6f' % 
+            (foo.kc_bas, foo_day.u2, foo_day.rh_min, foo.height))
     ## ETr basis, therefore, no adjustment to kcb
-    ##elif data.refet['type'] == 'etr':       
-    ##    pass
-
-    ## Set up as yesterday's cumulative GDD for tomorrow
-    foo.cgdd_prev = foo.cgdd
-    
+    elif data.refet['type'] == 'etr':       
+        pass

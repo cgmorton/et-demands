@@ -49,13 +49,14 @@ def crop_cycle(data, et_cell, debug_flag=False):
     ## crop loop through all crops, doesn't include bare soil??
     for crop_num, crop in sorted(et_cell.crop_params.items()):
         ## Check to see if crop/landuse is at station
-        if not et_cell.crop_flags[crop_num]:
+        if et_cell.crop_flags[crop_num] == 0:
             logging.debug('Crop %2d %s' % (crop_num, crop))
             logging.debug('  NOT USED')
             continue
         elif ((data.crop_skip_list and crop_num in data.crop_skip_list) or 
               (data.crop_test_list and crop_num not in data.crop_test_list)):
-            logging.debug('  SKIPPING')
+            ##logging.debug('Crop %2d %s' % (crop_num, crop))
+            ##logging.debug('  SKIPPING')
             continue               
         else:      
             logging.warning('Crop %2d %s' % (crop_num, crop))                 
@@ -117,8 +118,10 @@ def crop_cycle(data, et_cell, debug_flag=False):
             daily_output_pd['Month'] = daily_output_pd['Month'].map(lambda x: ' %2d' % x)
             daily_output_pd['Day'] = daily_output_pd['Day'].map(lambda x: ' %2d' % x)
             daily_output_pd['DOY'] = daily_output_pd['DOY'].map(lambda x: ' %3d' % x)
+            ## This will convert negative "zeros" to positive
+            daily_output_pd['NIWR'] = np.round(daily_output_pd['NIWR'],6)
             daily_output_pd['Season'] = daily_output_pd['Season'].map(lambda x: ' %1d' % x)
-            ##daily_output_pd['Irrigation'] = daily_output_pd['Irrigation'].map(lambda x: ' %10.6f' % x)
+            ##daily_output_pd['Irrigation'] = daily_output_pd['Irrigation'].map(lambda x: daily_flt_format % x)
             daily_output_path = os.path.join(
                 data.daily_output_ws, '%s_daily_crop_%s.csv' % (et_cell.cell_id, crop.class_number))
             ## Set the output column order
