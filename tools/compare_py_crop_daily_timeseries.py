@@ -2,7 +2,7 @@
 # Name:         compare_py_crop_daily_timeseries.py
 # Purpose:      Compare daily data timeseries to baseline files
 # Author:       Charles Morton
-# Created       2015-08-03
+# Created       2015-08-20
 # Python:       2.7
 #--------------------------------
 
@@ -15,14 +15,15 @@ import sys
 import numpy as np
 import pandas as pd
 
-def main(basin_ws):
+def main(project_ws, crop_str=''):
     """Compare ET-Demands output to baseline files
 
     For now, scipt will assume it is run in the project/basin folder and will
         look for a PMData sub-folder
     
     Args:
-        basin_ws (str): Basin folder path
+        project_ws (str): project_ws
+        crop_str (str): comma separate list or range of crops to compare
         
     Returns:
         None
@@ -44,9 +45,12 @@ def main(basin_ws):
     base_date_field = 'Date'
     base_ext = '.csv'
 
+    ## Only process a subset of the crops
+    crop_list = list(parse_int_set(crop_str))
+
     ## Input workspaces
-    test_ws = os.path.join(basin_ws, 'pmdata', 'ETc')
-    base_ws = os.path.join(basin_ws, 'pmdata', 'ETc_baseline')
+    test_ws = os.path.join(project_ws, 'daily_stats')
+    base_ws = os.path.join(project_ws, 'daily_baseline')
     logging.info('  Test Folder: {0}'.format(test_ws))
     logging.info('  Base Folder: {0}'.format(base_ws))
 
@@ -72,11 +76,18 @@ def main(basin_ws):
 
     ## For each file in etc, try to find a baseline one
     for test_name in test_name_list:
-        logging.warning('\nFile: {}'.format(test_name))
+        ## Get crop number from file
+        test_crop = int(os.path.splitext(test_name)[0].split('crop_')[-1])
+        if test_crop not in crop_list:
+            logging.debug('File: {}\n  Skipping crop...'.format(test_name))
+            continue
+        else:
+            logging.warning('\nFile: {}'.format(test_name))
+            logging.debug('  Crop: {}'.format(test_crop))
+
+        ## Try to find a matching file
         base_name = os.path.splitext(test_name)[0] + base_ext
         logging.debug('  {}'.format(base_name))
-
-        ## First, try to find a matching file
         if base_name not in base_name_list:
             logging.warning('  No matching files in {}'.format(base_ws))
             continue
@@ -142,7 +153,7 @@ def main(basin_ws):
         logging.info('{0:>10s} {1}'.format(
             '', ' '.join(['{0:>8}'.format(x) for x in diff_values])))
         for field in test_df.columns.values:
-            if field in [test_date_field, 'DOY']:
+            if field.upper() in [test_date_field.upper(), 'DOY', 'YEAR', 'MONTH', 'DAY']:
                 continue
             diff_array = np.abs(test_df[field].values - base_df[field].values)
             diff_list = [np.sum(diff_array <= v) for v in diff_values]
@@ -151,14 +162,57 @@ def main(basin_ws):
             
 ################################################################################
 
+def parse_int_set(nputstr=""):
+    """Return list of numbers given a string of ranges
+
+    http://thoughtsbyclayg.blogspot.com/2008/10/parsing-list-of-numbers-in-python.html
+    """
+    selection = set()
+    invalid = set()
+    # tokens are comma seperated values
+    tokens = [x.strip() for x in nputstr.split(',')]
+    for i in tokens:
+        try:
+            # typically tokens are plain old integers
+            selection.add(int(i))
+        except:
+            # if not, then it might be a range
+            try:
+                token = [int(k.strip()) for k in i.split('-')]
+                if len(token) > 1:
+                    token.sort()
+                    # we have items seperated by a dash
+                    # try to build a valid range
+                    first = token[0]
+                    last = token[len(token)-1]
+                    for x in range(first, last+1):
+                        selection.add(x)
+            except:
+                # not an int and not a range...
+                invalid.add(i)
+    # Report invalid tokens before returning valid selection
+    ##print "Invalid set: " + str(invalid)
+    return selection
+
 def parse_args():  
     parser = argparse.ArgumentParser(
         description='Compare ET-Demands Output Files',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
+        'workspace', nargs='?', default=os.path.join(os.getcwd()),
+        ##'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
+        help='Project Folder', metavar='FOLDER')
+    parser.add_argument(
+        '-c', '--crops', default='', type=str, 
+        help='Comma separate list or range of crops to compare')
+    parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
+
+    ## Convert project folder to an absolute path if necessary
+    if args.workspace and os.path.isdir(os.path.abspath(args.workspace)):
+        args.workspace = os.path.abspath(args.workspace)
     return args          
 
 ################################################################################
@@ -168,4 +222,4 @@ if __name__ == '__main__':
     ## Create Basic Logger
     logging.basicConfig(level=args.loglevel, format='%(message)s')
 
-    main(os.getcwd())
+    main(project_ws=args.workspace, crop_str=args.crops)
