@@ -18,8 +18,8 @@ def main(ini_path, log_level=logging.WARNING, debug_flag=False):
 
     Args:
         ini_path (str): file path of the project INI file
-        log_level: logging.lvl
-        debug_flag: 
+        log_level (logging.lvl): 
+        debug_flag (bool): If True, write debug level comments to debug.txt 
 
     Returns:
         None
@@ -77,13 +77,16 @@ def parse_args():
         '-i', '--ini', required=True, metavar='PATH',
         type=lambda x: is_valid_file(parser, x), help='Input file')
     parser.add_argument(
-        '--debug', action="store_true", default=False,
+        '-d', '--debug', action="store_true", default=False,
         help="Save debug level comments to debug.txt")
     parser.add_argument(
-        '--verbose', action="store_const",
+        '-v', '--verbose', action="store_const",
         dest='log_level', const=logging.INFO, default=logging.WARNING,   
         help="Print info level comments")
     args = parser.parse_args()
+    ## Convert INI path to an absolute path if necessary
+    if args.ini and os.path.isfile(os.path.abspath(args.ini)):
+        args.ini = os.path.abspath(args.ini)    
     return args
 
 def is_valid_file(parser, arg):
@@ -101,5 +104,4 @@ def is_valid_directory(parser, arg):
 if __name__ == '__main__':
     args = parse_args()
 
-    ##
     main(ini_path=args.ini, log_level=args.log_level, debug_flag=args.debug)
