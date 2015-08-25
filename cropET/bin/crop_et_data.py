@@ -65,24 +65,44 @@ class CropETData():
         self.basin_id = config.get(crop_et_sec, 'basin_id')
         logging.info('  Basin: {}'.format(self.basin_id))
 
-        ## Flags
-        self.daily_output_flag = config.getboolean(
-            crop_et_sec, 'daily_stats_flag')
-        self.monthly_output_flag = config.getboolean(
-            crop_et_sec, 'monthly_stats_flag')
-        self.annual_output_flag = config.getboolean(
-            crop_et_sec, 'annual_stats_flag')
+        ## Stats flags
+        try:
+            self.daily_output_flag = config.getboolean(
+                crop_et_sec, 'daily_stats_flag')
+        except:
+            logging.debug('    daily_stats_flag = False')
+            self.daily_output_flag = False
+        try:
+            self.monthly_output_flag = config.getboolean(
+                crop_et_sec, 'monthly_stats_flag')
+        except:
+            logging.debug('    monthly_stats_flag = False')
+            self.daily_output_flag = False
+        try:
+            self.annual_output_flag = config.getboolean(
+                crop_et_sec, 'annual_stats_flag')
+        except:
+            logging.debug('    annual_stats_flag = False')
+            self.daily_output_flag = False
+        try:
+            self.gs_output_flag = config.getboolean(
+                crop_et_sec, 'growing_season_stats_flag')
+        except:
+            logging.debug('    growing_season_stats_flag = False')
+            self.daily_output_flag = False
 
         ## For testing, allow the user to process a subset of the crops
         try: 
             self.crop_skip_list = config.get(crop_et_sec, 'crop_skip_list').split(',')
             self.crop_skip_list = [int(c.strip()) for c in self.crop_skip_list]
         except: 
+            logging.debug('    crop_skip_list = []')
             self.crop_skip_list = []
         try: 
             self.crop_test_list = config.get(crop_et_sec, 'crop_test_list').split(',')
             self.crop_test_list = [int(c.strip()) for c in self.crop_test_list]
         except: 
+            logging.debug('    crop_test_list = False')
             self.crop_test_list = []
             
         ## Input/output folders
@@ -95,7 +115,8 @@ class CropETData():
                 if not os.path.isdir(self.daily_output_ws):
                    os.makedirs(self.daily_output_ws)
             except:
-                self.daily_output_ws = None
+                logging.debug('    daily_output_folder = daily_stats')
+                self.daily_output_ws = 'daily_stats'
         if self.monthly_output_flag:
             try:
                 self.monthly_output_ws = os.path.join(
@@ -103,7 +124,8 @@ class CropETData():
                 if not os.path.isdir(self.monthly_output_ws):
                    os.makedirs(self.monthly_output_ws)
             except:
-                self.monthly_output_ws = None             
+                logging.debug('    monthly_output_folder = monthly_stats')
+                self.monthly_output_ws = 'monthly_stats'             
         if self.annual_output_flag:
             try:
                 self.annual_output_ws = os.path.join(
@@ -111,7 +133,17 @@ class CropETData():
                 if not os.path.isdir(self.annual_output_ws):
                    os.makedirs(self.annual_output_ws)
             except:
-                self.annual_output_ws = None
+                logging.debug('    annual_output_folder = annual_stats')
+                self.annual_output_ws = 'annual_stats'
+        if self.gs_output_flag:
+            try:
+                self.gs_output_ws = os.path.join(
+                    self.project_ws, config.get(crop_et_sec, 'gs_output_folder'))
+                if not os.path.isdir(self.gs_output_ws):
+                   os.makedirs(self.gs_output_ws)
+            except:
+                logging.debug('    gs_output_folder = growing_season_stats')
+                self.gs_output_ws = 'growing_season_stats'
 
         ## Start/end date
         try:
