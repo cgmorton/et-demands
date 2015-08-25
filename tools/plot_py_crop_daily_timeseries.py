@@ -2,7 +2,7 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-08-20
+# Created       2015-08-24
 # Python:       2.7
 #--------------------------------
 
@@ -25,38 +25,40 @@ import pandas as pd
 ################################################################################
 
 def main(project_ws, figure_show_flag=None, figure_save_flag=None,
-         figure_size=(1000,300), start_date=None, end_date=None):
+         figure_size=(1000,300), start_date=None, end_date=None,
+         crop_str=''):
     """Plot full daily data by crop
 
     Args:
-        project_ws (str): project_ws
+        project_ws (str): Project workspace
         figure_show_flag (bool): if True, show figures
         figure_save_flag (bool): if True, save figures
         figure_size (tuple): width, height of figure in pixels
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
+        crop_str (str): comma separate list or range of crops to compare
 
     Returns:
         None
     """
 
     ## Input names
-    et_folder    = 'ETc'
-    ##stats_folder = 'Stats'
+    input_folder = 'daily_stats'
 
     ## Output names
-    figure_folder  = 'daily_plots'
+    output_folder = 'daily_plots'
 
+    ## Only process a subset of the crops
+    crop_keep_list = list(parse_int_set(crop_str))
     ## These crops will not be processed (if set)
     crop_skip_list = [44, 45, 46]
-    ## Only these crops will be processed (if set)
-    crop_keep_list = []
 
     ## Field names
     date_field   = 'Date'
     doy_field    = 'DOY'
-    ##month_field  = 'Mo'
-    ##day_field    = 'Dy'
+    ##year_field   = 'Year'
+    ##month_field  = 'Month'
+    ##day_field    = 'Day'
     pmeto_field  = 'PMETo'
     precip_field = 'PPT'
     t30_field    = 'T30'
@@ -69,8 +71,6 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
     runoff_field = 'Runoff'
     dperc_field = 'DPerc'
     niwr_field = 'NIWR'
-
-    year_field = 'year'
 
     ## Number of header lines in data file
     header_lines = 2
@@ -97,27 +97,22 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
             figure_show_flag = query_yes_no('Show Figures', 'no')
 
         ## Input workspaces
-        et_ws = os.path.join(project_ws, et_folder)
-        ##stats_ws = os.path.join(project_ws, stats_folder)
+        input_ws = os.path.join(project_ws, input_folder)
 
         ## Output workspaces
-        figure_ws = os.path.join(project_ws, figure_folder)
+        output_ws = os.path.join(project_ws, output_folder)
 
         ## Check workspaces
         if not os.path.isdir(project_ws):
             logging.error(
                 '\nERROR: The project folder {0} could be found\n'.format(project_ws))
             sys.exit()
-        if not os.path.isdir(et_ws):
+        if not os.path.isdir(input_ws):
             logging.error(
-                '\nERROR: The ET folder {0} could be found\n'.format(et_ws))
+                '\nERROR: The daily ET folder {0} could be found\n'.format(input_ws))
             sys.exit()
-        ##if not os.path.isdir(stats_ws):
-        ##    logging.error(
-        ##        '\nERROR: The stats folder {0} could be found\n'.format(stats_ws))
-        ##    sys.exit()
-        if not os.path.isdir(figure_ws):
-            os.mkdir(figure_ws)
+        if not os.path.isdir(output_ws):
+            os.mkdir(output_ws)
 
         ## Range of data to plot
         try:
@@ -163,11 +158,11 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
         ## Regular expressions
         def list_re_or(input_list):
             return '('+'|'.join(map(str,input_list))+')'
-        data_re = re.compile('(?P<CELLID>\w+)_Crop_(?P<CROP>\d+).csv$', re.I)
+        data_re = re.compile('(?P<CELLID>\w+)_daily_crop_(?P<CROP>\d+).csv$', re.I)
 
         ## Build list of all data files
         data_file_list = sorted(
-            [os.path.join(et_ws, f_name) for f_name in os.listdir(et_ws)
+            [os.path.join(input_ws, f_name) for f_name in os.listdir(input_ws)
              if data_re.match(f_name)])
         if not data_file_list:
             logging.error(
@@ -181,7 +176,8 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
             logging.debug('')
             logging.info('  {0}'.format(file_name))
 
-            station, crop_num = os.path.splitext(file_name)[0].split('_Crop_')
+            station, crop_num = os.path.splitext(file_name)[0].split('_daily__crop_')
+            crop_num = int(crop_num)
             logging.debug('    Station:         {0}'.format(station))
             logging.debug('    Crop Num:        {0}'.format(crop_num))
             if station == 'temp':
@@ -229,10 +225,10 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
             leap_array = (doy_array == 366)
             doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
 
-            if crop_num in crop_skip_list:
-                logging.debug('    Skipping, crop number not in crop_skip_list')
+            if crop_skip_list and crop_num in crop_skip_list:
+                logging.debug('    Skipping, crop number in crop_skip_list')
                 continue
-            if crop_keep_list and crop_num not in crop_keep_list:
+            elif crop_keep_list and crop_num not in crop_keep_list:
                 logging.debug('    Skipping, crop number not in crop_keep_list')
                 continue
             
@@ -257,9 +253,9 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
             ##niwr_sub_array = np.delete(niwr_array, np.where(leap_array)[0])
 
             ## Timeseries figures of daily data
-            output_name = '{0}_Crop_{1}_{2}-{3}'.format(
-                station, crop_num, crop_year_start, crop_year_end)
-            f = output_file(os.path.join(figure_ws, output_name+'.html'),
+            output_name = '{0}_crop_{1:02d}_{2}-{3}'.format(
+                station, int(crop_num), crop_year_start, crop_year_end)
+            f = output_file(os.path.join(output_ws, output_name+'.html'),
                             title=output_name)
             TOOLS = 'xpan,xwheel_zoom,box_zoom,reset,save'
 
@@ -407,6 +403,38 @@ def valid_date(input_date):
         msg = "Not a valid date: '{0}'.".format(input_date)
         raise argparse.ArgumentTypeError(msg)
 
+def parse_int_set(nputstr=""):
+    """Return list of numbers given a string of ranges
+
+    http://thoughtsbyclayg.blogspot.com/2008/10/parsing-list-of-numbers-in-python.html
+    """
+    selection = set()
+    invalid = set()
+    # tokens are comma seperated values
+    tokens = [x.strip() for x in nputstr.split(',')]
+    for i in tokens:
+        try:
+            # typically tokens are plain old integers
+            selection.add(int(i))
+        except:
+            # if not, then it might be a range
+            try:
+                token = [int(k.strip()) for k in i.split('-')]
+                if len(token) > 1:
+                    token.sort()
+                    # we have items seperated by a dash
+                    # try to build a valid range
+                    first = token[0]
+                    last = token[len(token)-1]
+                    for x in range(first, last+1):
+                        selection.add(x)
+            except:
+                # not an int and not a range...
+                invalid.add(i)
+    # Report invalid tokens before returning valid selection
+    ##print "Invalid set: " + str(invalid)
+    return selection
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Plot Crop Daily Timeseries',
@@ -420,10 +448,10 @@ def parse_args():
         nargs=2, metavar=('WIDTH','HEIGHT'),
         help='Figure size in pixels')
     parser.add_argument(
-        '--save', default=None, action='store_true',
+        '--save', default=False, action='store_true',
         help='Show timeseries figures in browser')
     parser.add_argument(
-        '--show', default=None, action='store_true',
+        '--show', default=False, action='store_true',
         help='Save timeseries figures to disk')
     parser.add_argument(
         '--start', default=None, type=valid_date,
@@ -431,6 +459,9 @@ def parse_args():
     parser.add_argument(
         '--end', default=None, type=valid_date,
         help='End date (format YYYY-MM-DD)', metavar='DATE')
+    parser.add_argument(
+        '-c', '--crops', default='', type=str, 
+        help='Comma separate list or range of crops to compare')
     ##parser.add_argument(
     ##    '-o', '--overwrite', default=None, action="store_true", 
     ##    help='Force overwrite of existing files')
@@ -449,16 +480,12 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     
-    ## Create Basic Logger
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-
-    ## Run Information    
     logging.info('\n{0}'.format('#'*80))
-    log_f = '{0:<20s} {1}'
-    logging.info(log_f.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info(log_f.format('Current Directory:', args.workspace))
-    logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', args.workspace))
+    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(pmdata_ws=args.workspace, figure_show_flag=args.show, 
+    main(project_ws=args.workspace, figure_show_flag=args.show, 
          figure_save_flag=args.save, figure_size=args.size,
-         start_date=args.start, end_date=args.end)
+         start_date=args.start, end_date=args.end, crop_str=args.crops)

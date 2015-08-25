@@ -2,7 +2,7 @@
 # Name:         compare_py_crop_daily_timeseries.py
 # Purpose:      Compare daily data timeseries to baseline files
 # Author:       Charles Morton
-# Created       2015-08-20
+# Created       2015-08-24
 # Python:       2.7
 #--------------------------------
 
@@ -22,7 +22,7 @@ def main(project_ws, crop_str=''):
         look for a PMData sub-folder
     
     Args:
-        project_ws (str): project_ws
+        project_ws (str): Project workspace
         crop_str (str): comma separate list or range of crops to compare
         
     Returns:

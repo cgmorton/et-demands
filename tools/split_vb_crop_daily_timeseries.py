@@ -2,7 +2,7 @@
 # Name:         split_vb_crop_daily_timeseries.py
 # Purpose:      Split daily data timeseries into separate files for each crop
 # Author:       Charles Morton
-# Created       2015-08-19
+# Created       2015-08-24
 # Python:       2.7
 #--------------------------------
 
@@ -258,8 +258,8 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
                 ##niwr_sub_array = np.delete(niwr_array, np.where(leap_array)[0])
 
                 ## Timeseries figures of daily data
-                output_name = '{0}_daily_crop_{1}.csv'.format(
-                    station, crop_num)
+                output_name = '{0}_daily_crop_{1:02d}.csv'.format(
+                    station, int(crop_num))
                 output_path = os.path.join(output_ws, output_name)
 
                 ## Build an output data frame
