@@ -140,7 +140,7 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
             logging.debug('')
             logging.info('  {0}'.format(file_name))
 
-            station, crop_num = os.path.splitext(file_name)[0].split('_crop_')
+            station, crop_num = os.path.splitext(file_name)[0].split('_daily_crop_')
             crop_num = int(crop_num)
             logging.debug('    Station:         {0}'.format(station))
             logging.debug('    Crop Num:        {0}'.format(crop_num))
@@ -158,7 +158,9 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
                 file_path, header=0, comment='#', sep=sep, engine='python')
             logging.debug('\nFields: \n{0}'.format(data_df.columns.values))
             data_df[date_field] = pd.to_datetime(data_df[date_field])
-            data_df['year'] = data_df[date_field].map(lambda x: x.year)
+            data_df.set_index(date_field, inplace=True)
+            data_df['year'] = data_df.index.year
+            ##data_df['year'] = data_df[date_field].map(lambda x: x.year)
 
             ## Build list of unique years
             year_sub_array = np.sort(np.unique(data_df['year'].values.astype(np.int)))
@@ -179,8 +181,8 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
             year_sub_array = np.sort(np.unique(data_df['year'].values.astype(np.int)))
             logging.debug('\nCalc Years: \n{0}'.format(year_sub_array))
 
-            ## Build separate arrays for each field of non-crop specific data
-            date_array = data_df[date_field].values
+            ## Get separate date related fields
+            date_array = data_df.index.date
             year_array = data_df['year'].values.astype(np.int)
             doy_array = data_df[doy_field].values.astype(np.int)
 
@@ -214,18 +216,17 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
                 year_mask = (year_array==year)
                 date_sub_array = date_array[year_mask]
                 doy_sub_array = doy_array[year_mask]
-                season_sub_array = season_array[year_mask]
-                season_sub_mask = np.where(season_sub_array > 0)[0]
+                season_sub_mask = season_array[year_mask]
 
                 ## Look for transitions in season value
+                ## Start transitions up the day before the actual start
+                ## End transitions down on the end date
                 try:
-                    start_i = doy_sub_array[np.where(
-                        np.diff(season_sub_mask) == 1)[0][0] + 1]
+                    start_i = np.where(np.diff(season_sub_mask) == 1)[0][0] + 1
                 except:
                     start_i = None
                 try:
-                    end_i = doy_sub_array[np.where(
-                        np.diff(season_sub_mask) == -1)[0][0] + 1]
+                    end_i = np.where(np.diff(season_sub_mask) == -1)[0][0]
                 except:
                     end_i = None
                     
@@ -250,17 +251,18 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
                     start_date, end_date = "", ""
                 elif np.all(season_sub_mask):
                     start_doy, end_doy = doy_sub_array[0], doy_sub_array[-1]
-                    start_date, end_date = date_sub_array[0], date_sub_array[-1]
+                    start_date = date_sub_array[0].isoformat()
+                    end_date = date_sub_array[-1].isoformat()
                 else:
                     start_doy, end_doy = doy_sub_array[start_i], doy_sub_array[end_i]
-                    start_date, end_date = date_sub_array[start_i], date_sub_array[end_i]
+                    start_date = date_sub_array[start_i].isoformat()
+                    end_date = date_sub_array[end_i].isoformat()
                 gs_length = sum(season_sub_mask)
                 logging.debug("Start: {0} ({1})  End: {2} ({3})".format(
                     start_doy, start_date, end_doy, end_date))
 
                 ## Track growing season length and mean annual g.s. length
-                if year_i <> 0:
-                ##if end_doy >= start_doy > 0:
+                if start_doy > 0 and end_doy > 0 and year_i <> 0:
                     start_sum += start_doy
                     end_sum += end_doy
                     gs_sum += gs_length
@@ -274,10 +276,8 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
                      start_doy, end_doy, start_date, end_date, gs_length])
                 
                 ## Cleanup
-                del year_mask, doy_sub_array
-                del season_sub_array, season_sub_mask
+                del year_mask, doy_sub_array, season_sub_mask
                 del start_doy, end_doy, start_date, end_date, gs_length
-                ##break
                 
             ## Calculate mean annual growing season start/end/length
             if gs_cnt > 0:
