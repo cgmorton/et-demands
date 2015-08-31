@@ -2,7 +2,7 @@
 # Name:         compare_py_crop_daily_timeseries.py
 # Purpose:      Compare daily data timeseries to baseline files
 # Author:       Charles Morton
-# Created       2015-08-24
+# Created       2015-08-26
 # Python:       2.7
 #--------------------------------
 
@@ -78,11 +78,11 @@ def main(project_ws, crop_str=''):
     for test_name in test_name_list:
         ## Get crop number from file
         test_crop = int(os.path.splitext(test_name)[0].split('crop_')[-1])
-        if test_crop not in crop_list:
+        if crop_list and test_crop not in crop_list:
             logging.debug('File: {}\n  Skipping crop...'.format(test_name))
             continue
         else:
-            logging.warning('\nFile: {}'.format(test_name))
+            logging.warning('File: {}'.format(test_name))
             logging.debug('  Crop: {}'.format(test_crop))
 
         ## Try to find a matching file
@@ -144,21 +144,31 @@ def main(project_ws, crop_str=''):
             logging.warning('  {} dates are not in the test file'.format(
                 len(missing_test_dates)))
             missing_test_mask = ~base_df[base_date_field].isin(pd.Series(missing_test_dates))
-            base_df = base_df[missing_base_mask].reindex()
+            base_df = base_df[missing_test_dates].reindex()
             for missing_date in missing_test_dates:
                 logging.debug('    {}'.format(missing_date.date()))
 
         ## For each column, count the number of values that are exactly the same
         diff_values = [0.0001, 0.001, 0.01, 0.1, 1]
-        logging.info('{0:>10s} {1}'.format(
-            '', ' '.join(['{0:>8}'.format(x) for x in diff_values])))
+        log_str = '{0:>10s} {1}\n'.format(
+            '', ' '.join(['{0:>8}'.format(x) for x in diff_values]))
+        ##logging.info('{0:>10s} {1}'.format(
+        ##    '', ' '.join(['{0:>8}'.format(x) for x in diff_values])))
+        log_list = []
         for field in test_df.columns.values:
             if field.upper() in [test_date_field.upper(), 'DOY', 'YEAR', 'MONTH', 'DAY']:
                 continue
             diff_array = np.abs(test_df[field].values - base_df[field].values)
             diff_list = [np.sum(diff_array <= v) for v in diff_values]
-            logging.info('{0:>10s} {1}'.format(
-                field, ' '.join(['{0:>8}'.format(x) for x in diff_list])))
+            log_list += diff_list
+            log_str += '{0:>10s} {1}\n'.format(
+                field, ' '.join(['{0:>8}'.format(x) for x in diff_list]))
+            ##logging.info('{0:>10s} {1}'.format(
+            ##    field, ' '.join(['{0:>8}'.format(x) for x in diff_list])))
+        if len(set(log_list)) <= 1:
+            logging.debug(log_str)
+        else:
+            logging.info(log_str)
             
 ################################################################################
 

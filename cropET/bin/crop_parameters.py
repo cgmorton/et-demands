@@ -8,8 +8,14 @@ import numpy as np
 class CropParameters:
     name = ''
 
-    def __init__(self, v):
-        """ """
+    def __init__(self, v, vb_flag=False):
+        """
+        
+        Args:
+            v ():
+            vb_flag (bool): If True, 
+        
+        """
         ## If there is a comma in the string, it will also have quotes
         self.name = str(v[0]).replace('"', '').strip()
         self.class_number = abs(int(v[1]))
@@ -49,13 +55,17 @@ class CropParameters:
         self.cn_fine_soil = int(v[31])
 
         ## Winter crop
-        if (self.class_number in [13, 14] or
-            self.curve_name.upper().strip() == 'WINTER WHEAT'):
-        ##if self.class_number in [13, 14] or self.curve_number == 2:
-        ##if self.class_number in [13, 14] or 'winter' in self.curve_name.lower():
-        ##if self.class_number in [13, 14, 40] or self.curve_number == 2:
-        ##if (self.class_number in [13, 14] or 
-        ##    'winter wheat' == self.curve_name.lower()):
+        ## VB code gets crop curve name from "CropCoefs" worksheet, now "CropParams"
+        ## To match VB code, trigger winter crops by setting the curve number to 2 (Winter Wheat)
+        if (not vb_flag and 
+            (self.class_number in [13, 14] or
+             self.curve_name.upper().strip() == 'WINTER WHEAT')):
+            self.gdd_trigger_doy = 274
+            self.winter_crop = True
+        elif (vb_flag and 
+            (self.class_number in [13, 14] or
+             self.curve_number == 2)):
+             ##'WINTER' in self.curve_name.upper().strip())):
             self.gdd_trigger_doy = 274
             self.winter_crop = True
         else:

@@ -1,7 +1,16 @@
 import logging
 
 def calculate_height(crop, foo, debug_flag=False):
-    """Determine height of crop based on Kc and height limits"""
+    """Determine height of crop based on Kc and height limits
+    
+    Args:
+        crop (): 
+        foo ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+    
+    Returns:
+        None
+    """
     height_prev = foo.height
 
     # <----- previous (2000) and with error (Kcbmin vs Kcmin)

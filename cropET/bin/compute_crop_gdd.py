@@ -4,7 +4,16 @@ import util
 
 def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
     """Compute crop growing degree days
-
+    
+    Args:
+        data (): 
+        crop (): 
+        foo (): 
+        foo_day (): 
+        debug_flag (bool): If True, write debug level comments to debug.txt
+    
+    Returns:
+        None
     """
     ##logging.debug('compute_crop_gdd()')
 
@@ -30,20 +39,20 @@ def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
 
     ## winter grain '<------ specific value for crop number, changed to two ww crops Jan 07
     if (crop.winter_crop and 
-        (foo.doy_prev < crop.gdd_trigger_doy and
+        (foo_day.doy_prev < crop.gdd_trigger_doy and
          foo_day.doy >= crop.gdd_trigger_doy)):
         foo.cgdd = 0.0
-        foo.doy_start_cycle = 0    #' DOY 0 - reset planting date also
+        foo.doy_start_cycle = 0  #' DOY 0 - reset planting date also
         foo.real_start = False   #' April 12, 2009 rga
         foo.in_season = False    #' July 30, 20120 dlk
     elif (not crop.winter_crop and 
-          (foo.doy_prev > (crop.gdd_trigger_doy + 199) and
+          (foo_day.doy_prev > (crop.gdd_trigger_doy + 199) and
            foo_day.doy < (crop.gdd_trigger_doy + 199))):
         foo.cgdd = 0.0
-        foo.doy_start_cycle = 0    #' DoY 0 - reset planting date also
+        foo.doy_start_cycle = 0  #' DoY 0 - reset planting date also
         foo.real_start = False   #' April 12, 2009 rga
         foo.in_season = False    #' July 30, 20120 dlk
-    foo.doy_prev = foo_day.doy
+    foo_day.doy_prev = foo_day.doy
 
     ## Calculate CGDD since trigger date
     ## Only needed if a crop

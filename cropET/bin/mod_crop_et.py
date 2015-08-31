@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import logging
+import multiprocessing as mp
 import os
 import sys
 
@@ -13,13 +14,16 @@ import crop_et_data
 import crop_cycle
 import util
 
-def main(ini_path, log_level=logging.WARNING, debug_flag=False):
+def main(ini_path, log_level=logging.WARNING, 
+         debug_flag=False, vb_flag=False,  mp_procs=1):
     """ Main function for running the Crop ET model
 
     Args:
         ini_path (str): file path of the project INI file
         log_level (logging.lvl): 
-        debug_flag (bool): If True, write debug level comments to debug.txt 
+        debug_flag (bool): If True, write debug level comments to debug.txt
+        vb_flag (bool): If True, mimic calculations in VB version of code
+        mp_procs (int): number of cores to use
 
     Returns:
         None
@@ -28,6 +32,8 @@ def main(ini_path, log_level=logging.WARNING, debug_flag=False):
     logger = util.console_logger(log_level=log_level)
     
     logging.warning('\nRunning Python ET-Demands')
+    if vb_flag:
+        logging.warning('Mimicking VB calculations')
 
     ## All data will be handled in this class
     data = crop_et_data.CropETData()
@@ -65,7 +71,7 @@ def main(ini_path, log_level=logging.WARNING, debug_flag=False):
         cell.subset_weather_data(data.start_dt, data.end_dt)
 
         ## Run the model
-        crop_cycle.crop_cycle(data, cell, debug_flag)
+        crop_cycle.crop_cycle(data, cell, debug_flag, vb_flag, mp_procs)
 
 ################################################################################
 
@@ -77,12 +83,19 @@ def parse_args():
         '-i', '--ini', required=True, metavar='PATH',
         type=lambda x: is_valid_file(parser, x), help='Input file')
     parser.add_argument(
+        '-vb', '--vb', action="store_true", default=False,
+        help="Mimic calculations in VB version of code")
+    parser.add_argument(
         '-d', '--debug', action="store_true", default=False,
         help="Save debug level comments to debug.txt")
     parser.add_argument(
         '-v', '--verbose', action="store_const",
         dest='log_level', const=logging.INFO, default=logging.WARNING,   
         help="Print info level comments")
+    parser.add_argument(
+        '-mp', '--multiprocessing', default=1, type=int, 
+        metavar='N', nargs='?', const=mp.cpu_count(),
+        help='Number of processers to use')
     args = parser.parse_args()
     ## Convert INI path to an absolute path if necessary
     if args.ini and os.path.isfile(os.path.abspath(args.ini)):
@@ -104,4 +117,5 @@ def is_valid_directory(parser, arg):
 if __name__ == '__main__':
     args = parse_args()
 
-    main(ini_path=args.ini, log_level=args.log_level, debug_flag=args.debug)
+    main(ini_path=args.ini, log_level=args.log_level, debug_flag=args.debug,
+         vb_flag=args.vb, mp_procs=args.multiprocessing)

@@ -26,7 +26,7 @@ class InitializeCropCycle:
     etc_act = 0.
     etc_pot = 0.
     etc_bas = 0.
-    etref_30 = 0.                 #' thirty day mean ETref  ' added 12/2007
+    etref_30 = 0.   #' thirty day mean ETref  ' added 12/2007
     fc = 0.
     ##few = 0
     fw = 0.
@@ -82,7 +82,6 @@ class InitializeCropCycle:
     z = 0.
 
     e = 0.
-    doy_prev = 0
     n_cgdd = 0.
     n_pl_ec = 0.
     #tei = 0

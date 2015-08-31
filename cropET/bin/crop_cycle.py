@@ -3,6 +3,7 @@ import datetime
 import fileinput
 import logging
 import math
+import multiprocessing as mp
 import os
 import re
 import sys
@@ -21,15 +22,17 @@ class DayData:
         ## Used in compute_crop_gdd(), needs to be persistent during day loop
         self.etref_array = np.zeros(30)
 
-def crop_cycle(data, et_cell, debug_flag=False):
-    """
+def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
+    """Compute crop ET for all crops
 
     Args:
         data (): 
-        et_cell (): 
+        et_cell ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+        vb_flag (bool): If True, mimic calculations in VB version of code
         
     Returns:
-
+        None
     """
     ## Following is for one crop grown back to back over entire ETr sequence
     ##
@@ -76,7 +79,7 @@ def crop_cycle(data, et_cell, debug_flag=False):
         foo.setup_dataframe(et_cell)
 
         ## Run ET-Demands
-        crop_day_loop(data, et_cell, crop, foo, debug_flag)
+        crop_day_loop(data, et_cell, crop, foo, debug_flag, vb_flag)
         
         ## Merge the crop and weather data frames to form the daily output
         if (data.daily_output_flag or 
@@ -244,21 +247,23 @@ def crop_cycle(data, et_cell, debug_flag=False):
             del gs_output_pd, gs_output_path, gs_output_columns
             
 
-def crop_day_loop(data, et_cell, crop, foo, debug_flag=False):
-    """
+def crop_day_loop(data, et_cell, crop, foo, debug_flag=False, vb_flag=False):
+    """Compute crop ET for each daily timestep
 
     Args:
         data ():
         et_cell ():
         crop ():
         foo ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+        vb_flag (bool): If True, mimic calculations in VB version of code
 
     Returns:
         None
-    """
-    ##logging.debug('crop_day_loop()')    
+    """ 
     foo_day = DayData()
     foo_day.sdays = 0
+    foo_day.doy_prev = 0
 
     for step_dt, step_doy in foo.crop_pd[['doy']].iterrows():
         if debug_flag:
@@ -315,7 +320,8 @@ def crop_day_loop(data, et_cell, crop, foo, debug_flag=False):
         #foo_day.t30_lt = np.copy(et_cell.climate['main_t30_lt'])
                 
         ## Calculate Kcb, Ke, ETc
-        compute_crop_et.compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag)
+        compute_crop_et.compute_crop_et(
+            data, et_cell, crop, foo, foo_day, debug_flag, vb_flag)
 
         ## Retrieve values from foo_day and write to output data frame
         ## Eventually let compute_crop_et() write directly to output df

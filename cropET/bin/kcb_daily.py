@@ -6,8 +6,21 @@ import numpy as np
 
 import open_water_evap
 
-def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
-    """Compute basal ET."""
+def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False):
+    """Compute basal ET
+    
+    Args:
+        data ():
+        et_cell ():
+        crop ():
+        foo ():
+        foo_day ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+        vb_flag (bool): If True, mimic calculations in VB version of code
+        
+    Returns:
+        None
+    """
     ##logging.debug('kcb_daily()')
 
     # Following two variables are used in one equation each but are never assigned a value - dlk - ?
@@ -382,6 +395,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                     foo.in_season = False 
                     foo.stress_event = False
                     logging.debug('kcb_daily(): curve_type 1  in_season %d' % (foo.in_season))
+                    
 
                     ## special case for ALFALFA   1 added 4/18/08
                     if (crop.class_number in [1,2,3] or
@@ -416,7 +430,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                     logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
                     
             ## Use this here only to invoke a total length limit
-            days_into_season = float(foo_day.doy - foo.doy_start_cycle + 1) 
+            days_into_season = foo_day.doy - foo.doy_start_cycle + 1
             if days_into_season < 1:    
                 days_into_season += 365
 
@@ -432,14 +446,24 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
         #### crop.curve_type Case 2 ####
         elif crop.curve_type == 2:
             ## Percent of time from PL to EFC for all season
-            days_into_season = float(foo_day.doy - foo.doy_start_cycle + 1)
+            days_into_season = foo_day.doy - foo.doy_start_cycle + 1
             if days_into_season < 1:     
-                days_into_season = days_into_season + 365
+                days_into_season += 365
             ## Deal with values of zero or null - added Dec. 29, 2011, rga
-            if crop.time_for_efc < 1:
-                crop.time_for_efc = 1 
-            foo.n_pl_ec = days_into_season / crop.time_for_efc
-            npl_ec100 = foo.n_pl_ec * 100
+            crop.time_for_efc = max(crop.time_for_efc, 1.)
+
+            ## DEADBEEF - Perform division with singles/float32 to mimic VB code                
+            if vb_flag:
+                foo.n_pl_ec = float((
+                    np.array(days_into_season, dtype=np.float32) / 
+                    np.array(crop.time_for_efc, dtype=np.float32)))
+                npl_ec100 = float((
+                    np.array(days_into_season, dtype=np.float32) / 
+                    np.array(crop.time_for_efc, dtype=np.float32)) * 100)
+            else:
+                foo.n_pl_ec = float(days_into_season) / crop.time_for_efc
+                npl_ec100 = foo.n_pl_ec * 100
+            
             if foo.n_pl_ec < 1:    
                 foo.mad = foo.mad_ini
             else:
@@ -452,23 +476,25 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
             logging.debug(
                 'kcb_daily(): npl_ec100 %s  time_for_harvest %.6f  abs_time_for_harvest %.6f' %
                 (npl_ec100, crop.time_for_harvest, abs(crop.time_for_harvest)))
-            #if npl_ec100 <= abs(crop.time_for_harvest):    
-            if round(npl_ec100,4) <= abs(crop.time_for_harvest):    
+            ## Reverting code to match VB version.  
+            ## Problem is coming from n_pl_ec and npl_ec100 calculation above
+            if npl_ec100 <= abs(crop.time_for_harvest):
+            ##if round(npl_ec100, 4) <= abs(crop.time_for_harvest):    
                 int_pl_ec = min(foo.max_lines_in_crop_curve_table - 1., int(foo.n_pl_ec * 10.))
                 foo.kc_bas = (
                     et_cell.crop_coeffs[curve_number].data[int_pl_ec] +
-                    (foo.n_pl_ec * 10 - int_pl_ec) *
-                    (et_cell.crop_coeffs[curve_number].data[int_pl_ec+1] -
+                    (foo.n_pl_ec * 10. - int_pl_ec) *
+                    (et_cell.crop_coeffs[curve_number].data[int_pl_ec + 1] -
                      et_cell.crop_coeffs[curve_number].data[int_pl_ec]))
                 if debug_flag:
                     logging.debug(
                         'kcb_daily(): n_pl_ec0 %d  max_lines_in_crop_curve_table %d' %
                         (foo.n_pl_ec, foo.max_lines_in_crop_curve_table))
                     logging.debug(
-                        'kcb_daily():6 Kc_bas %.6f  int_pl_ec %d  n_pl_ec %d' %
+                        'kcb_daily(): Kc_bas %.6f  int_pl_ec %d  n_pl_ec %d' %
                         (foo.kc_bas, int_pl_ec, foo.n_pl_ec))
                     logging.debug(
-                        'kcb_daily():6 days_into_season %d  time_for_EFC %.6f' %
+                        'kcb_daily(): days_into_season %d  time_for_EFC %.6f' %
                         (days_into_season, crop.time_for_efc))
             else:
                 #' beyond stated end of season
@@ -488,21 +514,30 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
         #### crop.curve_type Case 3 ####
         elif crop.curve_type == 3:
             ## Percent of time from PL to EFC for before EFC and days after EFC after EFC
-            days_into_season = float(foo_day.doy - foo.doy_start_cycle + 1)
+            days_into_season = foo_day.doy - foo.doy_start_cycle + 1
             if days_into_season < 1:     
                 days_into_season += 365
-            if crop.time_for_efc < 1:     
-                crop.time_for_efc = 1 #' deal with values of zero or null - added Dec. 29, 2011, rga
-            foo.n_pl_ec = days_into_season / crop.time_for_efc
-            if foo.n_pl_ec < 1:    
-                int_pl_ec = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_pl_ec * 10.))
+            ## Deal with values of zero or null - added Dec. 29, 2011, rga
+            crop.time_for_efc = max(crop.time_for_efc, 1.)
+
+            ## DEADBEEF - Perform division with singles/float32 to mimic VB code
+            if vb_flag:
+                foo.n_pl_ec = float((
+                    np.array(days_into_season, dtype=np.float32) / 
+                    np.array(crop.time_for_efc, dtype=np.float32)))
+            else:
+                foo.n_pl_ec = float(days_into_season) / crop.time_for_efc
+            ##foo.n_pl_ec = float(days_into_season) / crop.time_for_efc
+            
+            if foo.n_pl_ec < 1:            
+                int_pl_ec = min(int(foo.n_pl_ec * 10.), foo.max_lines_in_crop_curve_table - 1)
                 foo.kc_bas = (
                     et_cell.crop_coeffs[curve_number].data[int_pl_ec] +
                     (foo.n_pl_ec * 10 - int_pl_ec) *
                     (et_cell.crop_coeffs[curve_number].data[int_pl_ec + 1] -
                      et_cell.crop_coeffs[curve_number].data[int_pl_ec]))
                 logging.debug(
-                    ('kcb_daily(): Kc_bas %.6f  n_pl_ec %d  '+
+                    ('kcb_daily(): Kc_bas %.6f  n_pl_ec %.6f  '+
                      'max_lines_in_crop_curve_table %d  int_pl_ec %d') % 
                     (foo.kc_bas, foo.n_pl_ec, foo.max_lines_in_crop_curve_table, int_pl_ec))
                 foo.mad = foo.mad_ini
@@ -517,29 +552,30 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 ##   run until frost (Jan. 2007). also changed to <= from <
                 if DaysafterEFC <= abs(crop.time_for_harvest):
                     ## Start at array index = 11 for 0 days into full cover
-                    nDaysafterEFC = DaysafterEFC / 10 + 11 
-                    int_pl_ec = min(foo.max_lines_in_crop_curve_table - 1, int(nDaysafterEFC))
+                    nDaysafterEFC = float(DaysafterEFC) / 10 + 11
+                    int_pl_ec = min(int(nDaysafterEFC), foo.max_lines_in_crop_curve_table - 1)
                     foo.kc_bas = (
                         et_cell.crop_coeffs[curve_number].data[int_pl_ec] +
                         (nDaysafterEFC - int_pl_ec) *
                         (et_cell.crop_coeffs[curve_number].data[int_pl_ec + 1] -
                          et_cell.crop_coeffs[curve_number].data[int_pl_ec]))
-                    logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
-                else:
+                    logging.debug(
+                        ('kcb_daily(): Kc_bas %.6f  n_pl_ec %.6f  ' 
+                         'nDaysafterEFC %.6f  int_pl_ec %.6f') % 
+                        (foo.kc_bas, foo.n_pl_ec, nDaysafterEFC, int_pl_ec))
+                elif crop.time_for_harvest < -0.5:
                     #' beyond stated end of season
                     #' ------need provision to extend until frost termination if indicated for crop -- added Jan. 2007
-
                     #' negative value is a flag to extend until frost -- added Jan. 2007
-                    if crop.time_for_harvest < -0.5:     
     
-                        #' XXXX need to set to yesterday's standard climate kcb
-                        #' use yesterday's kcb which should trace back to last valid day of stated growing season
-                        foo.kc_bas = foo.kc_bas_prev
-                        logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
-                    else:
-                        foo.in_season = False
-                        foo.stress_event = False #' reset severe stress event flag
-                        logging.debug('kcb_daily(): curve_type 3  in_season %d' % (foo.in_season))
+                    #' XXXX need to set to yesterday's standard climate kcb
+                    #' use yesterday's kcb which should trace back to last valid day of stated growing season
+                    foo.kc_bas = foo.kc_bas_prev
+                    logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
+                else:
+                    foo.in_season = False
+                    foo.stress_event = False #' reset severe stress event flag
+                    logging.debug('kcb_daily(): curve_type 3  in_season %d' % (foo.in_season))
 
         #### crop.curve_type Case 4 ####
         elif crop.curve_type == 4:
@@ -548,7 +584,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
             ##   and symmetry around July 15 to estimate total season length.
     
             ## Estimate end of season
-            if foo.doy_start_cycle < (crop.gdd_trigger_doy  + 195):
+            if foo.doy_start_cycle < (crop.gdd_trigger_doy + 195):
                 ## CGM - end_of_season is not used anywhere else?
                 ##end_of_season = (
                 ##    crop.gdd_trigger_doy  + 195 +
@@ -558,8 +594,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 #' length_of_season = 2 * (196 - foo.doy_start_cycle)
             else:
                 logging.error(
-                    'kc_daily.kcb_daily(): Problem with estimated season length, '+
-                    'crop_curve_type_4')
+                    ('kc_daily.kcb_daily(): Problem with estimated season length, '+
+                     'crop_curve_type_4, crop {}').format(crop.class_number))
                 sys.exit()
     
             ## Put a minimum and maximum length on season for cheat grass (i= 47)
@@ -569,10 +605,19 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 if length_of_season > 90:
                     length_of_season = 100
 
-            days_into_season = float(foo_day.doy - foo.doy_start_cycle)
+            days_into_season = foo_day.doy - foo.doy_start_cycle
             if days_into_season < 1:     
                 days_into_season += 365
-            foo.n_pl_ec = days_into_season / length_of_season
+            
+            ## DEADBEEF - Perform division with singles/float32 to mimic VB code
+            if vb_flag:
+                foo.n_pl_ec = float((
+                    np.array(days_into_season, dtype=np.float32) / 
+                    np.array(length_of_season, dtype=np.float32)))
+            else:
+                foo.n_pl_ec = float(days_into_season) / length_of_season
+            ##foo.n_pl_ec = days_into_season / length_of_season
+            
             ## Assume season is split 50/50 for stress sensitivities for type 4
             if foo.n_pl_ec < 0.5:     
                 foo.mad = foo.mad_ini
