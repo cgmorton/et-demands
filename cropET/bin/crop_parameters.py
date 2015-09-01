@@ -63,7 +63,6 @@ class CropParameters:
             self.winter_crop = True
         elif (vb_flag and self.class_number in [40] and
               self.curve_name.upper().strip() == 'WINTER CANOLA'):
-            print 'WINTER CANOLA'
             self.gdd_trigger_doy = 274
             self.winter_crop = False
         else:
