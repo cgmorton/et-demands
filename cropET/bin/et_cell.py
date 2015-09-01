@@ -25,10 +25,10 @@ class ETCell():
         return '<ETCell {0}, {1} {2}>'.format(
             self.cell_id, self.cell_name, self.refet_id)
 
-    def set_crop_params(self, fn):
+    def set_crop_params(self, fn, vb_flag=False):
         """ List of <CropParameter> instances """
         logging.info('  Reading crop parameters')
-        self.crop_params = crop_parameters.read_crop_parameters(fn)
+        self.crop_params = crop_parameters.read_crop_parameters(fn, vb_flag)
     
     def set_crop_coeffs(self, fn):
         """ List of <CropCoeff> instances """

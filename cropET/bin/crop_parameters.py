@@ -55,19 +55,17 @@ class CropParameters:
         self.cn_fine_soil = int(v[31])
 
         ## Winter crop
-        ## VB code gets crop curve name from "CropCoefs" worksheet, now "CropParams"
-        ## To match VB code, trigger winter crops by setting the curve number to 2 (Winter Wheat)
-        if (not vb_flag and 
-            (self.class_number in [13, 14] or
-             self.curve_name.upper().strip() == 'WINTER WHEAT')):
+        ## To match VB code, "WINTER CANOLA" GDD trigger day isn't changed
+        ##   but it is still processed as a "winter" crop in the rest of the code
+        if (self.class_number in [13, 14] and
+            self.curve_name.upper().strip() == 'WINTER WHEAT'):
             self.gdd_trigger_doy = 274
             self.winter_crop = True
-        elif (vb_flag and 
-            (self.class_number in [13, 14] or
-             self.curve_number == 2)):
-             ##'WINTER' in self.curve_name.upper().strip())):
+        elif (vb_flag and self.class_number in [40] and
+              self.curve_name.upper().strip() == 'WINTER CANOLA'):
+            print 'WINTER CANOLA'
             self.gdd_trigger_doy = 274
-            self.winter_crop = True
+            self.winter_crop = False
         else:
             self.gdd_trigger_doy = 1
             self.winter_crop = False
@@ -104,7 +102,7 @@ class CropParameters:
         #self.cn_medium_soil_winter = int(v[30])
         #self.cn_fine_soil_winter   = int(v[31])
 
-def read_crop_parameters(fn):
+def read_crop_parameters(fn, vb_flag=False):
     """Read in the crop parameter text file"""
 
     ## For now, hardcode reading the first 32 lines after the 3 header rows
@@ -121,7 +119,7 @@ def read_crop_parameters(fn):
             crop_num = abs(int(crop_num))
         else:
             break
-        crops_dict[crop_num] = CropParameters(crop_param_data[:,crop_i+2])
+        crops_dict[crop_num] = CropParameters(crop_param_data[:,crop_i+2], vb_flag)
     return crops_dict
 
 if __name__ == '__main__':
