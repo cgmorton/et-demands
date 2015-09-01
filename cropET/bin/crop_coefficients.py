@@ -6,11 +6,15 @@ class CropCoeff:
     name = None
     gdd_type_name = ''
 
-    def __init__(self, fn=''):
+    def __init__(self):
         """ """
-        self.fn = fn
-        if fn:
-            self.read(fn)
+        pass
+    ## CGM 9/1/2015 - Not sure the point of this implementation of the init function
+    ##def __init__(self, fn=''):
+    ##    """ """
+    ##    self.fn = fn
+    ##    if fn:
+    ##        self.read(fn)
 
     def __str__(self):
         """ """
@@ -57,24 +61,26 @@ class CropCoeff:
         self.curve_type = t2d[dc[3]]
         self.name = dc[4]
 
-        t2n = { '1':'simple', '2':'corn'}
-        self.gdd_base_c = dc[41]
-        self.gdd_type = dc[42]
-        if dc[42] in t2n:
-            self.gdd_type_name = t2n[dc[42]]
-        self.cgdd_planting_to_fc = dc[43]
-        self.cgdd_planting_to_terminate = dc[44]
-        self.cgdd_planting_to_terminate_alt = dc[45]
-
-        self.comment1 = dc[46]
-        self.comment2 = dc[47]
-
         ## Data table
         self.percents = percents.astype(float)
         v = dc[6:41]
         #v = np.where(v == '', 'nan', v)
         v = np.where(v == '', '0', v)
         self.data = v.astype(float)
+
+        ## CGM 9/1/2015 - These aren't used anywhere else in the code
+        ##t2n = { '1':'simple', '2':'corn'}
+        ##self.gdd_base_c = dc[41]
+        ##self.gdd_type = dc[42]
+        ##if dc[42] in t2n:
+        ##    self.gdd_type_name = t2n[dc[42]]
+            
+        ## CGM 9/1/2015 - These aren't used anywhere else in the code
+        ##self.cgdd_planting_to_fc = dc[43]
+        ##self.cgdd_planting_to_terminate = dc[44]
+        ##self.cgdd_planting_to_terminate_alt = dc[45]
+        ##self.comment1 = dc[46]
+        ##self.comment2 = dc[47]
 
         ## From CropCycle() in vb code
         i = np.where(self.data > 0.0)
