@@ -147,7 +147,6 @@ def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False):
                     del season_diff
                 gs_output_pd.set_value(
                     group.index[0], 'GS_Length', int(sum(group['Season'].values)))
-            raw_input('ENTER')
          
         ## Write daily output
         if data.daily_output_flag:
@@ -224,7 +223,7 @@ def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False):
             def doy_2_date(test_year, test_doy):
                 try:
                     return datetime.datetime.strptime(
-                        '{0} {1}'.format(int(test_year), int(test_doy)), '%Y %j').date.isoformat()
+                        '{0}_{1}'.format(int(test_year), int(test_doy)), '%Y_%j').date().isoformat()
                 except:
                     return 'None'
             gs_output_pd['Start_Date'] = gs_output_pd[['Year', 'Start_DOY']].apply(

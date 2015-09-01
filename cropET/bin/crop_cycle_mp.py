@@ -77,178 +77,8 @@ def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
         results = pool.map(crop_day_loop_mp, crop_mp_list)
         pool.close()
         pool.join()
-        del pool
-    
-    ##logging.info('  Writing output files')
-    ##for crop_num, crop_name, foo in sorted(results):
-    ##    
-    ##    ## Merge the crop and weather data frames to form the daily output
-    ##    if (data.daily_output_flag or 
-    ##        data.monthly_output_flag or 
-    ##        data.annual_output_flag):
-    ##        daily_output_pd = pd.merge(
-    ##            foo.crop_pd, et_cell.weather_pd[['ppt']], 
-    ##            ##foo.crop_pd, et_cell.weather_pd[['ppt', 't30']], 
-    ##            left_index=True, right_index=True)
-    ##        ## Rename the output columns
-    ##        daily_output_pd.index.rename('Date', inplace=True)
-    ##        daily_output_pd['Year'] = daily_output_pd.index.year
-    ##        daily_output_pd = daily_output_pd.rename(columns = {
-    ##            'doy':'DOY', 'ppt':'PPT', 'etref':'PMETo',
-    ##            'et_act':'ETact', 'et_pot':'ETpot', 'et_bas':'ETbas',
-    ##            'kc_act':'Kc', 'kc_bas':'Kcb',
-    ##            'niwr':'NIWR', 'irrigation':'Irrigation', 'runoff':'Runoff', 
-    ##            'dperc':'DPerc', 'season':'Season'})
-    ##            ##'t30':'T30', 
-    ##    ## Compute monthly and annual stats before modifying daily format below
-    ##    if data.monthly_output_flag:
-    ##        monthly_resample_func = {
-    ##            'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
-    ##            'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum, 
-    ##            'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 'Season':np.sum}
-    ##        monthly_output_pd = daily_output_pd.resample('MS', how=monthly_resample_func)
-    ##    if data.annual_output_flag:
-    ##        resample_func = {
-    ##            'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
-    ##            'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum,
-    ##            'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 'Season':np.sum}
-    ##        annual_output_pd = daily_output_pd.resample('AS', how=resample_func)
-    ##    ## Get growing season start and end DOY for each year
-    ##    ## Compute growing season length for each year
-    ##    if data.gs_output_flag:
-    ##        gs_output_pd = daily_output_pd.resample('AS', how={'Year':np.mean})
-    ##        gs_output_pd['Start_DOY'] = np.nan
-    ##        gs_output_pd['End_DOY'] = np.nan
-    ##        gs_output_pd['Start_Date'] = None
-    ##        gs_output_pd['End_Date'] = None
-    ##        gs_output_pd['GS_Length'] = np.nan
-    ##        for year_i, (year, group) in enumerate(daily_output_pd.groupby(['Year'])):
-    ##            ##if year_i == 0:
-    ##            ##    logging.debug('  Skipping first year')
-    ##            ##    continue
-    ##            if not np.any(group['Season'].values):
-    ##                logging.debug('  Skipping, season flag was never set to 1')
-    ##                continue
-    ##            else:
-    ##                season_diff = np.diff(group['Season'].values)
-    ##                try:
-    ##                    start_i = np.where(season_diff == 1)[0][0] + 1
-    ##                    gs_output_pd.set_value(
-    ##                        group.index[0], 'Start_DOY', int(group.ix[start_i, 'DOY']))
-    ##                except:
-    ##                    gs_output_pd.set_value(
-    ##                        group.index[0], 'Start_DOY', int(min(group['DOY'].values)))
-    ##                try:
-    ##                    end_i = np.where(season_diff == -1)[0][0] + 1
-    ##                    gs_output_pd.set_value(
-    ##                        group.index[0], 'End_DOY', int(group.ix[end_i, 'DOY']))
-    ##                except:
-    ##                    gs_output_pd.set_value(
-    ##                        group.index[0], 'End_DOY', int(max(group['DOY'].values)))
-    ##                del season_diff
-    ##            gs_output_pd.set_value(
-    ##                group.index[0], 'GS_Length', int(sum(group['Season'].values)))
-    ##        raw_input('ENTER')
-    ##     
-    ##    ## Write daily output
-    ##    if data.daily_output_flag:
-    ##        daily_output_pd['Year'] = daily_output_pd.index.year
-    ##        daily_output_pd['Month'] = daily_output_pd.index.month
-    ##        daily_output_pd['Day'] = daily_output_pd.index.day
-    ##        daily_output_pd['Year'] = daily_output_pd['Year'].map(lambda x: ' %4d' % x)
-    ##        daily_output_pd['Month'] = daily_output_pd['Month'].map(lambda x: ' %2d' % x)
-    ##        daily_output_pd['Day'] = daily_output_pd['Day'].map(lambda x: ' %2d' % x)
-    ##        daily_output_pd['DOY'] = daily_output_pd['DOY'].map(lambda x: ' %3d' % x)
-    ##        ## This will convert negative "zeros" to positive
-    ##        daily_output_pd['NIWR'] = np.round(daily_output_pd['NIWR'],6)
-    ##        daily_output_pd['Season'] = daily_output_pd['Season'].map(lambda x: ' %1d' % x)
-    ##        ##daily_output_pd['Irrigation'] = daily_output_pd['Irrigation'].map(
-    ##        ##    lambda x: daily_flt_format % x)
-    ##        daily_output_path = os.path.join(
-    ##            data.daily_output_ws, '{0}_daily_crop_{1:02d}.csv'.format(
-    ##                et_cell.cell_id, crop_num))
-    ##        ## Set the output column order
-    ##        daily_output_columns = [
-    ##            'Year', 'Month', 'Day', 'DOY', 
-    ##            'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-    ##            'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
-    ##        if not data.kc_flag:
-    ##            daily_output_columns.remove('Kc')
-    ##            daily_output_columns.remove('Kcb')
-    ##        if not data.niwr_flag:
-    ##            daily_output_columns.remove('NIWR')
-    ##        with open(daily_output_path, 'w') as daily_output_f:
-    ##            daily_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
-    ##            daily_output_pd.to_csv(
-    ##                daily_output_f, sep=',', columns=daily_output_columns, 
-    ##                float_format='%10.6f', date_format='%Y-%m-%d')
-    ##        del daily_output_pd, daily_output_path, daily_output_columns
-    ##    
-    ##    ## Write monthly statistics
-    ##    if data.monthly_output_flag:
-    ##        monthly_output_pd['Year'] = monthly_output_pd.index.year
-    ##        monthly_output_pd['Month'] = monthly_output_pd.index.month
-    ##        monthly_output_pd['Year'] = monthly_output_pd['Year'].map(lambda x: ' %4d' % x)
-    ##        monthly_output_pd['Month'] = monthly_output_pd['Month'].map(lambda x: ' %2d' % x)
-    ##        monthly_output_pd['Season'] = monthly_output_pd['Season'].map(lambda x: ' %2d' % x)
-    ##        monthly_output_path = os.path.join(
-    ##            data.monthly_output_ws, '{0}_monthly_crop_{1:02d}.csv'.format(
-    ##                et_cell.cell_id, int(crop_num)))
-    ##        monthly_output_columns = [
-    ##            'Year', 'Month', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-    ##            'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
-    ##        with open(monthly_output_path, 'w') as monthly_output_f:
-    ##            monthly_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
-    ##            monthly_output_pd.to_csv(
-    ##                monthly_output_f, sep=',', columns=monthly_output_columns, 
-    ##                float_format=' %8.4f', date_format='%Y-%m')
-    ##        del monthly_output_pd, monthly_output_path, monthly_output_columns
-    ##    
-    ##    ## Write annual statistics
-    ##    if data.annual_output_flag:
-    ##        annual_output_pd['Year'] = annual_output_pd.index.year
-    ##        annual_output_pd['Season'] = annual_output_pd['Season'].map(lambda x: ' %3d' % x)
-    ##        annual_output_path = os.path.join(
-    ##            data.annual_output_ws, '{0}_annual_crop_{1:02d}.csv'.format(
-    ##                et_cell.cell_id, int(crop_num)))
-    ##        annual_output_columns = [
-    ##            'Year', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-    ##            'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
-    ##        with open(annual_output_path, 'w') as annual_output_f:
-    ##            annual_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
-    ##            annual_output_pd.to_csv(
-    ##                annual_output_f, sep=',', columns=annual_output_columns, 
-    ##                float_format=' %9.4f', date_format='%Y', index = False)
-    ##        del annual_output_pd, annual_output_path, annual_output_columns
-    ##      
-    ##    ## Write growing season statistics
-    ##    if data.gs_output_flag:
-    ##        def doy_2_date(test_year, test_doy):
-    ##            try:
-    ##                return datetime.datetime.strptime(
-    ##                    '{0} {1}'.format(int(test_year), int(test_doy)), '%Y %j').date.isoformat()
-    ##            except:
-    ##                return 'None'
-    ##        gs_output_pd['Start_Date'] = gs_output_pd[['Year', 'Start_DOY']].apply(
-    ##            lambda s:doy_2_date(*s), axis = 1)
-    ##        gs_output_pd['End_Date'] = gs_output_pd[['Year', 'End_DOY']].apply(
-    ##            lambda s:doy_2_date(*s), axis = 1)
-    ##        ##gs_output_pd['Start_DOY'] = gs_output_pd['Start_DOY'].map(lambda x: ' %3d' % x)
-    ##        ##gs_output_pd['End_DOY'] = gs_output_pd['End_DOY'].map(lambda x: ' %3d' % x)
-    ##        ##gs_output_pd['GS_Length'] = gs_output_pd['GS_Length'].map(lambda x: ' %3d' % x)
-    ##        gs_output_path = os.path.join(
-    ##            data.gs_output_ws, '{0}_gs_crop_{1:02d}.csv'.format(
-    ##                et_cell.cell_id, int(crop_num)))
-    ##        gs_output_columns = [
-    ##            'Year', 'Start_DOY', 'End_DOY', 'Start_Date', 'End_Date', 'GS_Length']
-    ##        with open(gs_output_path, 'w') as gs_output_f:
-    ##            gs_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop_name))
-    ##            gs_output_pd.to_csv(
-    ##                gs_output_f, sep=',', columns=gs_output_columns, 
-    ##                date_format='%Y', index = False)
-    ##        del gs_output_pd, gs_output_path, gs_output_columns
-            
-
+        del pool, results
+         
 def crop_day_loop_mp(tup):
     """Pool multiprocessing friendly project raster function
 
@@ -345,6 +175,7 @@ def crop_day_loop_sp(data, et_cell, crop, debug_flag=False, vb_flag=False):
         foo.crop_pd.at[step_dt, 'dperc'] = foo.dperc
         foo.crop_pd.at[step_dt, 'niwr'] = foo.niwr + 0
         foo.crop_pd.at[step_dt, 'season'] = int(foo.in_season)
+    del foo_day
         
     #### Merge the crop and weather data frames to form the daily output
     if (data.daily_output_flag or 
@@ -364,6 +195,8 @@ def crop_day_loop_sp(data, et_cell, crop, debug_flag=False, vb_flag=False):
             'niwr':'NIWR', 'irrigation':'Irrigation', 'runoff':'Runoff', 
             'dperc':'DPerc', 'season':'Season'})
             ##'t30':'T30', 
+    del foo
+    
     ## Compute monthly and annual stats before modifying daily format below
     if data.monthly_output_flag:
         monthly_resample_func = {
@@ -412,7 +245,6 @@ def crop_day_loop_sp(data, et_cell, crop, debug_flag=False, vb_flag=False):
                 del season_diff
             gs_output_pd.set_value(
                 group.index[0], 'GS_Length', int(sum(group['Season'].values)))
-        raw_input('ENTER')
      
     ## Write daily output
     if data.daily_output_flag:
@@ -490,7 +322,7 @@ def crop_day_loop_sp(data, et_cell, crop, debug_flag=False, vb_flag=False):
         def doy_2_date(test_year, test_doy):
             try:
                 return datetime.datetime.strptime(
-                    '{0} {1}'.format(int(test_year), int(test_doy)), '%Y %j').date.isoformat()
+                    '{0} {1}'.format(int(test_year), int(test_doy)), '%Y %j').date().isoformat()
             except:
                 return 'None'
         gs_output_pd['Start_Date'] = gs_output_pd[['Year', 'Start_DOY']].apply(
@@ -511,7 +343,7 @@ def crop_day_loop_sp(data, et_cell, crop, debug_flag=False, vb_flag=False):
                 gs_output_f, sep=',', columns=gs_output_columns, 
                 date_format='%Y', index = False)
         del gs_output_pd, gs_output_path, gs_output_columns    
-    ##return crop_num, crop_name, foo
+    return True
 
 def main():
     """ """

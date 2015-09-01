@@ -13,6 +13,7 @@ import pandas as pd
 import crop_et_data
 import crop_cycle
 import crop_cycle_mp
+import et_cell
 import util
 
 def main(ini_path, log_level=logging.WARNING, 
@@ -55,12 +56,13 @@ def main(ini_path, log_level=logging.WARNING,
 
     ## Read in cell properties, crops and cuttings
     ## DEADBEEF - These could be called directly from the CropETData class
-    data.set_cell_properties(data.cell_properties_path)
-    data.set_cell_crops(data.cell_crops_path)
-    data.set_cell_cuttings(data.cell_cuttings_path)
+    cells = et_cell.ETCellData()
+    cells.set_cell_properties(data.cell_properties_path)
+    cells.set_cell_crops(data.cell_crops_path)
+    cells.set_cell_cuttings(data.cell_cuttings_path)
 
     ## Process each cell/station
-    for cell_id, cell in sorted(data.et_cells.items()):
+    for cell_id, cell in sorted(cells.et_cells_dict.items()):
         logging.warning('CellID: {}'.format(cell_id))
 
         ## DEADBEEF - The "cell" could inherit the "data" values instead
