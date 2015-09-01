@@ -109,20 +109,20 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
 
     ## Check input folders
     if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {0} '+
-                      'does not exist\n'.format(gis_ws))
+        logging.error(('\nERROR: The GIS workspace {0} '+
+                       'does not exist\n').format(gis_ws))
         sys.exit()
-    if not os.path.isdir(station_ws):
-        logging.error('\nERROR: The station workspace {0} '+
-                      'does not exist\n'.format(station_ws))
+    elif not os.path.isdir(station_ws):
+        logging.error(('\nERROR: The station workspace {0} '+
+                       'does not exist\n').format(station_ws))
         sys.exit()
     elif not os.path.isdir(project_ws):
-        logging.error('\nERROR: The project workspace {0} '+
-                      'does not exist\n'.format(project_ws))
+        logging.error(('\nERROR: The project workspace {0} '+
+                       'does not exist\n').format(project_ws))
         sys.exit()
     elif not os.path.isdir(template_ws):
-        logging.error('\nERROR: The static template workspace {0} '+
-                      'does not exist\n'.format(template_ws))
+        logging.error(('\nERROR: The static template workspace {0} '+
+                       'does not exist\n').format(template_ws))
         sys.exit()
     ##if not os.path.isdir(demands_ws):
     ##    os.makedirs(demands_ws)
