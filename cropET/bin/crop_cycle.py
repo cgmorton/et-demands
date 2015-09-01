@@ -22,7 +22,7 @@ class DayData:
         ## Used in compute_crop_gdd(), needs to be persistent during day loop
         self.etref_array = np.zeros(30)
 
-def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
+def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False):
     """Compute crop ET for all crops
 
     Args:

@@ -12,6 +12,7 @@ import pandas as pd
 
 import crop_et_data
 import crop_cycle
+import crop_cycle_mp
 import util
 
 def main(ini_path, log_level=logging.WARNING, 
@@ -23,7 +24,7 @@ def main(ini_path, log_level=logging.WARNING,
         log_level (logging.lvl): 
         debug_flag (bool): If True, write debug level comments to debug.txt
         vb_flag (bool): If True, mimic calculations in VB version of code
-        mp_procs (int): number of cores to use
+        mp_procs (int): number of cores to use for multiprocessing
 
     Returns:
         None
@@ -33,7 +34,12 @@ def main(ini_path, log_level=logging.WARNING,
     
     logging.warning('\nRunning Python ET-Demands')
     if vb_flag:
-        logging.warning('Mimicking VB calculations')
+        logging.warning('  Mimicking VB calculations')
+    if debug_flag and mp_procs > 1:
+        logging.warning('  Debug mode, disabling multiprocessing')
+        mp_procs = 1
+    if mp_procs > 1:
+        logging.warning('  Multiprocessing mode, {0} cores'.format(mp_procs))
 
     ## All data will be handled in this class
     data = crop_et_data.CropETData()
@@ -71,7 +77,11 @@ def main(ini_path, log_level=logging.WARNING,
         cell.subset_weather_data(data.start_dt, data.end_dt)
 
         ## Run the model
-        crop_cycle.crop_cycle(data, cell, debug_flag, vb_flag, mp_procs)
+        ## For now, handle multiprocessing in separate scripts
+        if mp_procs > 1:
+            crop_cycle_mp.crop_cycle(data, cell, debug_flag, vb_flag, mp_procs)
+        else:
+            crop_cycle.crop_cycle(data, cell, debug_flag, vb_flag)
 
 ################################################################################
 
