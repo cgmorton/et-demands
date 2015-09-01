@@ -454,12 +454,12 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
 
             ## DEADBEEF - Perform division with singles/float32 to mimic VB code                
             if vb_flag:
-                foo.n_pl_ec = float((
+                foo.n_pl_ec = float(
                     np.array(days_into_season, dtype=np.float32) / 
-                    np.array(crop.time_for_efc, dtype=np.float32)))
-                npl_ec100 = float((
+                    np.array(crop.time_for_efc, dtype=np.float32))
+                npl_ec100 = float(
                     np.array(days_into_season, dtype=np.float32) / 
-                    np.array(crop.time_for_efc, dtype=np.float32)) * 100)
+                    np.array(crop.time_for_efc, dtype=np.float32) * 100)
             else:
                 foo.n_pl_ec = float(days_into_season) / crop.time_for_efc
                 npl_ec100 = foo.n_pl_ec * 100
@@ -765,8 +765,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                 foo.kc_bas = 0.6
         elif crop.class_number == 56:
             ## This is a place holder, since an aerodynamic function is used
-            foo.kc_bas = 0.3 
-            ##foo.kc_bas = open_water_evap.open_water_evap(cell, foo_day)
+            ##foo.kc_bas = 0.3 
+            foo.kc_bas = open_water_evap.open_water_evap(et_cell, foo_day)
         elif crop.class_number == 57:
             if data.refet['type'] == 'eto':
                 foo.kc_bas = 0.85
