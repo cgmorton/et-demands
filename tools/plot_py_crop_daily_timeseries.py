@@ -2,13 +2,14 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-08-24
+# Created       2015-09-01
 # Python:       2.7
 #--------------------------------
 
 import argparse
 import calendar
 import datetime as dt
+import gc
 import logging
 import math
 import os
@@ -24,9 +25,9 @@ import pandas as pd
 
 ################################################################################
 
-def main(project_ws, figure_show_flag=None, figure_save_flag=None,
+def main(project_ws, figure_show_flag=False, figure_save_flag=True,
          figure_size=(1000,300), start_date=None, end_date=None,
-         crop_str=''):
+         crop_str='', overwrite_flag=False):
     """Plot full daily data by crop
 
     Args:
@@ -37,6 +38,7 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
         crop_str (str): comma separate list or range of crops to compare
+        overwrite_flag (bool): If True, overwrite existing files
 
     Returns:
         None
@@ -90,11 +92,11 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
         logging.info('  Project Folder: {0}'.format(project_ws))
 
         ## If save and show flags were not set, prompt user
-        logging.info('')
-        if figure_save_flag is None:
-            figure_save_flag = query_yes_no('Save Figures', 'yes')
-        if figure_show_flag is None:
-            figure_show_flag = query_yes_no('Show Figures', 'no')
+        ##logging.info('')
+        ##if figure_save_flag is None:
+        ##    figure_save_flag = query_yes_no('Save Figures', 'yes')
+        ##if figure_show_flag is None:
+        ##    figure_show_flag = query_yes_no('Show Figures', 'no')
 
         ## Input workspaces
         input_ws = os.path.join(project_ws, input_folder)
@@ -176,7 +178,7 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
             logging.debug('')
             logging.info('  {0}'.format(file_name))
 
-            station, crop_num = os.path.splitext(file_name)[0].split('_daily__crop_')
+            station, crop_num = os.path.splitext(file_name)[0].split('_daily_crop_')
             crop_num = int(crop_num)
             logging.debug('    Station:         {0}'.format(station))
             logging.debug('    Crop Num:        {0}'.format(crop_num))
@@ -255,8 +257,10 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
             ## Timeseries figures of daily data
             output_name = '{0}_crop_{1:02d}_{2}-{3}'.format(
                 station, int(crop_num), crop_year_start, crop_year_end)
-            f = output_file(os.path.join(output_ws, output_name+'.html'),
-                            title=output_name)
+            output_path = os.path.join(output_ws, output_name+'.html')
+            if overwrite_flag and os.path.isfile(output_path):
+                os.remove(output_path)
+            f = output_file(output_path, title=output_name)
             TOOLS = 'xpan,xwheel_zoom,box_zoom,reset,save'
 
             f1 = figure(
@@ -311,22 +315,19 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
             del f1, f2, f3, f
 
             ## Cleanup
-            del etact_array
-            del etpot_array
-            del etbas_array
-            del irrig_array
-            del season_array
-            del runoff_array
-            del dperc_array
+            del etact_array, etpot_array, etbas_array
+            del irrig_array, season_array
+            del runoff_array, dperc_array
             del kc_array, kcb_array
             ##del niwr_array
             ##del etact_sub_array, niwr_sub_array
 
             ## Cleanup
             del file_path, data_df
-            del dt_array, doy_array
+            del dt_array, year_array, year_sub_array, doy_array
             del pmeto_array
             del precip_array
+            gc.collect()
 
     except:
         logging.exception('Unhandled Exception Error\n\n')
@@ -337,12 +338,12 @@ def main(project_ws, figure_show_flag=None, figure_save_flag=None,
 
 ################################################################################
 
-def get_pmdata_workspace(workspace):
+def get_project_directory(workspace):
     import Tkinter, tkFileDialog
     root = Tkinter.Tk()
     user_ws = tkFileDialog.askdirectory(
         initialdir=workspace, parent=root,
-        title='Select the target PMData directory', mustexist=True)
+        title='Select the project directory', mustexist=True)
     root.destroy()
     return user_ws
 
@@ -440,19 +441,17 @@ def parse_args():
         description='Plot Crop Daily Timeseries',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        'workspace', nargs='?', default=os.path.join(os.getcwd()),
-        ##'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
-        help='Project Folder', metavar='FOLDER')
+        '--project', metavar='FOLDER', help='Project Folder')
     parser.add_argument(
         '--size', default=(1000, 300), type=int,
         nargs=2, metavar=('WIDTH','HEIGHT'),
         help='Figure size in pixels')
     parser.add_argument(
-        '--save', default=False, action='store_true',
-        help='Show timeseries figures in browser')
+        '--no_save', default=True, action='store_false',
+        help='Don\'t save timeseries figures in browser')
     parser.add_argument(
         '--show', default=False, action='store_true',
-        help='Save timeseries figures to disk')
+        help='Show timeseries figures to disk')
     parser.add_argument(
         '--start', default=None, type=valid_date,
         help='Start date (format YYYY-MM-DD)', metavar='DATE')
@@ -462,30 +461,45 @@ def parse_args():
     parser.add_argument(
         '-c', '--crops', default='', type=str, 
         help='Comma separate list or range of crops to compare')
-    ##parser.add_argument(
-    ##    '-o', '--overwrite', default=None, action="store_true", 
-    ##    help='Force overwrite of existing files')
+    parser.add_argument(
+        '-o', '--overwrite', default=None, action="store_true", 
+        help='Force overwrite of existing files')
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
 
     ## Convert project folder to an absolute path if necessary
-    if args.workspace and os.path.isdir(os.path.abspath(args.workspace)):
-        args.workspace = os.path.abspath(args.workspace)
+    if args.project and os.path.isdir(os.path.abspath(args.project)):
+        args.project = os.path.abspath(args.project)
     return args
 
 ################################################################################
 
 if __name__ == '__main__':
     args = parse_args()
+
+    ## Try using the command line argument if it was set
+    if args.project:
+        project_ws = args.project
+    ## If script was double clicked, set project folder with GUI
+    elif not 'PROMPT' in os.environ:
+        project_ws = get_project_directory(os.getcwd())
+    ## Try using the current working directory
+    ## Could look for daily_stats folder, run_basin.py, and/or ini file
+    elif (os.path.isdir(os.path.join(os.getcwd(), 'daily_stats')) and
+          os.path.isfile(os.path.join(os.getcwd(), 'run_basin.py'))):
+        project_ws = os.getcwd()
+    else:
+        project_ws = get_project_directory(os.getcwd())
     
     logging.basicConfig(level=args.loglevel, format='%(message)s')
     logging.info('\n{0}'.format('#'*80))
     logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('{0:<20s} {1}'.format('Current Directory:', args.workspace))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', project_ws))
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(project_ws=args.workspace, figure_show_flag=args.show, 
-         figure_save_flag=args.save, figure_size=args.size,
-         start_date=args.start, end_date=args.end, crop_str=args.crops)
+    main(project_ws, figure_show_flag=args.show, 
+         figure_save_flag=args.no_save, figure_size=args.size,
+         start_date=args.start, end_date=args.end, crop_str=args.crops,
+         overwrite_flag=args.overwrite)

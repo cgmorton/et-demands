@@ -2,7 +2,7 @@
 # Name:         compute_growing_season.py
 # Purpose:      Extract growing season data from daily output files
 # Author:       Charles Morton
-# Created       2015-08-24
+# Created       2015-09-01
 # Python:       2.7
 #--------------------------------
 
@@ -17,7 +17,8 @@ import sys
 import numpy as np
 import pandas as pd
 
-def main(project_ws, start_date=None, end_date=None, crop_str=''):
+def main(project_ws, start_date=None, end_date=None, crop_str='',
+         overwrite_flag=False):
     """Compuate Growing Season Statistics
 
     Args:
@@ -25,6 +26,7 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
         crop_str (str): comma separate list or range of crops to compare
+        overwrite_flag (bool): If True, overwrite existing files
 
     Returns:
         None
@@ -336,6 +338,15 @@ def main(project_ws, start_date=None, end_date=None, crop_str=''):
 
 ################################################################################
 
+def get_project_directory(workspace):
+    import Tkinter, tkFileDialog
+    root = Tkinter.Tk()
+    user_ws = tkFileDialog.askdirectory(
+        initialdir=workspace, parent=root,
+        title='Select the project directory', mustexist=True)
+    root.destroy()
+    return user_ws
+
 def doy_2_date(test_year, test_doy):
     return dt.datetime.strptime('{0:04d}_{1:03d}'.format(
         int(test_year), int(test_doy)), '%Y_%j').strftime('%Y-%m-%d')
@@ -400,9 +411,7 @@ def parse_args():
         description='Compute Growing Season Statistics',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        'workspace', nargs='?', default=os.path.join(os.getcwd()),
-        ##'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
-        help='Project Folder', metavar='FOLDER')
+        '--project', metavar='FOLDER', help='Project Folder')
     parser.add_argument(
         '--start', default=None, type=valid_date,
         help='Start date (format YYYY-MM-DD)', metavar='DATE')
@@ -413,24 +422,41 @@ def parse_args():
         '-c', '--crops', default='', type=str, 
         help='Comma separate list or range of crops to compare')
     parser.add_argument(
+        '-o', '--overwrite', default=None, action="store_true", 
+        help='Force overwrite of existing files')
+    parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
 
     ## Convert project folder to an absolute path if necessary
-    if args.workspace and os.path.isdir(os.path.abspath(args.workspace)):
-        args.workspace = os.path.abspath(args.workspace)
+    if args.project and os.path.isdir(os.path.abspath(args.project)):
+        args.project = os.path.abspath(args.project)
     return args
 
 ################################################################################
 if __name__ == '__main__':
     args = parse_args()
+    
+    ## Try using the command line argument if it was set
+    if args.project:
+        project_ws = args.project
+    ## If script was double clicked, set project folder with GUI
+    elif not 'PROMPT' in os.environ:
+        project_ws = get_project_directory(os.getcwd())
+    ## Try using the current working directory
+    ## Could look for daily_stats folder, run_basin.py, and/or ini file
+    elif (os.path.isdir(os.path.join(os.getcwd(), 'daily_stats')) and
+          os.path.isfile(os.path.join(os.getcwd(), 'run_basin.py'))):
+        project_ws = os.getcwd()
+    else:
+        project_ws = get_project_directory(os.getcwd())
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
     logging.info('\n{0}'.format('#'*80))
     logging.info('{0:<20s} {1}'.format("Run Time Stamp:", dt.datetime.now().isoformat(' ')))
-    logging.info('{0:<20s} {1}'.format("Current Directory:", os.getcwd()))
+    logging.info('{0:<20s} {1}'.format("Current Directory:", project_ws))
     logging.info('{0:<20s} {1}'.format("Script:", os.path.basename(sys.argv[0])))
 
-    main(project_ws=args.workspace, start_date=args.start, end_date=args.end,
-         crop_str=args.crops)
+    main(project_ws, start_date=args.start, end_date=args.end,
+         crop_str=args.crops, overwrite_flag=args.overwrite)
