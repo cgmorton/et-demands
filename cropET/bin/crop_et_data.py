@@ -8,13 +8,11 @@ import sys
 
 import numpy as np
 
-import et_cell
+##import et_cell
 
 class CropETData():
     def __init__(self):
         """ """
-        self.et_cells = {}
-        
         ### From PenmanMonteithManager & modPM.vb
         self.crop_one_reducer = 0.9
         
@@ -400,99 +398,6 @@ class CropETData():
                     '  ERROR: {0} units {1} are not currently supported'.format(k,v))
                 sys.exit()
     
-    def set_cell_properties(self, fn, delimiter='\t'):
-        """Extract the ET cell property data from the text file
-
-        This function will build the ETCell objects and must be run first.
-
-        Args:
-            fn (str): file path of the ET cell properties text file
-            delimiter (str): file delimiter (i.e. space, comma, tab, etc.)
-            
-        Returns:
-            None
-        """
-        
-        a = np.loadtxt(fn, delimiter=delimiter, dtype='str')
-        ## Klamath file has one header, other has two lines
-        if a[0,0] == 'ET Cell ID':
-            a = a[1:]
-        else:
-            a = a[2:]
-        for i, row in enumerate(a):
-            obj = et_cell.ETCell()
-            obj.init_properties_from_row(row)
-            obj.source_file_properties = fn
-            self.et_cells[obj.cell_id] = obj
-
-    def set_cell_crops(self, fn, delimiter='\t'):
-        """Extract the ET cell crop data from the text file
-
-        Args:
-            fn (str): file path  of the ET cell crops text file
-            delimiter (str): file delimiter (i.e. space, comma, tab, etc.)
-            
-        Returns:
-            None
-        """
-        a = np.loadtxt(fn, delimiter=delimiter, dtype='str')
-        crop_numbers = a[1,4:].astype(int)
-        crop_names = a[2,4:]
-        a = a[3:]
-        for i, row in enumerate(a):
-            cell_id = row[0]
-            if cell_id not in self.et_cells:
-                logging.error(
-                    'read_et_cells_crops(), cell_id %s not found' % cell_id)
-                sys.exit()
-            obj = self.et_cells[cell_id]
-            obj.init_crops_from_row(row, crop_numbers)
-            obj.source_file_crop = fn
-            obj.crop_names = crop_names
-            obj.crop_numbers = crop_numbers
-            ## List of active crop numbers (i.e. flag is True)
-            obj.num_crop_sequence = [k for k,v in obj.crop_flags.items() if v]
-
-    def set_cell_cuttings(self, fn, delimiter='\t', skip_rows=2):
-        """Extract the mean cutting data from the text file
-
-        Args:
-            fn (str): file path of the mean cuttings text file
-            delimiter (str): file delimiter (i.e. space, comma, tab, etc.)
-            skip_rows (str): number of header rows to skip
-            
-        Returns:
-            None
-        """
-        with open(fn, 'r') as fp:
-            a = fp.readlines()
-            
-        ## ET Cell ID may not be the first column in older files
-        ## Older excel files had ID as the second column in the cuttings tab
-        ## Try to find it in the header row
-        try:
-            ##header = a[1].split(delimiter)
-            cell_id_index = a[1].split(delimiter).index('ET Cell ID')
-        except:
-            cell_id_index = None
-            
-        a = a[skip_rows:]
-        for i, line in enumerate(a):
-            row = line.split(delimiter)
-            if cell_id_index is not None:
-                cell_id = row[cell_id_index]
-            else:
-                cell_id = row[0]
-            ##cell_id = row[1]
-            if cell_id not in self.et_cells.keys():
-                logging.error(
-                    'crop_et_data.static_mean_cuttings(), cell_id %s not found' % cell_id)
-                sys.exit()
-            obj = self.et_cells[cell_id]
-            obj.init_cuttings_from_row(row)
-            ##obj.source_file_cuttings = fn
-            ##self.et_cells[cell_id] = obj
-
 ##def get_date_params(date_str='1/1/1950', date_fmt='%m/%d/%Y'):
 ##    dt = datetime.strptime(date_str, date_fmt)
 ##    return dt.year, dt.month, dt.day, dt.timetuple().tm_yday
