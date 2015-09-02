@@ -44,15 +44,15 @@ class CropParameters:
         self.t30_for_pl_or_gu_or_cgdd = float(v[18])
         self.date_of_pl_or_gu = float(v[19])
         self.tbase = float(v[20])
-        self.cgdd_for_efc = int(v[21])
-        self.cgdd_for_termination = int(v[22])
-        self.time_for_efc = int(v[24])
-        self.time_for_harvest = int(v[25])
+        self.cgdd_for_efc = float(v[21])
+        self.cgdd_for_termination = float(v[22])
+        self.time_for_efc = float(v[24])
+        self.time_for_harvest = float(v[25])
         self.killing_frost_temperature = float(v[26])
         self.invoke_stress = int(v[27])
-        self.cn_coarse_soil = int(v[29])
-        self.cn_medium_soil = int(v[30])
-        self.cn_fine_soil = int(v[31])
+        self.cn_coarse_soil = float(v[29])
+        self.cn_medium_soil = float(v[30])
+        self.cn_fine_soil = float(v[31])
 
         ## Winter crop
         ## To match VB code, "WINTER CANOLA" GDD trigger day isn't changed
@@ -62,7 +62,8 @@ class CropParameters:
             self.gdd_trigger_doy = 274
             self.winter_crop = True
         elif (vb_flag and self.class_number in [40] and
-              self.curve_name.upper().strip() == 'WINTER CANOLA'):
+              'WINTER' in self.curve_name.upper().strip()):
+              ##'WINTER' in self.curve_name.upper().strip() == 'WINTER CANOLA'):
             self.gdd_trigger_doy = 274
             self.winter_crop = False
         else:

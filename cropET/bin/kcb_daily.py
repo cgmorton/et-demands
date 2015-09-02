@@ -397,19 +397,20 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                     logging.debug('kcb_daily(): curve_type 1  in_season %d' % (foo.in_season))
                     
 
-                    ## special case for ALFALFA   1 added 4/18/08
+                    ## Special case for ALFALFA   1 added 4/18/08
                     if (crop.class_number in [1,2,3] or
                         (crop.class_number >= 4 and
                          crop.curve_name.upper() == "ALFALFA 1ST CYCLE")):
                         ## (three curves for cycles, two cumGDD's for first and other cycles)
     
+                        ## The review code is commented out
                         ## Remember gu, cutting and frost dates for alfalfa crops for review
-                        foo.cutting[foo.cycle] = foo_day.doy
+                        ##foo.cutting[foo.cycle] = foo_day.doy
     
                         ## Increment and reset for next cycle
-                        foo.cycle = foo.cycle + 1
+                        foo.cycle += 1
                         foo.in_season = True
-                        logging.debug('kcb_daily(): in_season1 %d' % (foo.in_season))
+                        logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
                         ## Set basis for next cycle
                         foo.cgdd_at_planting = foo.cgdd 
     
@@ -650,7 +651,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
         if (crop.class_number < 4 or
             (crop.class_number > 3 and
              crop.curve_name.upper() == "ALFALFA 1ST CYCLE")):     
-            if foo_day.doy > (crop.gdd_trigger_doy  + 211):    
+            if foo_day.doy > (crop.gdd_trigger_doy + 211):    
                 ## First occurrence of -3C (was -2, now -3)
                 if foo_day.tmin < -3 and foo.T2Days < 1:     
                     foo.T2Days = 1
@@ -662,7 +663,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                 if foo.kc_bas < 0.1:     
                     foo.kc_bas = 0.1
                     logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
-                foo.T2Days = foo.T2Days + 1
+                foo.T2Days += 1
 
         ## Determine if killing frost to cut short - begin to check after August 1.   
         if foo_day.doy > (crop.gdd_trigger_doy  + 211):    
@@ -738,17 +739,18 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
     ##   45: Mulched soil, including grain stubble
     ##   46: Dormant turf/sod (winter time)
     ##   Note: set kc_max for winter time (Nov-Mar) and fc outside of this sub.
+    ## CGM 9/2/2015 - 44-46 are not run first in Python version of ET-Demands
+    ##   kc_bas_wscc is set in initialize_crop_cycle(), no reason to set it here
     if crop.class_number in [44, 45, 46]:
         if crop.class_number == 44:
             foo.kc_bas = 0.1 #' was 0.2
-            ## remember this value to assign to regular crops, etc. during non-season.
-            foo.kc_bas_wscc[1] = foo.kc_bas 
+            ##foo.kc_bas_wscc[1] = foo.kc_bas 
         elif crop.class_number == 45:
             foo.kc_bas = 0.1 #' was 0.2
-            foo.kc_bas_wscc[2] = foo.kc_bas
+            ##foo.kc_bas_wscc[2] = foo.kc_bas
         elif crop.class_number == 46:
             foo.kc_bas = 0.1 #' was 0.3
-            foo.kc_bas_wscc[3] = foo.kc_bas
+            ##foo.kc_bas_wscc[3] = foo.kc_bas
         logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
 
     ## Open water evaporation "crops"
