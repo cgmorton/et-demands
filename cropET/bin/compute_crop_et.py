@@ -217,9 +217,9 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
     irr_special = 0.0
 
     # Update fw of irrigation if an irrigation yesterday
-    if irr_real + foo.irr_auto > 0:
+    if (irr_real + foo.irr_auto) > 0:
         foo.fw_irr = foo.fw_std
-    elif irr_manual + irr_special > 0:   
+    elif (irr_manual + irr_special) > 0:   
         foo.fw_irr = foo.fw_spec
 
     #' find current water in fw_irr portion of ze layer
@@ -238,23 +238,20 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
     # the use of 'fewp' (precip) fraction of surface
     watin_zep = foo.tew - foo.depl_zep #' follows Allen et al. 2005 (ASCE JIDE) extensions
 
+    # Modified to be consistent with python - 09/25/2014
     #if watin_zep <= 0.:    
-    if round(watin_zep,6) <= 0.:    
+    if round(watin_zep, 6) <= 0.:    
         watin_zep = 0.001
     watin_zep = min(watin_zep, foo.tew)
 
     # Fraction of ground that is both exposed and wet
     few = 1 - foo.fc
-    if few > foo.fw_irr:
-        # Limit to fraction wetted by irrigation
-        few = foo.fw_irr 
-    if few < 0.001:
-        few = 0.001
+    # Limit to fraction wetted by irrigation
+    few = min(max(few, 0.001), foo.fw_irr)
 
     # Fraction of ground that is exposed and wet by precip beyond irrigation
     fewp = 1 - foo.fc - few
-    if fewp < 0.001:    
-        fewp = 0.001
+    fewp = max(fewp, 0.001)
 
     # Was "totwatin_ze = watin_ze * few + watin_zep * fewp" until 5/9/07
     # (corrected)
@@ -316,8 +313,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
 
     # Update depletion of few beyond that wetted by irrigation
     foo.depl_zep = foo.depl_zep - foo.ppt_inf + depl_zep_prev
-    foo.depl_zep = max(foo.depl_zep, 0)
-    foo.depl_zep = min(foo.depl_zep, foo.tew)
+    foo.depl_zep = min(max(foo.depl_zep, 0), foo.tew)
     logging.debug(
         ('compute_crop_et(): depl_ze %.6f  depl_zep %.6f') %
         (foo.depl_ze, foo.depl_zep))
@@ -410,35 +406,28 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
 
     #' Ke = Kr * (kc_max - foo.kc_bas) #' this was generic for irr + precip
     #' IF Ke > few * kc_max THEN Ke = few * kc_max
-
+    
     ke_irr = kr * (kc_max - foo.kc_bas) * foo.wt_irr
-
-    # Limit to maximum rate per unit surface area
-
-    if ke_irr > few * kc_max:    
-        ke_irr = few * kc_max
     ke_ppt = krp * (kc_max - foo.kc_bas) * (1 - foo.wt_irr)
-    if ke_ppt > fewp * kc_max:    
-        ke_ppt = fewp * kc_max
-    ke_irr = max(ke_irr, 0)
-    ke_ppt = max(ke_ppt, 0)
+
+    ## Limit to maximum rate per unit surface area
+    ke_irr = min(max(ke_irr, 0), few * kc_max)
+    ke_ppt = min(max(ke_ppt, 0), fewp * kc_max)
+    
     ke = ke_irr + ke_ppt
 
     ## Transpiration coefficient for moisture stress
     taw = foo.aw * foo.zr
-    if taw < 0.001:
-        taw = 0.001
+    taw = max(taw, 0.001)
     ## MAD is set to mad_ini or mad_mid in kcb_daily sub.
     raw = foo.mad * taw / 100
 
     ## Remember to check reset of AD and RAW each new crop season.  #####
     ## AD is allowable depletion
     if foo.depl_root > raw:   
-        ks = (taw - foo.depl_root) / (taw - raw)
+        ks = max((taw - foo.depl_root) / (taw - raw), 0)
     else:
         ks = 1
-    if ks < 0:    
-        ks = 0.0
 
     ## Check to see if stress flag is turned off.
     if crop.invoke_stress < 1:
@@ -496,25 +485,29 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
     # Transpiration from Ze layer
     # transpiration proportioning
 
-    ## TP ze never initialized, assume 0.0 value
-    ## also used in SetupDormant(), but value set explicitly...wonder if was meant to be global????
-    ze = 0.0   # I added this line
-    if ze < 0.0001:    
-        ze = 0.0001
+    ## CGM - For now, just set to target value
+    ze = 0.0001
+    ## TP - ze never initialized, assume 0.0 value
+    ##   Also used in SetupDormant(), but value set explicitly
+    ##   Wonder if was meant to be global????
+    ##ze = 0.0   # I added this line
+    ##ze = max(ze, 0.0001)
+    ####if ze < 0.0001:    
+    ####    ze = 0.0001
     if foo.zr < 0.0001:    
         foo.zr = 0.01
     kt_prop = (ze / foo.zr) ** 0.6
-    if kt_prop > 1:    
-        kt_prop = 1
+    ##if kt_prop > 1:    
+    ##    kt_prop = 1
+    kt_prop = min(kt_prop, 1)
 
     # Zr is root depth, m
     # depl_root is depletion in root zone, mm
     # AW is available water for soil, mm/m
 
     # For irrigation wetted fraction
-    kt_reducer_denom = 1 - foo.depl_root / taw
-    if kt_reducer_denom < 0.001:    
-        kt_reducer_denom = 0.001
+    kt_reducer_denom = max(1 - foo.depl_root / taw, 0.001)
+    
     #' few added, 8/2006, that is not in Allen et al., 2005, ASCE
     kt_reducer = few * (1 - foo.depl_ze / tew2use) / kt_reducer_denom
     kt_prop = kt_prop * kt_reducer
@@ -695,7 +688,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
 
     # Total irrigation for today
     foo.irr_auto = foo.irr_sim
-    foo.irr_sim = foo.irr_sim + irr_real + irr_manual + irr_special
+    foo.irr_sim += irr_real + irr_manual + irr_special
     if foo.irr_sim > 0:   
         # Ready cumulative evaporation since last irrigation for printing
         foo.cum_evap = foo.cum_evap_prev
