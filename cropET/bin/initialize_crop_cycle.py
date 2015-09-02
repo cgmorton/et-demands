@@ -11,24 +11,22 @@ class InitializeCropCycle:
     aw = 0
     aw3 = 0.
     cn2 = 0.
-    cgdd = 0.0
+    cgdd = 0.
     cgdd_penalty = 0.
     cum_evap = 0.
     cum_evap_prev = 0.
     depl_ze = 0.
     depl_zep = 0.
+    dperc = 0.
     dperc_ze = 0.
     density = 0.
     depl_surface = 0.
     depl_root = 0.
-    ##ei = 0
-    ##ep = 0
     etc_act = 0.
     etc_pot = 0.
     etc_bas = 0.
     etref_30 = 0.   #' thirty day mean ETref  ' added 12/2007
     fc = 0.
-    ##few = 0
     fw = 0.
     fw_spec = 0.
     fw_std = 0.
@@ -39,9 +37,6 @@ class InitializeCropCycle:
     height_max = 0.
     height = 0
     irr_auto = 0.
-    ##irr_manual = 0
-    ##irr_real = 0
-    ##irr_special = 0
     irr_sim = 0.
     kc_act = 0.
     kc_pot = 0
@@ -53,10 +48,8 @@ class InitializeCropCycle:
     ke = 0.
     ke_irr = 0
     ke_ppt = 0.
-    ##kr = 0
     kr2 = 0.
     ks = 0.
-    ##kt_prop = 1
     kt_reducer = 1.
     mad = 0.
     mad_ini = 0.
@@ -64,10 +57,6 @@ class InitializeCropCycle:
     niwr = 0.
     ppt_inf = 0.
     ppt_inf_prev = 0.
-    ##ppt_net4 = 0
-    ##ppt_net3 = 0
-    ##ppt_net2 = 0
-    ##ppt_net1 = 0
     rew = 0.
     tew = 0.
     tew2 = 0.
@@ -77,56 +66,66 @@ class InitializeCropCycle:
     s2 = 0.
     s3 = 0.
     s4 = 0.
+    sro = 0.
     zr_min = 0.
     zr_max = 0.
     z = 0.
 
-    e = 0.
-    n_cgdd = 0.
-    n_pl_ec = 0.
-    #tei = 0
-    #Kcmult = 1
-    sro = 0.
-    dperc = 0.
+    ##
     doy_start_cycle = 0
-
+    cycle = 1
     real_start = False
     irr_flag = False
     in_season = False             #' false if outside season, true if inside
     dormant_setup_flag = False
     crop_setup_flag = True        #' flag to setup crop parameter information
-    cycle = 1.
 
-    # [140609] TP added this, looks like its value comes from compute_crop_et(),
-    # but needed for setup_dormant() below...
-    totwatin_ze = 0.0
+    ## TP - Looks like its value comes from compute_crop_et(),
+    ## but needed for setup_dormant() below...
+    totwatin_ze = 0.
 
-    cgdd_at_planting = 0.0
+    ## CGM - These are not pre-initialized in the 32-bit VB code
+    cgdd_at_planting = 0.
+    wt_irr = 0.
+    ## CGM - Initialized to 0 in latest VB code
+    kc_bas_prev = 0.
 
-    ### TP added these
-    # from modCropET.vb
-    #Private Const max_lines_in_crop_curve_table As Short = 34
+    ## TP - Added
     max_lines_in_crop_curve_table = 34
-    # cutting(20) As Short
-    cutting = np.zeros(20, dtype=np.int)
 
-    ## [140820] not initialized in crop cycle in vb code, so 1st time-step
-    ## was the final time step value from the previous crop.
-    #kc_bas_prev = 0.1
-    ##kc_bas_prev = 0.
-    ##T2Days = 0.
-
-    kc_bas_wscc = np.zeros(4)  # kcb_daily.py
-    ## [140801] cannot figure out how these are assigned 0.1 in the vb code,
-    ## this is necessary to get kc_bas right for non-growing season
+    ## CGM - In VB code, crops 44-46 were run first to set these values kn kcb_daily()
+    ##   Initialize here instead
+    ##   Using a dictionary instead of an array to make the indexing more obvious
+    kc_bas_wscc = dict()
     kc_bas_wscc[1] = 0.1
     kc_bas_wscc[2] = 0.1
     kc_bas_wscc[3] = 0.1
 
-    wt_irr = 0.0   # compute_crop_et()
+    ## TP - Minimum net depth of application for germination irrig., etc.
+    irr_min = 10.
+    
+    ## CGM - Code to write a cutting review file is not currently implemented
+    ##cutting = np.zeros(20, dtype=np.int)
+    
+    ## TP - Not initialized in VB code, probably should be initialized to 0
+    ##T2Days = 0
 
-    # Minimum net depth of application for germination irrig., etc.
-    irr_min = 10.0
+    ## CGM - It doesn't seem like these need to be initialized
+    ##e = 0.
+    ##n_cgdd = 0.
+    ##n_pl_ec = 0.
+    ##tei = 0
+    ##Kcmult = 1
+    ##irr_manual = 0
+    ##irr_real = 0
+    ##irr_special = 0
+    ##ei = 0
+    ##ep = 0
+    ##few = 0
+    ##kr = 0
+    ##kt_prop = 1
+    ##ze = 0.
+
 
     def __init__(self):
         """ """
