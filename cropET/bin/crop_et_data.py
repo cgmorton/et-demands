@@ -198,8 +198,8 @@ class CropETData():
         if os.path.isdir(self.refet['ws']):
             pass
         elif (not os.path.isdir(self.refet['ws']) and
-              os.path.isdir(os.path.join(project_ws, self.refet['ws']))):
-            self.refet['ws'] = os.path.join(project_ws, self.refet['ws'])
+              os.path.isdir(os.path.join(self.project_ws, self.refet['ws']))):
+            self.refet['ws'] = os.path.join(self.project_ws, self.refet['ws'])
         else:
             logging.error('ERROR: The refet folder {} does not exist'.format(
                 self.refet['ws']))
@@ -280,8 +280,8 @@ class CropETData():
         if os.path.isdir(self.weather['ws']):
             pass
         elif (not os.path.isdir(self.weather['ws']) and
-              os.path.isdir(os.path.join(project_ws, self.weather['ws']))):
-            self.weather['ws'] = os.path.join(project_ws, self.weather['ws'])
+              os.path.isdir(os.path.join(self.project_ws, self.weather['ws']))):
+            self.weather['ws'] = os.path.join(self.project_ws, self.weather['ws'])
         else:
             logging.error('ERROR: The refet folder {} does not exist'.format(
                 self.weather['ws']))
