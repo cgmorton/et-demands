@@ -1,54 +1,53 @@
+import datetime
+import logging
 import math
+import os
+
 import numpy as np
 
-def aFNEs(t):
+def es_from_t(t):
     """ Tetens (1930) equation for sat. vap pressure, kPa, (T in C)
 
     Args:
-        t: a float or int of the temperature [C]
+        t (float): temperature [C]
         
     Returns:
         A float of the saturated vapor pressure [kPa]
     """
-    return 0.6108 * math.exp((17.27 * t) / (t + 237.3)) 
+    return 0.6108 * np.exp((17.27 * t) / (t + 237.3)) 
 
 
-def aFNEsIce(t):
+def es_ice_from_t(t):
     """ Murray (1967) equation for sat. vap pressure over ice, kPa, (T in C)
 
     Args:
-        t: a float or int of the temperature [C]
+        t (float): temperature [C]
         
     Returns:
         A float of the saturated vapor pressure over ice [kPa]
     """
-    return 0.6108 * math.exp((21.87 * t) / (t + 265.5)) 
+    return 0.6108 * np.exp((21.87 * t) / (t + 265.5)) 
 
 
-def is_winter(data, foo_day):
+def is_winter(et_cell, foo_day):
     """Determine if the input day is in a winter month
 
     Args:
-        data: ?
-        day: ?
+        et_cell (): ?
+        foo_day (): ?
         
     Returns:
         A boolean that is True if the input day is in a winter month
     """
-    if data.cgdd_main_doy < 183:
+    if et_cell.stn_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
+    ##if et_cell.cell_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
         ## Northern hemisphere
-        if foo_day.month < 4 or foo_day.month > 10:
-            return True
-        else:
-            return False
+        return True
     else:
         ## Southern hemisphere
-        if foo_day.month <= 10 and foo_day.month >= 4:
-            return True 
-        else:
-            return False
+        return False
 
-def pair_func(elevation):
+def pair_from_elev(elevation):
     """Calculates air pressure as a function of elevation
 
     Args:
@@ -70,6 +69,18 @@ def ea_from_q(p, q):
         NumPy array of vapor pressures [kPa]
     """
     return p * q / (0.622 + 0.378 * q)
+    
+def q_from_ea(ea, p):
+    """Calculates specific humidity from vapor pressure and pressure
+
+    Args:
+        ea: NumPy array of vapor pressures [kPa]
+        p: NumPy array of pressures [kPa]
+
+    Returns:
+        NumPy array of ]specific humidities [kg / kg]
+    """
+    return 0.622 * ea / (p - 0.378 * ea)
 
 def tdew_from_ea(ea):
     """Calculates vapor pressure at a given temperature
@@ -82,22 +93,51 @@ def tdew_from_ea(ea):
     """
     return (237.3 * np.log(ea / 0.6108)) / (17.27 - np.log(ea / 0.6108))
 
-class Output:
-    name = None
+def valid_date(input_date):
+    """Check that a date string is ISO format (YYYY-MM-DD)
 
-    def __init__(self, pth='tmp', DEBUG=False):
-        """ """
-        self.pth = pth
-        self.DEBUG = DEBUG
-        if DEBUG:
-            self.dfp = open('%s/DEBUG.txt' % pth, 'w')
-        
-    def debug(self, s=''):
-        """ """
-        if self.DEBUG:
-            self.dfp.write(s)
+    This function is used to check the format of dates entered as command
+      line arguments.
+    DEADBEEF - It would probably make more sense to have this function 
+      parse the date using dateutil parser (http://labix.org/python-dateutil)
+      and return the ISO format string
 
-    def write(self, s=''):
-        """ """
-        self.fp.write(s)
+    Args:
+        input_date: string
+    Returns:
+        string 
+    Raises:
+        ArgParse ArgumentTypeError
+    """
+    try:
+        input_dt = datetime.datetime.strptime(input_date, "%Y-%m-%d")
+        return input_date
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(input_date)
+        raise argparse.ArgumentTypeError(msg)
+
+def wind_adjust_func(uz_array, zw):
+    """Adjust wind speed to 2m"""
+    return uz_array * 4.87 / np.log(67.8 * zw - 5.42)
+
+def file_logger(logger=logging.getLogger(''), log_level=logging.DEBUG,
+                output_ws=os.getcwd()):
+    """Create file logger"""
+    logger.setLevel(log_level)
+    log_file = logging.FileHandler(
+       os.path.join(output_ws, 'debug.txt'), mode='w')
+    log_file.setLevel(log_level)
+    log_file.setFormatter(logging.Formatter('%(message)s'))
+    logger.addHandler(log_file)
+    return logger
+
+def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
+    """Create console logger"""
+    import sys
+    logger.setLevel(log_level)
+    log_console = logging.StreamHandler(stream=sys.stdout)
+    log_console.setLevel(log_level)
+    log_console.setFormatter(logging.Formatter('%(message)s'))
+    logger.addHandler(log_console)
+    return logger
 

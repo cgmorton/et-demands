@@ -1,0 +1,2 @@
+This file contains first (temporary) numbers of cutting cycles for dairy and beef hay, based on latitude.  R.Allen 4/1/08						
+ET Cell ID	ET Cell Name	Lat	Number Dairy	Number Beef	null	null

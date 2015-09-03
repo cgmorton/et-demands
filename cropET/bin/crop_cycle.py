@@ -1,237 +1,355 @@
 #!/usr/bin/env python
-
+import datetime
+import fileinput
 import logging
 import math
-import pprint
+import multiprocessing as mp
+import os
+import re
 import sys
 
 import numpy as np
+import pandas as pd
 
 import crop_et_data
 import compute_crop_et
 from initialize_crop_cycle import InitializeCropCycle
-##import setup_crop
-##import util
+import util
 
-COMPARE = False
-COMPARE = True
+class DayData:
+    def __init__(self):
+        """ """
+        ## Used in compute_crop_gdd(), needs to be persistent during day loop
+        self.etref_array = np.zeros(30)
 
-def crop_cycle(data, et_cell, nsteps, basin_id, OUT, odir=''):
-    """ """
-    ###' following is for one crop grown back to back over entire ETr sequence
+def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False):
+    """Compute crop ET for all crops
+
+    Args:
+        data (): 
+        et_cell ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+        vb_flag (bool): If True, mimic calculations in VB version of code
+        
+    Returns:
+        None
+    """
+    ## Following is for one crop grown back to back over entire ETr sequence
     ##
-    ### do bare soil first, before looping through crops
-    ### current curve file has 60 curves, so 44 is not correct relative to coefficients
+    ## do bare soil first, before looping through crops
+    ## current curve file has 60 curves, so 44 is not correct relative to coefficients
     ##'''
     ##   ' start with crop type 44 (bare soil, winter mulch) and run through last crop first '<------ specific value for crop number
     ##   ' this is done to compute 'winter covers', which are bare soil, mulch and dormant turf,
     ##   ' before any crops are processed.  Bare soil is "crop" no. 44.
     ##'''
-    ### parameters in PMControl, these values are for klamath
-    ### currently used to populate crop_gdd_trigger_doy in
-    ### data.ctrl[] dictionary, so probably not needed here
-    ###cgdd_winter_doy = 274
-    ###cgdd_main_doy = 1
-    ##
-    ##'''
     #### no curve for bare soil
     ##ctCount = 43  # bare soil
     ##ctCount = 1  # bare soil
-    ##crop = et_cell.crop_params[ctCount] 
-    ##print crop
-    ##pprint(vars(crop))
-    ##'''
-
-    logging.info(pprint.pformat(vars(et_cell)))
+    
+    ##logging.debug('in crop_cycle()')
 
     ## crop loop through all crops, doesn't include bare soil??
     for crop_num, crop in sorted(et_cell.crop_params.items()):
-        #print crop_num, crop, crop.curve_name, et_cell.crop_flags[crop_num]
-
         ## Check to see if crop/landuse is at station
-        if not et_cell.crop_flags[crop_num]:
-            logging.debug(('NOT USED: ', crop_num, crop, crop.class_number,
-                           crop.curve_name, et_cell.crop_flags[crop_num]))
+        if et_cell.crop_flags[crop_num] == 0:
+            logging.debug('Crop %2d %s' % (crop_num, crop))
+            logging.debug('  NOT USED')
             continue
-        logging.debug((crop_num, crop, crop.curve_name, crop.crop_gdd_trigger_doy))
-
-        # 'foo' is holder of all these global variables for now
+        elif ((data.crop_skip_list and crop_num in data.crop_skip_list) or 
+              (data.crop_test_list and crop_num not in data.crop_test_list)):
+            ##logging.debug('Crop %2d %s' % (crop_num, crop))
+            ##logging.debug('  SKIPPING')
+            continue               
+        else:      
+            logging.warning('Crop %2d %s' % (crop_num, crop))                 
+        logging.debug(
+            'crop_day_loop():  Curve %d %s  Class %s  Flag %s' %
+            (crop.curve_number, crop.curve_name,
+             crop.class_number, et_cell.crop_flags[crop_num]))
+        logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy ))
+        
+        ## 'foo' is holder of all these global variables for now
         foo = InitializeCropCycle()
 
-        ## Original has tons of i/o setup in here, we will write at end.
-        #pprint(vars(et_cell.crop_coeffs[19]))
-
-        ##### TP04 try to access directly or rename locally
-        ##### this reassigns data to simpler names, etc
         ## First time through for crop, load basic crop parameters and process climate data
-        foo.crop_load(data, et_cell, crop)
+        foo.crop_load(et_cell, crop)
+        
+        ## Initialize crop data frame
+        foo.setup_dataframe(et_cell)
 
-        ## Write data for crop
-        crop_nn = crop.name.replace(' ','_').replace('/','_').replace('-','_')[:32]
-        if COMPARE: 
-            if not odir:
-                ofn = 'cet/%s/py/%s_%s.%s' % (
-                    basin_id, et_cell.cell_id, crop.class_number, crop_nn)
-            else:
-                ofn = '%s/%s_%s.%s' % (
-                    odir, et_cell.cell_id, crop.class_number, crop_nn)
-            ofp = open(ofn, 'w')
-            fmt = '%8s %3s %9s %9s %9s %9s %9s %9s %9s %5s %9s %9s\n' 
-            header = (
-                '#   Date','doy','PMETo','Pr.mm','T30','ETact','ETpot','ETbas',
-                'Irrn','Seasn','Runof','DPerc')
-            ofp.write(fmt % header)
+        ## Run ET-Demands
+        crop_day_loop(data, et_cell, crop, foo, debug_flag, vb_flag)
+        
+        ## Merge the crop and weather data frames to form the daily output
+        if (data.daily_output_flag or 
+            data.monthly_output_flag or 
+            data.annual_output_flag):
+            daily_output_pd = pd.merge(
+                foo.crop_pd, et_cell.weather_pd[['ppt']], 
+                ##foo.crop_pd, et_cell.weather_pd[['ppt', 't30']], 
+                left_index=True, right_index=True)
+            ## Rename the output columns
+            daily_output_pd.index.rename('Date', inplace=True)
+            daily_output_pd['Year'] = daily_output_pd.index.year
+            daily_output_pd = daily_output_pd.rename(columns = {
+                'doy':'DOY', 'ppt':'PPT', 'etref':'PMETo',
+                'et_act':'ETact', 'et_pot':'ETpot', 'et_bas':'ETbas',
+                'kc_act':'Kc', 'kc_bas':'Kcb',
+                'niwr':'NIWR', 'irrigation':'Irrigation', 'runoff':'Runoff', 
+                'dperc':'DPerc', 'season':'Season'})
+                ##'t30':'T30', 
+        ## Compute monthly and annual stats before modifying daily format below
+        if data.monthly_output_flag:
+            monthly_resample_func = {
+                'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
+                'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum, 
+                'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 'Season':np.sum}
+            monthly_output_pd = daily_output_pd.resample('MS', how=monthly_resample_func)
+        if data.annual_output_flag:
+            resample_func = {
+                'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
+                'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum,
+                'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 'Season':np.sum}
+            annual_output_pd = daily_output_pd.resample('AS', how=resample_func)
+        ## Get growing season start and end DOY for each year
+        ## Compute growing season length for each year
+        if data.gs_output_flag:
+            gs_output_pd = daily_output_pd.resample('AS', how={'Year':np.mean})
+            gs_output_pd['Start_DOY'] = np.nan
+            gs_output_pd['End_DOY'] = np.nan
+            gs_output_pd['Start_Date'] = None
+            gs_output_pd['End_Date'] = None
+            gs_output_pd['GS_Length'] = np.nan
+            for year_i, (year, group) in enumerate(daily_output_pd.groupby(['Year'])):
+                ##if year_i == 0:
+                ##    logging.debug('  Skipping first year')
+                ##    continue
+                if not np.any(group['Season'].values):
+                    logging.debug('  Skipping, season flag was never set to 1')
+                    continue
+                else:
+                    season_diff = np.diff(group['Season'].values)
+                    try:
+                        start_i = np.where(season_diff == 1)[0][0] + 1
+                        gs_output_pd.set_value(
+                            group.index[0], 'Start_DOY', int(group.ix[start_i, 'DOY']))
+                    except:
+                        gs_output_pd.set_value(
+                            group.index[0], 'Start_DOY', int(min(group['DOY'].values)))
+                    try:
+                        end_i = np.where(season_diff == -1)[0][0] + 1
+                        gs_output_pd.set_value(
+                            group.index[0], 'End_DOY', int(group.ix[end_i, 'DOY']))
+                    except:
+                        gs_output_pd.set_value(
+                            group.index[0], 'End_DOY', int(max(group['DOY'].values)))
+                    del season_diff
+                gs_output_pd.set_value(
+                    group.index[0], 'GS_Length', int(sum(group['Season'].values)))
+         
+        ## Write daily output
+        if data.daily_output_flag:
+            daily_output_pd['Year'] = daily_output_pd.index.year
+            daily_output_pd['Month'] = daily_output_pd.index.month
+            daily_output_pd['Day'] = daily_output_pd.index.day
+            daily_output_pd['Year'] = daily_output_pd['Year'].map(lambda x: ' %4d' % x)
+            daily_output_pd['Month'] = daily_output_pd['Month'].map(lambda x: ' %2d' % x)
+            daily_output_pd['Day'] = daily_output_pd['Day'].map(lambda x: ' %2d' % x)
+            daily_output_pd['DOY'] = daily_output_pd['DOY'].map(lambda x: ' %3d' % x)
+            ## This will convert negative "zeros" to positive
+            daily_output_pd['NIWR'] = np.round(daily_output_pd['NIWR'],6)
+            daily_output_pd['Season'] = daily_output_pd['Season'].map(lambda x: ' %1d' % x)
+            ##daily_output_pd['Irrigation'] = daily_output_pd['Irrigation'].map(lambda x: daily_flt_format % x)
+            daily_output_path = os.path.join(
+                data.daily_output_ws, '{0}_daily_crop_{1:02d}.csv'.format(
+                    et_cell.cell_id, crop.class_number))
+            ## Set the output column order
+            daily_output_columns = [
+                'Year', 'Month', 'Day', 'DOY', 
+                'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
+                'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            if not data.kc_flag:
+                daily_output_columns.remove('Kc')
+                daily_output_columns.remove('Kcb')
+            if not data.niwr_flag:
+                daily_output_columns.remove('NIWR')
+            with open(daily_output_path, 'w') as daily_output_f:
+                daily_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
+                daily_output_pd.to_csv(
+                    daily_output_f, sep=',', columns=daily_output_columns, 
+                    float_format='%10.6f', date_format='%Y-%m-%d')
+            del daily_output_pd, daily_output_path, daily_output_columns
 
-        #print 'ET:: %11s %3s %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f %2d %8.5f %8.5f %8.5f' % tup
-        crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT)
+        ## Write monthly statistics
+        if data.monthly_output_flag:
+            monthly_output_pd['Year'] = monthly_output_pd.index.year
+            monthly_output_pd['Month'] = monthly_output_pd.index.month
+            monthly_output_pd['Year'] = monthly_output_pd['Year'].map(lambda x: ' %4d' % x)
+            monthly_output_pd['Month'] = monthly_output_pd['Month'].map(lambda x: ' %2d' % x)
+            monthly_output_pd['Season'] = monthly_output_pd['Season'].map(lambda x: ' %2d' % x)
+            monthly_output_path = os.path.join(
+                data.monthly_output_ws, '{0}_monthly_crop_{1:02d}.csv'.format(
+                    et_cell.cell_id, int(crop.class_number)))
+            monthly_output_columns = [
+                'Year', 'Month', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
+                'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            with open(monthly_output_path, 'w') as monthly_output_f:
+                monthly_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
+                monthly_output_pd.to_csv(
+                    monthly_output_f, sep=',', columns=monthly_output_columns, 
+                    float_format=' %8.4f', date_format='%Y-%m')
+            del monthly_output_pd, monthly_output_path, monthly_output_columns
 
+        ## Write annual statistics
+        if data.annual_output_flag:
+            annual_output_pd['Year'] = annual_output_pd.index.year
+            annual_output_pd['Season'] = annual_output_pd['Season'].map(lambda x: ' %3d' % x)
+            annual_output_path = os.path.join(
+                data.annual_output_ws, '{0}_annual_crop_{1:02d}.csv'.format(
+                    et_cell.cell_id, int(crop.class_number)))
+            annual_output_columns = [
+                'Year', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
+                'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            with open(annual_output_path, 'w') as annual_output_f:
+                annual_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
+                annual_output_pd.to_csv(
+                    annual_output_f, sep=',', columns=annual_output_columns, 
+                    float_format=' %9.4f', date_format='%Y', index = False)
+            del annual_output_pd, annual_output_path, annual_output_columns
+          
+        ## Write growing season statistics
+        if data.gs_output_flag:
+            def doy_2_date(test_year, test_doy):
+                try:
+                    return datetime.datetime.strptime(
+                        '{0}_{1}'.format(int(test_year), int(test_doy)), '%Y_%j').date().isoformat()
+                except:
+                    return 'None'
+            gs_output_pd['Start_Date'] = gs_output_pd[['Year', 'Start_DOY']].apply(
+                lambda s:doy_2_date(*s), axis = 1)
+            gs_output_pd['End_Date'] = gs_output_pd[['Year', 'End_DOY']].apply(
+                lambda s:doy_2_date(*s), axis = 1)
+            ##gs_output_pd['Start_DOY'] = gs_output_pd['Start_DOY'].map(lambda x: ' %3d' % x)
+            ##gs_output_pd['End_DOY'] = gs_output_pd['End_DOY'].map(lambda x: ' %3d' % x)
+            ##gs_output_pd['GS_Length'] = gs_output_pd['GS_Length'].map(lambda x: ' %3d' % x)
+            gs_output_path = os.path.join(
+                data.gs_output_ws, '{0}_gs_crop_{1:02d}.csv'.format(
+                    et_cell.cell_id, int(crop.class_number)))
+            gs_output_columns = [
+                'Year', 'Start_DOY', 'End_DOY', 'Start_Date', 'End_Date', 'GS_Length']
+            with open(gs_output_path, 'w') as gs_output_f:
+                gs_output_f.write('# {0:2d} - {1}\n'.format(crop_num, crop.name))
+                gs_output_pd.to_csv(
+                    gs_output_f, sep=',', columns=gs_output_columns, 
+                    date_format='%Y', index = False)
+            del gs_output_pd, gs_output_path, gs_output_columns
+            
 
-class DayData:
-    def __init__(self):
-        """ """
-        ## Used in compute_crop_gdd(), needs to be persistant during day loop
-        self.etref_array = np.zeros(30)
+def crop_day_loop(data, et_cell, crop, foo, debug_flag=False, vb_flag=False):
+    """Compute crop ET for each daily timestep
 
-def crop_day_loop(data, et_cell, crop, foo, ofp, nsteps, OUT):
-    """ """
-    ## Day loop
+    Args:
+        data ():
+        et_cell ():
+        crop ():
+        foo ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+        vb_flag (bool): If True, mimic calculations in VB version of code
+
+    Returns:
+        None
+    """ 
     foo_day = DayData()
+    foo_day.sdays = 0
+    foo_day.doy_prev = 0
 
-    ## Originally in ProcessClimate() in vb code
-    if data.refet_type > 0:
-        refet_array = et_cell.refet['ASCEPMStdETr']
-    else:
-        refet_array = et_cell.refet['ASCEPMStdETo']
-
-    for i, ts in enumerate(et_cell.refet['Dates'][:nsteps]):
-        logging.debug((i, et_cell.refet['Dates'][i]))
-        doy = ts[7]
-        year = ts[0]
-        month = ts[1]
-        day = ts[2]
-
-        precip = et_cell.refet['Precip'][i]
-        wind = et_cell.refet['Wind'][i]
-        tdew = et_cell.refet['TDew'][i]
-        #ETr = et_cell.refet['ASCEPMStdETr'][i]
-        eto = et_cell.refet['ASCEPMStdETo'][i]
-        etref = refet_array[i]
-        logging.debug((doy, year, month, day, precip, wind, tdew, eto, etref))
-
-
-        # in original there was 80 lines of alternative Tmax/Tmin for climate change scenarios
-        '''
-         ' set TMax, TMin, TMean, T30, long-term T30, and long-term CGDD
-         ' as a function of alternative TMax TMin option
-         ' blank of zero is no use of alternative TMax and TMin data
-         ' 1 is use of alternative TMax and TMin for annual crops only
-         ' 2 is use of alternative TMax and TMin for perennial crops only
-         ' 3 is use of alternative TMax and TMin for all crops 
-        '''
-        # ' default is no use of alternative TMax and TMin
-        tmax = et_cell.climate['tmax_array'][i]
-        tmin = et_cell.climate['tmin_array'][i]
-        tmean = et_cell.climate['tmean_array'][i]
-        t30 = et_cell.climate['t30_array'][i]
-        # Precip converted to mm in process_climate()
-        precip = et_cell.climate['precip'][i]        
-        logging.debug((tmax, tmin, tmean, t30))
-
-        ## Copies of these were made using loop
-        cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
-        t30_lt = np.copy(et_cell.climate['main_t30_lt'])
-
-        #' this is done before calling ETc
-        #' determine if this is a valid day (for use in assessing alfalfa cuttings in that file)
-        #' use ETref to determine
-
-        # some stuff here left out
-        ### TP05 this has to do with printing output or mysterious shit I don't understand....skip for now
-        # variables set validDaysPerYear & expectedYear, but seem unused
-        # except for printing ???
-
-        logging.debug((crop, crop.curve_name, crop.curve_number))
+    for step_dt, step_doy in foo.crop_pd[['doy']].iterrows():
+        if debug_flag:
+            logging.debug('\ncrop_day_loop(): DOY %d  Date %s' % (step_doy, step_dt.date())) 
+            
+            ## Log RefET values at time step 
+            logging.debug(
+                'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f ETref %.6f' % 
+                (et_cell.weather_pd.at[step_dt,'ppt'], et_cell.weather_pd.at[step_dt,'wind'], 
+                 et_cell.weather_pd.at[step_dt,'tdew'], et_cell.refet_pd.at[step_dt,'etref']))
+            ## Log climate values at time step         
+            logging.debug(
+                'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
+                (et_cell.climate_pd.at[step_dt,'tmax'], et_cell.climate_pd.at[step_dt,'tmin'], 
+                 et_cell.climate_pd.at[step_dt,'tmean'], et_cell.climate_pd.at[step_dt,'t30']))
 
         ## At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
             foo.setup_crop(crop)
 
         ## At end of season for each crop, set up for nongrowing and dormant season
-        #foo.dormant_setup_flag = True   # for testing SetupDormant()
         if not foo.in_season and foo.dormant_setup_flag:
-            OUT.debug('CropCycle():  in_season %s dormant_setup_flag %s\n' % (
-                foo.in_season, foo.dormant_setup_flag))
-            foo.setup_dormant(data, et_cell, crop)
+            logging.debug(
+                'crop_day_loop(): in_season[%r]  crop_setup[%r]  dormant_setup[%r]' % 
+                (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
+            foo.setup_dormant(et_cell, crop)
+        logging.debug(
+            'crop_day_loop(): in_season[%r]  crop_setup[%r]  dormant_setup[%r]' % 
+            (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
 
-        logging.debug(('in_season[%s], crop_setup_flag[%s], dormant_setup_flag[%s]' % (
-            foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag)))
+        ## Track variables for each day
+        ## For now, cast all values to native Python types
+        foo_day.sdays += 1
+        foo_day.doy = int(step_doy)
+        foo_day.year = int(step_dt.year)
+        foo_day.month = int(step_dt.month)
+        foo_day.day = int(step_dt.day)
+        foo_day.date = step_dt
+        foo_day.tmax_orig = float(et_cell.weather_pd.at[step_dt, 'tmax'])
+        foo_day.tdew = float(et_cell.weather_pd.at[step_dt, 'tdew'])
+        foo_day.u2 = float(et_cell.weather_pd.at[step_dt, 'wind'])
+        foo_day.precip = float(et_cell.weather_pd.at[step_dt, 'ppt'])
+        foo_day.rh_min = float(et_cell.weather_pd.at[step_dt, 'rh_min'])
+        foo_day.etref = float(et_cell.refet_pd.at[step_dt, 'etref'])
+        foo_day.tmean = float(et_cell.climate_pd.at[step_dt, 'tmean'])
+        foo_day.tmin = float(et_cell.climate_pd.at[step_dt, 'tmin'])
+        foo_day.tmax = float(et_cell.climate_pd.at[step_dt, 'tmax'])
+        foo_day.snow_depth = float(et_cell.climate_pd.at[step_dt, 'snow_depth'])
+        foo_day.t30 = float(et_cell.climate_pd.at[step_dt, 't30'])
+        ##foo_day.precip = float(et_cell.climate_pd.at[step_dt, 'precip'])
 
-        foo_day.sdays = i+1
-        foo_day.doy = doy
-        foo_day.year = year
-        foo_day.month = month
-        foo_day.day = day
-        foo_day.date = et_cell.refet['Dates'][i]
-        foo_day.tmax_original = et_cell.refet['TMax'][i]
-        foo_day.tdew = tdew
-        foo_day.wind = wind
-        foo_day.etref = etref
-        foo_day.tmean = tmean
-        foo_day.tmin = tmin
-        foo_day.tmax = tmax
-        foo_day.snow_depth = et_cell.climate['snow_depth'][i]
-        foo_day.cgdd_0_lt = cgdd_0_lt
-        #foo_day.t30_lt = t30_lt
-        foo_day.t30 = t30
-        foo_day.precip = precip
-        #pprint(vars(foo_day))
-        #print et_cell.climate.keys()
-
+        ## DEADBEEF - Why make copies?
+        foo_day.cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
+        #foo_day.t30_lt = np.copy(et_cell.climate['main_t30_lt'])
+                
         ## Calculate Kcb, Ke, ETc
-        #If Not compute_crop_et(T30) Then Return False
         compute_crop_et.compute_crop_et(
-            t30, data, et_cell, crop, foo, foo_day, OUT)
+            data, et_cell, crop, foo, foo_day, debug_flag, vb_flag)
 
-        ## Write vb-like output file for comparison
-        if COMPARE: 
-            #   ' print to final daily file
-            #   ' print date and ETref information first, if first crop in cycle
-            #print 'ET:: ',et_cell.refet['Dates'][i], doy, ETref, Precip, T30, foo.ETcact, foo.ETcpot, foo.ETcbas
-            y,m,d = et_cell.refet['Dates'][i][:3]
-            date = '%4s%02d%02d' % (y, m, d)
-            tup = (date, doy, etref, precip, t30, foo.etc_act, foo.etc_pot,
-                   foo.etc_bas, foo.irr_simulated, foo.in_season, foo.SRO,
-                   foo.Dpr)
-            fmt = '%8s %3s %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %5d %9.3f %9.3f\n'
-            ofp.write(fmt % tup)
-
+        ## Retrieve values from foo_day and write to output data frame
+        ## Eventually let compute_crop_et() write directly to output df
+        foo.crop_pd.at[step_dt, 'et_act'] = foo.etc_act
+        foo.crop_pd.at[step_dt, 'et_pot'] = foo.etc_pot
+        foo.crop_pd.at[step_dt, 'et_bas'] = foo.etc_bas
+        foo.crop_pd.at[step_dt, 'kc_act'] = foo.kc_act
+        foo.crop_pd.at[step_dt, 'kc_bas'] = foo.kc_bas
+        foo.crop_pd.at[step_dt, 'irrigation'] = foo.irr_sim
+        foo.crop_pd.at[step_dt, 'runoff'] = foo.sro
+        foo.crop_pd.at[step_dt, 'dperc'] = foo.dperc
+        foo.crop_pd.at[step_dt, 'niwr'] = foo.niwr + 0
+        foo.crop_pd.at[step_dt, 'season'] = int(foo.in_season)
+        
         ## Write final output file variables to DEBUG file
-        y,m,d = et_cell.refet['Dates'][i][:3]
-        date = '%4s%02d%02d' % (y, int(m), int(d))
-        tup = (etref, precip, t30, foo.etc_act, foo.etc_pot, foo.etc_bas, 
-               foo.irr_simulated, foo.in_season, foo.SRO, foo.Dpr)
-        s = ('zcrop_cycle(): 0ETref %s  1Precip %s 2T30 %s  3ETact %s'+
-             '4ETpot %s  5ETbas %s  6Irrn %s  7Season %s  8Runoff %s '+
-             '9DPerc %s\n')
-        OUT.debug(s % tup)
-
-        #pprint(vars(foo_day))
-        #print len(foo_day.T30LT)
-        #pprint(et_cell.climate['main_t30_lt'])
-        #pprint(et_cell.climate['main_cgdd_0_LT'])
-        #pprint(vars(foo))
-
-        logging.debug(('ZZZ', i, et_cell.refet['Dates'][i]))
-    #print et_cell.num_crop_sequence
-    #pprint(vars(data))
-
+        if debug_flag:
+            logging.debug(
+                ('crop_day_loop(): ETref  %.6f  Precip %.6f  T30 %.6f') %
+                (foo_day.etref, foo_day.precip, foo_day.t30))
+            logging.debug(
+                ('crop_day_loop(): ETact  %.6f  ETpot %.6f   ETbas %.6f') %
+                (foo.etc_act, foo.etc_pot, foo.etc_bas))
+            logging.debug(
+                ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f  NIWR %.6f') %
+                (foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
 def main():
     """ """
     pass
-    # _test() loads the data for Klamath
-    #data = cropet_data._test()
-    #pprint(data.refet)
 
 if __name__ == '__main__':
     main()

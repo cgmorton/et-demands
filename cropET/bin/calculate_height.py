@@ -1,28 +1,35 @@
-from pprint import pprint
+import logging
 
-def calculate_height(crop, foo, OUT):
-    """Determine height of crop based on Kc and height limits"""
-    height_min = crop.height_initial
-    height_max = crop.height_maximum
+def calculate_height(crop, foo, debug_flag=False):
+    """Determine height of crop based on Kc and height limits
+    
+    Args:
+        crop (): 
+        foo ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+    
+    Returns:
+        None
+    """
     height_prev = foo.height
 
-    #pprint(vars(crop))
+    # <----- previous (2000) and with error (Kcbmin vs Kcmin)
+    # height = height_min + (kc_bas - kcb_min) / (kc_bas_mid - kc_min) * (height_max - height_min) 
+    # kc_bas_mid is maximum kc_bas found in kc_bas table read into program
 
-    # hcrop = hmin + (kcb - kcb_min) / (kcb_mid - kc_min) * (hmax - hmin) <----- previous (2000) and with error (Kcbmin vs Kcmin)
-    # kcb_mid is maximum kcb found in kcb table read into program
-
-    # Followng conditionals added 12/26/07 to prevent any error
-    if foo.kcb > foo.kc_min and foo.kcb_mid > foo.kc_min:
+    # Following conditionals added 12/26/07 to prevent any error
+    if foo.kc_bas > foo.kc_min and foo.kc_bas_mid > foo.kc_min:
         foo.height = (
-            height_min + (foo.kcb - foo.kc_min) / (foo.kcb_mid - foo.kc_min) *
-            (height_max - height_min))
+            crop.height_initial + (foo.kc_bas - foo.kc_min) / (foo.kc_bas_mid - foo.kc_min) *
+            (crop.height_max - crop.height_initial))
     else:
-        foo.hcrop = height_min
-
-    s = ('1calculate_height(): unadj_height %s  kcb %s  kcmin %s  '+
-         'kcb_mid %s hmin %s  hmax %s\n')
-    t = (foo.height, foo.kcb, foo.kc_min, foo.kcb_mid, height_min, height_max)
-    OUT.debug(s % t)
-
-    foo.height = min(max(height_min, max(height_prev, foo.height)), height_max)
-    #print crop, height_min, height_max, foo.kcb, foo.kc_min, foo.kcb_mid, foo.height
+        foo.height = crop.height_initial
+    foo.height = min(max(crop.height_initial, max(height_prev, foo.height)), crop.height_max)
+    
+    if debug_flag:
+        logging.debug(
+            ('calculate_height(): unadj_height %.6f  Kc_bas %.6f  Kc_min %.6f  Kc_bas_mid %.6f') %
+            (foo.height, foo.kc_bas, foo.kc_min, foo.kc_bas_mid))
+        logging.debug(
+            ('calculate_height(): height_min %.6f  height_max %.6f  height %.6f') %
+            (crop.height_initial, crop.height_max, foo.height))
