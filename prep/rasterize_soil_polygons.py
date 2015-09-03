@@ -2,7 +2,7 @@
 # Name:         rasterize_soil_polygons.py
 # Purpose:      Convert soil polygons to raster
 # Author:       Charles Morton
-# Created       2015-08-13
+# Created       2015-09-03
 # Python:       2.7
 #--------------------------------
 
@@ -18,8 +18,9 @@ from osgeo import gdal, ogr, osr
 import numpy as np
 
 import gdal_common as gdc
+import util
 
-def main(gis_ws, prop_list=['all'], overwrite_flag=False, 
+def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False, 
          pyramids_flag=False, stats_flag=False):
     """Convert soil polygon shapefiles to raster
 
@@ -27,6 +28,7 @@ def main(gis_ws, prop_list=['all'], overwrite_flag=False,
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
+        soil_ws (str): Folder/workspace path of the common soils data
         prop_list (list): String of the soil types to build
             (i.e. awc, clay, sand, all)
         overwrite_flag (bool): If True, overwrite output rasters
@@ -37,7 +39,6 @@ def main(gis_ws, prop_list=['all'], overwrite_flag=False,
     Returns:
         None
     """
-    input_soil_ws = r'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\statsgo'
     folder_fmt = 'gsmsoil_{}'
     polygon_fmt = 'gsmsoilmu_a_us_{}_albers.shp'
     output_soil_ws = os.path.join(gis_ws, 'statsgo')
@@ -143,7 +144,7 @@ def main(gis_ws, prop_list=['all'], overwrite_flag=False,
                  temp_polygon_path, output_raster_path])
             
         if os.path.isfile(temp_polygon_path):
-            remove_file(temp_polygon_path)
+            util.remove_file(temp_polygon_path)
             ##subprocess.call(['gdalmanage', 'delete', temp_polygon_path])
             
         if stats_flag and os.path.isfile(output_raster_path):
@@ -158,19 +159,18 @@ def main(gis_ws, prop_list=['all'], overwrite_flag=False,
 
 ################################################################################
 
-def remove_file(file_path):
-    """Remove a feature/raster and all of its anciallary files"""
-    file_ws = os.path.dirname(file_path)
-    for file_name in glob.glob(os.path.splitext(file_path)[0]+".*"):
-        os.remove(os.path.join(file_ws, file_name))
-
 def arg_parse():
     parser = argparse.ArgumentParser(
         description='Rasterize Soil Polygons',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
-        help='GIS workspace/folder')
+        '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='GIS workspace/folder', metavar='FOLDER')
+    parser.add_argument(
+        '--soil', required=True, metavar='FOLDER',
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='Common soil workspace/folder')
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true', 
         help='Force overwrite of existing files')
@@ -181,17 +181,19 @@ def arg_parse():
         '--stats', default=None, action='store_true',
         help='Build statistics')
     parser.add_argument(
-        '--soil', default=['all'], nargs='*', metavar='STR',
+        '--type', default=['all'], nargs='*', metavar='STR',
         choices=('all', 'awc', 'clay', 'sand'), 
-        help='Soil property (all, awc, clay, sand)')
+        help="Soil property type ('all', 'awc', 'clay', 'sand')")
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
 
-    ## Convert input file to an absolute path
+    ## Convert relative paths to absolute paths
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
+    if args.soil and os.path.isdir(os.path.abspath(args.soil)):
+        args.soil = os.path.abspath(args.soil)
     return args
 
 ################################################################################
@@ -199,11 +201,11 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s') 
-    logging.info('\n%s' % ('#'*80))
-    logging.info('%-20s %s' % ('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
-    logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
+    logging.info('\n{}'.format('#'*80))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, prop_list=args.soil,
+    main(gis_ws=args.gis, input_soil_ws=args.soil, prop_list=args.type,
          overwrite_flag=args.overwrite, pyramids_flag=args.pyramids, 
          stats_flag=args.stats)

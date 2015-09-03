@@ -2,7 +2,7 @@
 # Name:         merge_dem_rasters.py
 # Purpose:      Prepare NED DEM rasters
 # Author:       Charles Morton
-# Created       2015-08-14
+# Created       2015-09-03
 # Python:       2.7
 #--------------------------------
 
@@ -18,11 +18,12 @@ import numpy as np
 from osgeo import gdal, ogr, osr
 
 import gdal_common as gdc
+import util
 
 ################################################################################
 
 def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False, 
-pyramids_flag=False, stats_flag=False):
+         pyramids_flag=False, stats_flag=False):
     """Merge, project, and clip NED tiles
 
     Args:
@@ -53,12 +54,12 @@ pyramids_flag=False, stats_flag=False):
 
     ## Input error checking
     if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {} '+
-                      'does not exist'.format(gis_ws))
+        logging.error(('\nERROR: The GIS workspace {} '+
+                       'does not exist').format(gis_ws))
         sys.exit()
     elif not os.path.isdir(tile_ws):
-        logging.error('\nERROR: The DEM tile workspace {} '+
-                      'does not exist'.format(tile_ws))
+        logging.error(('\nERROR: The DEM tile workspace {} '+
+                       'does not exist').format(tile_ws))
         sys.exit()
     elif not os.path.isfile(zone_raster_path):
         logging.error(
@@ -210,6 +211,8 @@ pyramids_flag=False, stats_flag=False):
         
     if os.path.isfile(os.path.join(dem_ws, dem_gcs_path)):
         subprocess.call(['gdalmanage', 'delete', '-f', 'HFA', dem_gcs_path])
+        
+################################################################################
 
 def m2ft_func(input_raster):
     """Scale the input raster from meters to feet"""
@@ -221,18 +224,19 @@ def m2ft_func(input_raster):
     input_array[~np.isnan(input_array)] /= 0.3048
     input_band.WriteArray(input_array, 0, 0)
     input_ds = None
-
+        
 def arg_parse():
     parser = argparse.ArgumentParser(
         description='Merge, project, and clip NED tiles',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
-        help='GIS workspace/folder')
+        '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='GIS workspace/folder', metavar='FOLDER')
     parser.add_argument(
-        '--tiles', nargs='?',  metavar='FOLDER', 
-        default=os.path.join(os.getcwd(), 'dem', 'tiles'),
-        help='GIS workspace/folder')
+        '--tiles', metavar='FOLDER', required=True,
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='Coommon DEM tiles workspace/folder')
     parser.add_argument(
         '-cs', '--cellsize', default=30, metavar='INT', type=int,
         choices=(10, 30), help='DEM cellsize (10 or 30m)')
@@ -262,10 +266,10 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n%s' % ('#'*80))
-    logging.info('%-20s %s' % ('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
-    logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
+    logging.info('\n{}'.format('#'*80))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, tile_ws=args.tiles,
          dem_cs=args.cellsize, overwrite_flag=args.overwrite,

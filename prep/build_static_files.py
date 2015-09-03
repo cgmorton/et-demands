@@ -2,7 +2,7 @@
 # Name:         et_demands_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2015-08-18
+# Created       2015-09-03
 # Python:       2.7
 #--------------------------------
 
@@ -17,12 +17,16 @@ import sys
 
 import arcpy
 
-def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
+import util
+
+def main(gis_ws, station_path, area_threshold=1, huc=8,
+         dairy_cuttings=5, beef_cuttings=4, 
          overwrite_flag=False, cleanup_flag=False):
     """Build static text files needed to run ET-Demands model
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
+        station_path (str): File path of the weather stations
         area_threshold (float): CDL area threshold [acres]
         dairy (int): Initial number of dairy hay cuttings
         beef (int): Initial number of beef hay cuttings
@@ -60,7 +64,8 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
     ## Eventually set these from the INI file?
     station_ws = os.path.join(gis_ws, 'stations')
     project_ws = os.path.dirname(gis_ws)
-    demands_ws = os.path.join(project_ws, 'et_demands_py')
+    demands_ws = os.path.join(project_ws)
+    ##demands_ws = os.path.join(project_ws, 'et_demands_py')
 
     ## Sub folder names
     static_ws = os.path.join(demands_ws, 'static')
@@ -68,7 +73,7 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
 
     ## Weather station shapefile
     ## Generate by selecting the target NLDAS 4km cell intersecting each HUC
-    station_path = os.path.join(station_ws, 'nldas_4km_dd_pts_cat_basins.shp')
+    ##station_path = os.path.join(station_ws, 'nldas_4km_dd_pts_cat_basins.shp')
     station_id_field = 'NLDAS_ID'
     station_zone_field = 'HUC{}'.format(huc)
     station_lat_field = 'LAT'
@@ -137,12 +142,12 @@ def main(gis_ws, area_threshold=1, dairy_cuttings=5, beef_cuttings=4, huc=8,
 
     ## Check input files
     if not arcpy.Exists(et_cells_path):
-        logging.error('\nERROR: The ET Cell shapefile {} '+
-                      'does not exist\n'.format(et_cells_path))
+        logging.error(('\nERROR: The ET Cell shapefile {} '+
+                       'does not exist\n').format(et_cells_path))
         sys.exit()
     elif not arcpy.Exists(station_path):
-        logging.error('\nERROR: The station shapefile {} '+
-                      'does not exist\n'.format(station_path))
+        logging.error(('\nERROR: The station shapefile {} '+
+                       'does not exist\n').format(station_path))
         sys.exit()
     for static_name in static_list:
         if not os.path.isfile(os.path.join(template_ws, static_name)):
@@ -295,8 +300,13 @@ def arg_parse():
         description='ET-Demands Static Files',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
-        help='GIS workspace/folder')
+        '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='GIS workspace/folder', metavar='FOLDER')
+    parser.add_argument(
+        '--station', nargs='?', required=True,
+        type=lambda x: util.is_valid_file(parser, x), 
+        help='Weather station shapefile', metavar='FILE')
     parser.add_argument(
         '--acres', default=10, type=float, 
         help='Crop area threshold')
@@ -320,7 +330,7 @@ def arg_parse():
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
 
-    ## Convert input file to an absolute path
+    ## Convert relative paths to absolute paths
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
     return args
@@ -330,11 +340,11 @@ if __name__ == '__main__':
     args = arg_parse()
     
     logging.basicConfig(level=args.loglevel, format='%(message)s')  
-    logging.info('\n%s' % ('#'*80))
-    logging.info('%-20s %s' % ('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
-    logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
+    logging.info('\n{}'.format('#'*80))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, area_threshold=args.acres,
+    main(gis_ws=args.gis, station_path=args.station, area_threshold=args.acres,
          dairy_cuttings=args.dairy, beef_cuttings=args.beef, huc=args.huc,
          overwrite_flag=args.overwrite, cleanup_flag=args.clean)

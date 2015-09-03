@@ -1,8 +1,8 @@
 #--------------------------------
-# Name:         et_demands_zonal_stats.py
+# Name:         et_demands_zonal_stats_arcpy.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2015-08-18
+# Created       2015-09-03
 # Python:       2.7
 #--------------------------------
 
@@ -16,8 +16,9 @@ import sys
 
 import arcpy
 
-def main(gis_ws, cdl_year=2010, huc=8, 
-         overwrite_flag=False, cleanup_flag=False):
+import util
+
+def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
     """Calculate zonal statistics needed to run ET-Demands model
 
     Args:
@@ -65,7 +66,6 @@ def main(gis_ws, cdl_year=2010, huc=8,
     gdb_flag = False
     if gdb_flag:
         gdb_path = os.path.join(os.path.dirname(gis_ws), 'et-demands_py\et_demands.gdb')
-        ##gdb_path = r'D:\Projects\CAT_Basins\AltusOK\et-demands_py\et_demands.gdb'
         et_cells_path = os.path.join(gdb_path, 'et_cells')
     else:
         et_cells_path = os.path.join(gis_ws, 'ETCells.shp')
@@ -234,27 +234,26 @@ def main(gis_ws, cdl_year=2010, huc=8,
     crop_num_dict[254] = [11,85]    ## Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
 
 
-
     ## Check input folders
     if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {0} '+
-                      'does not exist\n'.format(gis_ws))
+        logging.error(('\nERROR: The GIS workspace {0} '+
+                       'does not exist\n').format(gis_ws))
         sys.exit()
     elif not os.path.isdir(cdl_ws):
-        logging.error('\nERROR: The CDL workspace {0} '+
-                      'does not exist\n'.format(cdl_ws))
+        logging.error(('\nERROR: The CDL workspace {0} '+
+                       'does not exist\n').format(cdl_ws))
         sys.exit()
     elif not os.path.isdir(dem_ws):
-        logging.error('\nERROR: The DEM workspace {0} '+
-                      'does not exist\n'.format(dem_ws))
+        logging.error(('\nERROR: The DEM workspace {0} '+
+                       'does not exist\n').format(dem_ws))
         sys.exit()
     elif not os.path.isdir(soil_ws):
-        logging.error('\nERROR: The soil workspace {0} '+
-                      'does not exist\n'.format(soil_ws))
+        logging.error(('\nERROR: The soil workspace {0} '+
+                       'does not exist\n').format(soil_ws))
         sys.exit()
     elif not os.path.isdir(huc_ws):
-        logging.error('\nERROR: The HUC workspace {0} '+
-                      'does not exist\n'.format(huc_ws))
+        logging.error(('\nERROR: The HUC workspace {0} '+
+                       'does not exist\n').format(huc_ws))
         sys.exit()
     logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
     logging.info('CDL Workspace:   {0}'.format(cdl_ws))
@@ -686,11 +685,12 @@ def arg_parse():
         description='ET-Demands Zonal Stats',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
-        help='GIS workspace/folder')
+        '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='GIS workspace/folder', metavar='FOLDER')
     parser.add_argument(
-        '--year', default=2010, metavar='INT', type=int,
-        choices=(2010, 2011, 2012, 2013, 2014), help='CDL year')
+        '-y', '--year', metavar='YEAR', required=True, type=int,
+        help='CDL year')
     parser.add_argument(
         '--huc', default=8, metavar='INT', type=int,
         choices=(8, 10), help='HUC level')
@@ -705,7 +705,7 @@ def arg_parse():
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
 
-    ## Convert input file to an absolute path
+    ## Convert relative paths to absolute paths
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
     return args
@@ -715,10 +715,10 @@ if __name__ == '__main__':
     args = arg_parse()
     
     logging.basicConfig(level=args.loglevel, format='%(message)s')  
-    logging.info('\n%s' % ('#'*80))
-    logging.info('%-20s %s' % ('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
-    logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
+    logging.info('\n{}'.format('#'*80))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, cdl_year=args.year, huc=args.huc, 
          overwrite_flag=args.overwrite, cleanup_flag=args.clean)

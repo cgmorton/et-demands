@@ -1,8 +1,8 @@
 #--------------------------------
 # Name:         build_ag_cdl_rasters.py
-# Purpose:      Build ag land and ag mask rasters from cropland rasters
+# Purpose:      Build agricultural land and mask rasters from CDL rasters
 # Author:       Charles Morton
-# Created       2015-08-14
+# Created       2015-09-03
 # Python:       2.7
 #--------------------------------
 
@@ -18,8 +18,9 @@ import numpy as np
 from osgeo import gdal, ogr, osr
 
 import gdal_common as gdc
+import util
 
-def main(gis_ws, block_size=32768, mask_flag=False, 
+def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False, 
          overwrite_flag=False, pyramids_flag=False, stats_flag=False,
          agland_nodata=0, agmask_nodata=0):
     """Mask CDL values for non-agricultural pixels
@@ -28,6 +29,7 @@ def main(gis_ws, block_size=32768, mask_flag=False,
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
+        cdl_year (str): Cropland Data Layer year comma separated list and/or range
         block_size (int): Maximum block size to use for raster processing
         mask_flag (bool): If True, mask pixels outside extent shapefile
         overwrite_flag (bool): If True, overwrite output rasters
@@ -41,9 +43,7 @@ def main(gis_ws, block_size=32768, mask_flag=False,
 
     """
 
-    agmask_fmt = 'agmask_{}'
-    agland_fmt = 'agland_{}'
-
+    cdl_format = '{0}_30m_cdls.img'
     cdl_ws = os.path.join(gis_ws, 'cdl')
     scratch_ws = os.path.join(gis_ws, 'scratch')  
     zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')   
@@ -61,25 +61,19 @@ def main(gis_ws, block_size=32768, mask_flag=False,
         ##[93, 180, 0], [176, 1], [183, 203, 0], [204, 254, 1]]
         [93, 203, 0], [204, 254, 1]]
 
-    raster_list = ['2010_30m_cdls.img']
-    ##raster_list = ['2013_30m_cdls.img']
-    ##raster_list = ['2013_30m_cdls.img', '2012_30m_cdls.img',
-    ##               '2011_30m_cdls.img', '2010_30m_cdls.img']
-    raster_ext_list = ['.ige', '.img', '.rde', '.rrd']
-
     ## Check input folders
     if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {} '+
-                      'does not exist\n'.format(gis_ws))
+        logging.error(('\nERROR: The GIS workspace {} '+
+                       'does not exist\n').format(gis_ws))
         sys.exit()
     elif not os.path.isdir(cdl_ws):
-        logging.error('\nERROR: The CDL workspace {} '+
-                      'does not exist\n'.format(cdl_ws))
+        logging.error(('\nERROR: The CDL workspace {} '+
+                       'does not exist\n').format(cdl_ws))
         sys.exit()
     elif mask_flag and not os.path.isfile(zone_raster_path):
         logging.error(
             ('\nERROR: The zone raster {} does not exist\n'+
-             '  Try re-running "clip_cdl_raster.py"').format(cdl_ws))
+             '  Try re-running "clip_cdl_raster.py"').format(zone_raster_path))
         sys.exit()
     logging.info('\nGIS Workspace:   {}'.format(gis_ws))
     logging.info('CDL Workspace:   {}'.format(cdl_ws))
@@ -88,18 +82,19 @@ def main(gis_ws, block_size=32768, mask_flag=False,
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
         levels = '2 4 8 16 32 64 128'
 
-    ## Process each soil raster
-    for raster_name in sorted(raster_list):
-        agmask_path = os.path.join(cdl_ws, agmask_fmt.format(raster_name))
-        agland_path = os.path.join(cdl_ws, agland_fmt.format(raster_name))
+    ## Process each CDL year separately
+    for cdl_year in list(util.parse_int_set(cdl_year)):
+        logging.info('\n{0}'.format(cdl_year))
+        cdl_path = os.path.join(cdl_ws, cdl_format.format(cdl_year))
+        agmask_path = os.path.join(cdl_ws, 'agmask_{}_30m_cdls.img'.format(cdl_year))
+        agland_path = os.path.join(cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
+        if not os.path.isfile(cdl_path):
+            logging.error(('\nERROR: The CDL raster {} '+
+                           'does not exist\n').format(cdl_path))
+            continue
 
         ## Get color table and spatial reference from CDL raster
-        logging.info('\nReading CDL color table')
-        cdl_path = os.path.join(cdl_ws, raster_name)
-        if not os.path.isfile(cdl_path):
-            logging.error('\nERROR: The CDL raster {} '+
-                          'does not exist\n'.format(cdl_path))
-            sys.exit()
+        logging.info('Reading CDL color table')
         cdl_raster_ds = gdal.Open(cdl_path, 0)
         cdl_geo = gdc.raster_ds_geo(cdl_raster_ds)
         cdl_rows, cdl_cols = gdc.raster_ds_shape(cdl_raster_ds)
@@ -236,8 +231,12 @@ def arg_parse():
         description='Build CDL Ag Rasters',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--gis', nargs='?', default=os.getcwd(),
+        '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
+        type=lambda x: util.is_valid_directory(parser, x), 
         help='GIS workspace/folder', metavar='FOLDER')
+    parser.add_argument(
+        '-y', '--years', metavar='YEAR', required=True,
+        help='CDL years, comma separate list and/or range')
     parser.add_argument(
         '-bs', '--blocksize', default=16384, type=int, metavar='N',
         help='Block size')
@@ -274,12 +273,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n%s' % ('#'*80))
-    logging.info('%-20s %s' % ('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
-    logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
+    logging.info('\n{}'.format('#'*80))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, block_size=args.blocksize,
+    main(gis_ws=args.gis, cdl_year=args.years, block_size=args.blocksize,
          mask_flag=args.mask, overwrite_flag=args.overwrite,
          pyramids_flag=args.pyramids, stats_flag=args.stats,
          agland_nodata=args.agland_nodata, agmask_nodata=args.agmask_nodata)

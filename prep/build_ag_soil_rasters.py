@@ -1,6 +1,6 @@
 #--------------------------------
-# Name:         build_ag_dem_rasters.py
-# Purpose:      Extract DEM data for agricultural CDL pixels
+# Name:         build_ag_soil_rasters.py
+# Purpose:      Extract soils data for agricultural CDL pixels
 # Author:       Charles Morton
 # Created       2015-09-03
 # Python:       2.7
@@ -22,7 +22,8 @@ import util
 
 ################################################################################
 
-def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False, 
+def main(gis_ws, cdl_year='', prop_list=['all'], 
+         block_size=32768, mask_flag=False, 
          overwrite_flag=False, pyramids_flag=False, stats_flag=False):
     """Mask DEM values for non-agricultural pixels
 
@@ -31,21 +32,24 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
         cdl_year (str): Cropland Data Layer year comma separated list and/or range
+        prop_list (list): String of the soil types to build
+            (i.e. awc, clay, sand, all)
         block_size (int): Maximum block size to use for raster processing
         mask_flag (bool): If True, mask pixels outside extent shapefile
         overwrite_flag (bool): If True, overwrite existing files
         pyramids_flag (bool): If True, build pyramids/overviews
             for the output rasters 
         stats_flag (bool): If True, compute statistics for the output rasters
+
     Returns:
         None
     """
-    input_dem_name = 'ned_30m_albers.img'
+    input_soil_fmt = '{}_30m_albers.img'
     cdl_format = '{0}_30m_cdls.img'
-    dem_ws = os.path.join(gis_ws, 'dem')
+    soil_ws = os.path.join(gis_ws, 'statsgo')
     cdl_ws = os.path.join(gis_ws, 'cdl')
     scratch_ws = os.path.join(gis_ws, 'scratch')  
-    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')         
+    zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
 
     ## Check input folders
     if not os.path.isdir(gis_ws):
@@ -56,9 +60,9 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
         logging.error(('\nERROR: The CDL workspace {} '+
                        'does not exist\n').format(cdl_ws))
         sys.exit()
-    elif not os.path.isdir(dem_ws):
-        logging.error(('\nERROR: The DEM workspace {} '+
-                       'does not exist\n').format(dem_ws))
+    elif not os.path.isdir(soil_ws):
+        logging.error(('\nERROR: The soil workspace {} '+
+                       'does not exist\n').format(soil_ws))
         sys.exit()
     elif mask_flag and not os.path.isfile(zone_raster_path):
         logging.error(
@@ -67,27 +71,17 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
         sys.exit()
     logging.info('\nGIS Workspace:   {}'.format(gis_ws))
     logging.info('CDL Workspace:   {}'.format(cdl_ws))
-    logging.info('DEM Workspace:   {}\n'.format(dem_ws))
-
-    ## Check input files
-    input_dem_path = os.path.join(dem_ws, input_dem_name)
-    if not os.path.isfile(input_dem_path):
-        logging.error('\nERROR: The raster {} does not exist'.format(
-            input_dem_path))
-        sys.exit()
+    logging.info('Soil Workspace:  {}'.format(soil_ws))
 
     if pyramids_flag:
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
         levels = '2 4 8 16 32 64 128'
 
-    ## Process existing dem rasters (from merge_dems.py)
-    input_rows, input_cols = gdc.raster_path_shape(input_dem_path)
-
     ## Process each CDL year separately
     for cdl_year in list(util.parse_int_set(cdl_year)):
         logging.info('\n{0}'.format(cdl_year))
         cdl_path = os.path.join(cdl_ws, cdl_format.format(cdl_year))
-        output_dem_path = os.path.join(dem_ws, 'dem_{}_30m_cdls.img'.format(cdl_year))
+        output_soil_fmt = '{0}_{1}_30m_cdls.img'.format('{}', cdl_year)
         agland_path = os.path.join(cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
         agmask_path = os.path.join(cdl_ws, 'agmask_{}_30m_cdls.img'.format(cdl_year))
         if not os.path.isfile(agmask_path):
@@ -95,56 +89,76 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
                 ('\nERROR: The ag-mask raster {} does not exist\n'+
                  '  Try re-running "build_ag_cdl_rasters.py"').format(agmask_path))
             continue
-    
-        ## Copy input DEM
-        if overwrite_flag and os.path.isfile(output_dem_path):
-            subprocess.call(['gdalmanage', 'delete', output_dem_path])
-        if os.path.isfile(input_dem_path) and not os.path.isfile(output_dem_path):
-            logging.info('\nCopying DEM raster')
-            logging.debug('{}'.format(input_dem_path))
-            subprocess.call(
-                ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES',
-                 input_dem_path, output_dem_path])
+
+        logging.info('Soil Property:   {}'.format(', '.join(prop_list)))
+        if prop_list == ['all']:
+            prop_list = ['awc', 'clay', 'sand']
         
-        ## Set non-ag areas to nodata value
-        logging.debug('Processing by block')
-        logging.debug('  Input cols/rows: {0}/{1}'.format(
-            input_cols, input_rows))
-        for b_i, b_j in gdc.block_gen(input_rows, input_cols, block_size):
-            logging.debug('  Block  y: {0:5d}  x: {1:5d}'.format(b_i, b_j))
-            ## Read in data for block
-            agmask_array = gdc.raster_to_block(
-                agmask_path, b_i, b_j, block_size, return_nodata=False)
-            dem_array, dem_nodata = gdc.raster_to_block(
-                input_dem_path, b_i, b_j, block_size, return_nodata=True)
-                            
-            ## Mask CDL values outside extent shapefile
-            if mask_flag and os.path.isfile(zone_raster_path):
-                zone_array = gdc.raster_to_block(
-                    zone_raster_path, b_i, b_j, block_size)
-                dem_array[zone_array == 0] = dem_nodata           
+        ## Process existing soil rasters (from rasterize script)
+        for prop_str in prop_list:
+            logging.info('\nSoil: {}'.format(prop_str.upper()))
+            input_soil_path = os.path.join(soil_ws, input_soil_fmt.format(prop_str))
+            output_soil_path = os.path.join(soil_ws, output_soil_fmt.format(prop_str))
+            if not os.path.isfile(input_soil_path):
+                logging.error('\nERROR: The raster {} does not exist'.format(
+                    input_soil_path))
+                continue
         
-            ## Set dem values for non-ag pixels to nodata
-            dem_array[~agmask_array.astype(np.bool)] = dem_nodata
+            ## Create a copy of the input raster to modify
+            if overwrite_flag and os.path.isfile(output_soil_path):
+                subprocess.call(['gdalmanage', 'delete', output_soil_path])
+            if (os.path.isfile(input_soil_path) and
+                not os.path.isfile(output_soil_path)):
+                logging.info('\nCopying soil raster')
+                logging.debug('{}'.format(input_soil_path))
+                subprocess.call(
+                    ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES',
+                     input_soil_path, output_soil_path])
         
-            gdc.block_to_raster(dem_array, output_dem_path, b_i, b_j, block_size)
-            del agmask_array, dem_array, dem_nodata
+            ## Get the size of the input raster
+            input_rows, input_cols = gdc.raster_path_shape(input_soil_path)
         
-        if stats_flag and os.path.isfile(output_dem_path):
-            logging.info('Computing statistics')
-            logging.debug('  {}'.format(output_dem_path))
-            subprocess.call(['gdalinfo', '-stats', '-nomd', output_dem_path])
+            ## Set non-ag areas to nodata value
+            logging.debug('Processing by block')
+            logging.debug('  Input cols/rows: {0}/{1}'.format(
+                input_cols, input_rows))
+            for b_i, b_j in gdc.block_gen(input_rows, input_cols, block_size):
+                logging.debug('  Block  y: {0:5d}  x: {1:5d}'.format(b_i, b_j))
         
-        if pyramids_flag and os.path.isfile(output_dem_path):
-            logging.info('Building pyramids')
-            logging.debug('  {}'.format(output_dem_path))
-            subprocess.call(['gdaladdo', '-ro', output_dem_path] + levels.split())
+                ## Read in data for block
+                agmask_array = gdc.raster_to_block(
+                    agmask_path, b_i, b_j, block_size, return_nodata=False)
+                soil_array, soil_nodata = gdc.raster_to_block(
+                    input_soil_path, b_i, b_j, block_size, return_nodata=True)
+            
+                ## Mask CDL values outside extent shapefile
+                if mask_flag and os.path.isfile(zone_raster_path):
+                    zone_array = gdc.raster_to_block(
+                        zone_raster_path, b_i, b_j, block_size)
+                    soil_array[zone_array == 0] = soil_nodata           
+        
+                ## Set soil values for non-ag pixels to nodata
+                soil_array[~agmask_array.astype(np.bool)] = soil_nodata
+        
+                gdc.block_to_raster(
+                soil_array, output_soil_path, b_i, b_j, block_size)
+                del agmask_array, soil_array, soil_nodata
+        
+            if stats_flag and os.path.isfile(output_soil_path):
+                logging.info('Computing statistics')
+                logging.debug('  {}'.format(output_soil_path))
+                subprocess.call(['gdalinfo', '-stats', '-nomd', output_soil_path])
+        
+            if pyramids_flag and os.path.isfile(output_soil_path):
+                logging.info('Building pyramids')
+                logging.debug('  {}'.format(output_soil_path))
+                subprocess.call(['gdaladdo', '-ro', output_soil_path] + levels.split())
        
 ################################################################################
 
 def arg_parse():
     parser = argparse.ArgumentParser(
-        description='Build Ag Dem Rasters',
+        description='Build Ag Soils Rasters',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
@@ -169,6 +183,10 @@ def arg_parse():
         '--stats', default=None, action='store_true', 
         help='Build statistics')
     parser.add_argument(
+        '--soil', default=['all'], nargs='*', metavar='STR',
+        choices=('all', 'awc', 'clay', 'sand'), 
+        help='Soil property (all, awc, clay, sand)')
+    parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
@@ -182,12 +200,13 @@ def arg_parse():
 if __name__ == '__main__':
     args = arg_parse()
 
-    logging.basicConfig(level=args.loglevel, format='%(message)s')    
+    logging.basicConfig(level=args.loglevel, format='%(message)s')
     logging.info('\n{}'.format('#'*80))
     logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, cdl_year=args.years, block_size=args.blocksize, 
+    main(gis_ws=args.gis, cdl_year=args.years, 
+         prop_list=args.soil, block_size=args.blocksize, 
          mask_flag=args.mask, overwrite_flag=args.overwrite,
          pyramids_flag=args.pyramids, stats_flag=args.stats)

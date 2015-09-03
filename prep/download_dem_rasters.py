@@ -2,7 +2,7 @@
 # Name:         download_dem_rasters.py
 # Purpose:      Download NED tiles
 # Author:       Charles Morton
-# Created       2015-08-13
+# Created       2015-09-03
 # Python:       2.7
 #--------------------------------
 
@@ -15,9 +15,10 @@ import sys
 import urllib
 import zipfile
 
-from osgeo import ogr
+from osgeo import gdal, ogr, osr
 
 import gdal_common as gdc
+import util
 
 ################################################################################
 
@@ -60,16 +61,8 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
     scratch_ws = os.path.join(gis_ws, 'scratch')
     zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
 
-    ## Output folders
-    dem_ws = os.path.join(gis_ws, 'dem')
-    tile_ws = os.path.join(dem_ws, 'tiles')
-
     ## Error checking
-    if not os.path.isdir(gis_ws):
-        logging.error('\nERROR: The GIS workspace {} '+
-                      'does not exist'.format(gis_ws))
-        sys.exit()
-    elif not os.path.isfile(zone_raster_path):
+    if not os.path.isfile(zone_raster_path):
         logging.error(
             ('\nERROR: The zone raster {} does not exist'+
              '\n  Try re-running "build_study_area_raster.py"').format(
@@ -85,11 +78,11 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
     output_cs = gdc.raster_ds_cellsize(zone_raster_ds)[0]
     output_x, output_y = gdc.raster_ds_origin(zone_raster_ds)
     output_extent = gdc.raster_ds_extent(zone_raster_ds)
-    output_ullr = clip_extent.ul_lr_swap()
+    output_ullr = output_extent.ul_lr_swap()
     zone_raster_ds = None
     logging.debug('\nStudy area properties')
     logging.debug('  Output OSR: {}'.format(output_osr))
-    logging.debug('  Output Extent: {}'.format(zone_extent))   
+    logging.debug('  Output Extent: {}'.format(output_extent))   
     logging.debug('  Output cellsize: {}'.format(output_cs))
     logging.debug('  Output UL/LR: {}'.format(output_ullr))
         
@@ -109,9 +102,9 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
         for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])))
 
     ## Attempt to download the tiles
-    logging.info('Downloading')
+    logging.debug('Downloading')
     for lat_lon in lat_lon_list:
-        logging.info(lat_lon)
+        logging.info('  {}'.format(lat_lon))
         zip_name = zip_fmt.format(*lat_lon)
         zip_url = site_url+'/'+zip_name
         zip_path = os.path.join(tile_ws, zip_name)
@@ -138,12 +131,12 @@ def arg_parse():
         description='Download NED tiles',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--gis', nargs='?', default=os.getcwd(), metavar='FOLDER',
-        help='GIS workspace/folder')
+        '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='GIS workspace/folder', metavar='FOLDER')
     parser.add_argument(
-        '--tiles', nargs='?',  metavar='FOLDER', 
-        default=os.path.join(os.getcwd(), 'dem', 'tiles'),
-        help='GIS workspace/folder')
+        '--tiles', metavar='FOLDER', required=True,
+        help='Coommon DEM tiles workspace/folder')
     parser.add_argument(
         '-cs', '--cellsize', default=30, metavar='INT', type=int,
         choices=(10, 30), help='DEM cellsize (10 or 30m)')
@@ -155,7 +148,7 @@ def arg_parse():
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
 
-    ## Convert input file to an absolute path
+    ## Convert relative paths to absolute paths
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
     if args.tiles and os.path.isdir(os.path.abspath(args.tiles)):
@@ -167,10 +160,10 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n%s' % ('#'*80))
-    logging.info('%-20s %s' % ('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('%-20s %s' % ('Current Directory:', os.getcwd()))
-    logging.info('%-20s %s' % ('Script:', os.path.basename(sys.argv[0])))
+    logging.info('\n{}'.format('#'*80))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, tile_ws=args.tiles,
-         dem_cs=args.cellsize, overwrite_flag=args.overwrite)
+    main(gis_ws=args.gis, tile_ws=args.tiles, dem_cs=args.cellsize,
+         overwrite_flag=args.overwrite)
