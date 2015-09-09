@@ -11,9 +11,12 @@ import sys
 import numpy as np
 import pandas as pd
 
+import calculate_height
 import crop_et_data
 import compute_crop_et
+import compute_crop_gdd
 from initialize_crop_cycle import InitializeCropCycle
+import kcb_daily
 import util
 
 class DayData:
@@ -318,9 +321,19 @@ def crop_day_loop(data, et_cell, crop, foo, debug_flag=False, vb_flag=False):
         foo_day.cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
         #foo_day.t30_lt = np.copy(et_cell.climate['main_t30_lt'])
                 
+        ## Compute crop growing degree days
+        compute_crop_gdd.compute_crop_gdd(crop, foo, foo_day, debug_flag)
+
+        ## Calculate height of vegetation.  Call was moved up to this point 12/26/07 for use in adj. Kcb and kc_max
+        calculate_height.calculate_height(crop, foo, debug_flag)
+
+        ## Interpolate Kcb and make climate adjustment (for ETo basis)
+        kcb_daily.kcb_daily(
+            data, et_cell, crop, foo, foo_day, debug_flag, vb_flag)
+
         ## Calculate Kcb, Ke, ETc
         compute_crop_et.compute_crop_et(
-            data, et_cell, crop, foo, foo_day, debug_flag, vb_flag)
+            data, et_cell, crop, foo, foo_day, debug_flag)
 
         ## Retrieve values from foo_day and write to output data frame
         ## Eventually let compute_crop_et() write directly to output df

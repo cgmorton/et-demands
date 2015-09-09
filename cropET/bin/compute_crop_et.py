@@ -3,14 +3,11 @@ import logging
 import math
 import sys
 
-import compute_crop_gdd
-import calculate_height
 import grow_root
-import kcb_daily
 import runoff
 import util
 
-def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False):
+def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     """crop et computations
     
     Args:
@@ -20,20 +17,10 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
         foo (): 
         foo_day (): 
         debug_flag (bool): If True, write debug level comments to debug.txt
-        vb_flag (bool): If True, mimic calculations in VB version of code
     
     Returns:
         None
     """
-    ##logging.debug('compute_crop_et()')
-    compute_crop_gdd.compute_crop_gdd(data, crop, foo, foo_day, debug_flag)
-
-    ## Calculate height of vegetation.  Call was moved up to this point 12/26/07 for use in adj. Kcb and kc_max
-    calculate_height.calculate_height(crop, foo, debug_flag)
-
-    ## Interpolate Kcb and make climate adjustment (for ETo basis)
-    kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag, vb_flag)
-
     ## Don't compute cropET for open water
     ## open_water_evap() was called in kcb_daily()
     if crop.class_number in [55, 56, 57]:

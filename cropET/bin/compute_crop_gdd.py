@@ -2,11 +2,10 @@ import logging
 
 import util
 
-def compute_crop_gdd(data, crop, foo, foo_day, debug_flag=False):
+def compute_crop_gdd(crop, foo, foo_day, debug_flag=False):
     """Compute crop growing degree days
     
     Args:
-        data (): 
         crop (): 
         foo (): 
         foo_day (): 
