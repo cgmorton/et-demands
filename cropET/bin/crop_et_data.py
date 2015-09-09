@@ -345,7 +345,7 @@ class CropETData():
 
         ## Snow and snow depth are optional
         try: self.weather['fields']['snow'] = config.get(weather_sec, 'snow_field')
-        except:  self.weather['fields']['snow'] = None
+        except: self.weather['fields']['snow'] = None
         try: self.weather['fields']['snow_depth'] = config.get(weather_sec, 'depth_field')
         except: self.weather['fields']['snow_depth'] = None
         if self.weather['fields']['snow'] is not None:
@@ -361,7 +361,7 @@ class CropETData():
                 
         ## Tdew can be set or computed from Q (specific humidity)
         try: self.weather['fields']['tdew'] = config.get(weather_sec, 'tdew_field')
-        except:  self.weather['fields']['tdew'] = None
+        except: self.weather['fields']['tdew'] = None
         try: self.weather['fields']['q'] = config.get(weather_sec, 'q_field')
         except: self.weather['fields']['q'] = None
         if self.weather['fields']['tdew'] is not None:
@@ -374,7 +374,19 @@ class CropETData():
             except:                     
                 logging.error('  ERROR: WEATHER {}_units must be set in the INI'.format('q'))
                 sys.exit()
-       
+
+        ## CO2 correction factors are optional
+        try: self.weather['fields']['co2_grass'] = config.get(weather_sec, 'co2_grass_field')
+        except: self.weather['fields']['co2_grass'] = None
+        try: self.weather['fields']['co2_trees'] = config.get(weather_sec, 'co2_trees_field')
+        except: self.weather['fields']['co2_trees'] = None
+        try: self.weather['fields']['co2_c4'] = config.get(weather_sec, 'co2_c4_field')
+        except: self.weather['fields']['co2_c4'] = None
+        ## For now, assume values are always 0-1, eventually let user change this?
+        self.weather['units']['co2_grass'] = None
+        self.weather['units']['co2_trees'] = None
+        self.weather['units']['co2_c4'] = None
+                
         ## Wind speeds measured at heights other than 2m will be scaled
         try: 
             self.weather['wind_height'] = config.getfloat(
