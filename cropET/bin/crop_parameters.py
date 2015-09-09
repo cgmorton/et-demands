@@ -55,20 +55,28 @@ class CropParameters:
         self.cn_fine_soil = float(v[31])
 
         ## Winter crop
-        ## To match VB code, "WINTER CANOLA" GDD trigger day isn't changed
-        ##   but it is still processed as a "winter" crop in the rest of the code
-        if (self.class_number in [13, 14] and
-            self.curve_name.upper().strip() == 'WINTER WHEAT'):
+        if (self.class_number in [13, 14] or 
+            'WINTER' in self.curve_name.upper()):
             self.gdd_trigger_doy = 274
             self.winter_crop = True
-        elif (vb_flag and self.class_number in [40] and
-              'WINTER' in self.curve_name.upper().strip()):
-              ##'WINTER' in self.curve_name.upper().strip() == 'WINTER CANOLA'):
-            self.gdd_trigger_doy = 274
-            self.winter_crop = False
         else:
             self.gdd_trigger_doy = 1
             self.winter_crop = False
+        ## DEADBEEF
+        ## In older versions of VB code, "WINTER CANOLA" GDD trigger day isn't changed
+        ##   but it is still processed as a "winter" crop in the rest of the code
+        ##if (self.class_number in [13, 14] and
+        ##    self.curve_name.upper().strip() == 'WINTER WHEAT'):
+        ##    self.gdd_trigger_doy = 274
+        ##    self.winter_crop = True
+        ##elif (vb_flag and self.class_number in [40] and
+        ##      'WINTER' in self.curve_name.upper().strip()):
+        ##      ##'WINTER' in self.curve_name.upper().strip() == 'WINTER CANOLA'):
+        ##    self.gdd_trigger_doy = 274
+        ##    self.winter_crop = False
+        ##else:
+        ##    self.gdd_trigger_doy = 1
+        ##    self.winter_crop = False
             
         ## Pre-compute parameters instead of re-computing them daily
         if self.flag_for_means_to_estimate_pl_or_gu == 3:
