@@ -9,6 +9,7 @@ import sys
 import numpy as np
 
 ##import et_cell
+import util
 
 class CropETData():
     def __init__(self):
@@ -162,6 +163,7 @@ class CropETData():
         ## Compute additional variables
         self.niwr_flag = config.getboolean(crop_et_sec, 'niwr_flag')
         self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
+        self.co2_flag = config.getboolean(crop_et_sec, 'co2_flag')
 
         ## Static cell/crop files
         def check_static_file(static_name, static_var):
@@ -386,7 +388,21 @@ class CropETData():
         self.weather['units']['co2_grass'] = None
         self.weather['units']['co2_trees'] = None
         self.weather['units']['co2_c4'] = None
-                
+        if self.co2_flag:
+            logging.info('  CO2 correction')
+            try: self.co2_grass_crops = sorted(list(util.parse_int_set(
+                config.get(crop_et_sec, 'co2_grass_list'))))
+            except: self.co2_grass_crops = []
+            try: self.co2_trees_crops = sorted(list(util.parse_int_set(
+                config.get(crop_et_sec, 'co2_trees_list'))))
+            except: self.co2_trees_crops = []
+            try: self.co2_c4_crops = sorted(list(util.parse_int_set(
+                config.get(crop_et_sec, 'co2_c4_list'))))
+            except: self.co2_c4_crops = []
+            logging.info('    Grass (C3): {}'.format(self.co2_grass_crops))
+            logging.info('    Trees (C3): {}'.format(self.co2_trees_crops))
+            logging.info('    C4: {}'.format(self.co2_c4_crops))
+            
         ## Wind speeds measured at heights other than 2m will be scaled
         try: 
             self.weather['wind_height'] = config.getfloat(

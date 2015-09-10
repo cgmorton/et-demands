@@ -312,7 +312,7 @@ class ETCell():
             else:
                 logging.error('\n ERROR: Unknown {0} units {1}'.format(
                     field_key, field_units))
-
+                    
         ## Convert date strings to datetimes
         if weather['fields']['date'] is not None:
             self.weather_pd['date'] = pd.to_datetime(self.weather_pd['date'])
@@ -328,7 +328,7 @@ class ETCell():
             self.weather_pd['wind'] *= (
                 4.87 / np.log(67.8 * weather['wind_height'] - 5.42))
                 
-        ## Add snow and snow_dept if necessary
+        ## Add snow and snow_depth if necessary
         if 'snow' not in self.weather_pd.columns:
             self.weather_pd['snow'] = 0
         if 'snow_depth' not in self.weather_pd.columns:
@@ -350,7 +350,15 @@ class ETCell():
             self.weather_pd['rh_min'] = 100 * np.clip(
                 util.es_from_t(self.weather_pd['tdew'].values) / 
                 util.es_from_t(self.weather_pd['tmax'].values), 0, 1)
-                
+        
+        ## Set CO2 correction values to 1 if they are not in the data
+        ##if 'co2_grass' not in self.weather_pd.columns:
+        ##    self.weather_pd['co2_grass'] = 1
+        ##if 'co2_trees' not in self.weather_pd.columns:
+        ##    self.weather_pd['co2_trees'] = 1
+        ##if 'co2_c4' not in self.weather_pd.columns:
+        ##    self.weather_pd['co2_c4'] = 1
+        
         return True
         ## return weather_pd
 

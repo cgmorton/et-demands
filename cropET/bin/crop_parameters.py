@@ -8,51 +8,51 @@ import numpy as np
 class CropParameters:
     name = ''
 
-    def __init__(self, v, vb_flag=False):
+    def __init__(self, crop_params_path, data):
         """
         
         Args:
-            v ():
-            vb_flag (bool): If True, 
+            crop_params_path (str): file path of the crop parameters text file
+            data (): CropETData class
         
         """
         ## If there is a comma in the string, it will also have quotes
-        self.name = str(v[0]).replace('"', '').strip()
-        self.class_number = abs(int(v[1]))
+        self.name = str(crop_params_path[0]).replace('"', '').strip()
+        self.class_number = abs(int(crop_params_path[1]))
         ## DEADBEEF - Is this even used?
-        if int(v[1]) < 0:
+        if int(crop_params_path[1]) < 0:
             self.is_annual = True
         else:
             self.is_annual = False
-        self.irrigation_flag = int(v[2])
-        self.days_after_planting_irrigation = int(v[3])
-        self.crop_fw = int(v[4])
-        self.winter_surface_cover_class = int(v[5])
-        self.kc_max = float(v[6])
-        self.mad_initial = int(v[7])
-        self.mad_midseason = int(v[8])
-        self.rooting_depth_initial = float(v[9])
-        self.rooting_depth_max = float(v[10])
-        self.end_of_root_growth_fraction_time = float(v[11])
-        self.height_initial = float(v[12])
-        self.height_max = float(v[13])
+        self.irrigation_flag = int(crop_params_path[2])
+        self.days_after_planting_irrigation = int(crop_params_path[3])
+        self.crop_fw = int(crop_params_path[4])
+        self.winter_surface_cover_class = int(crop_params_path[5])
+        self.kc_max = float(crop_params_path[6])
+        self.mad_initial = int(crop_params_path[7])
+        self.mad_midseason = int(crop_params_path[8])
+        self.rooting_depth_initial = float(crop_params_path[9])
+        self.rooting_depth_max = float(crop_params_path[10])
+        self.end_of_root_growth_fraction_time = float(crop_params_path[11])
+        self.height_initial = float(crop_params_path[12])
+        self.height_max = float(crop_params_path[13])
         ## [140822] changed for RioGrande
-        self.curve_number = int(v[14])
-        self.curve_name = str(v[15]).replace('"', '').strip()
-        self.curve_type = int(v[16])
-        self.flag_for_means_to_estimate_pl_or_gu = int(v[17])
-        self.t30_for_pl_or_gu_or_cgdd = float(v[18])
-        self.date_of_pl_or_gu = float(v[19])
-        self.tbase = float(v[20])
-        self.cgdd_for_efc = float(v[21])
-        self.cgdd_for_termination = float(v[22])
-        self.time_for_efc = float(v[24])
-        self.time_for_harvest = float(v[25])
-        self.killing_frost_temperature = float(v[26])
-        self.invoke_stress = int(v[27])
-        self.cn_coarse_soil = float(v[29])
-        self.cn_medium_soil = float(v[30])
-        self.cn_fine_soil = float(v[31])
+        self.curve_number = int(crop_params_path[14])
+        self.curve_name = str(crop_params_path[15]).replace('"', '').strip()
+        self.curve_type = int(crop_params_path[16])
+        self.flag_for_means_to_estimate_pl_or_gu = int(crop_params_path[17])
+        self.t30_for_pl_or_gu_or_cgdd = float(crop_params_path[18])
+        self.date_of_pl_or_gu = float(crop_params_path[19])
+        self.tbase = float(crop_params_path[20])
+        self.cgdd_for_efc = float(crop_params_path[21])
+        self.cgdd_for_termination = float(crop_params_path[22])
+        self.time_for_efc = float(crop_params_path[24])
+        self.time_for_harvest = float(crop_params_path[25])
+        self.killing_frost_temperature = float(crop_params_path[26])
+        self.invoke_stress = int(crop_params_path[27])
+        self.cn_coarse_soil = float(crop_params_path[29])
+        self.cn_medium_soil = float(crop_params_path[30])
+        self.cn_fine_soil = float(crop_params_path[31])
 
         ## Winter crop
         if (self.class_number in [13, 14] or 
@@ -96,6 +96,19 @@ class CropParameters:
             ##self.doy_of_pl_or_gu = datetime.datetime(
             ##    foo_day.year, self.month_of_pl_or_gu, 
             ##    self.day_of_pl_or_gu).timetuple().tm_yday
+        
+        ## CO2 correction
+        if not data.co2_flag:
+            self.co2_type = None
+        elif self.class_number in data.co2_grass_crops:
+            self.co2_type = 'GRASS'
+        elif self.class_number in data.co2_trees_crops:
+            self.co2_type = 'TREES'
+        elif self.class_number in data.co2_c4_crops:
+            self.co2_type = 'C4'
+        else:
+            logging.warning('  Crop {} not in INI CO2 lists'.format(self.class_number))
+            self.co2_type = None
 
     def __str__(self):
         """ """
@@ -106,9 +119,9 @@ class CropParameters:
         pass
         #' setup curve number for antecedent II condition for winter covers
         #wscc = self.winter_surface_cover_class
-        #self.cn_coarse_soil_winter = int(v[29])
-        #self.cn_medium_soil_winter = int(v[30])
-        #self.cn_fine_soil_winter   = int(v[31])
+        #self.cn_coarse_soil_winter = int(crop_params_path[29])
+        #self.cn_medium_soil_winter = int(crop_params_path[30])
+        #self.cn_fine_soil_winter   = int(crop_params_path[31])
 
 def read_crop_parameters(fn, vb_flag=False):
     """Read in the crop parameter text file"""

@@ -67,7 +67,7 @@ def main(ini_path, log_level=logging.WARNING,
 
         ## DEADBEEF - The "cell" could inherit the "data" values instead
         ## Read in crop specific parameters and coefficients
-        cell.set_crop_params(data.crop_params_path, vb_flag)
+        cell.set_crop_params(data.crop_params_path, data)
         cell.set_crop_coeffs(data.crop_coefs_path)
 
         ## DEADBEEF - The pandas dataframes could be inherited instead

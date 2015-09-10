@@ -21,8 +21,6 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
     Returns:
         None
     """
-    ##logging.debug('kcb_daily()')
-
     # Following two variables are used in one equation each but are never assigned a value - dlk - ?
     bcuttings = 0
     dcuttings = 0
@@ -784,6 +782,13 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
         foo.etc_act = foo.kc_act * foo_day.etref 
         foo.etc_pot = foo.kc_pot * foo_day.etref
         foo.etc_bas = foo.kc_bas * foo_day.etref
+
+    ## Apply CO2 correction to all crops
+    elif data.co2_flag:   
+        foo.kc_bas *= foo_day.co2
+        logging.debug(
+            ('compute_crop_et(): co2 %.6f  Kc_bas %.6f') %
+            (foo_day.co2, foo.kc_bas))    
 
     ## Save kcb value for use tomorrow in case curve needs to be extended until frost
     foo.kc_bas_prev = foo.kc_bas 

@@ -316,6 +316,18 @@ def crop_day_loop(data, et_cell, crop, foo, debug_flag=False, vb_flag=False):
         foo_day.snow_depth = float(et_cell.climate_pd.at[step_dt, 'snow_depth'])
         foo_day.t30 = float(et_cell.climate_pd.at[step_dt, 't30'])
         ##foo_day.precip = float(et_cell.climate_pd.at[step_dt, 'precip'])
+        
+        ## DEADBEEF - Set the CO2 correction factor for each day
+        ## This should probably be done outside the time step loop
+        if data.co2_flag:
+            if crop.co2_type == 'GRASS':
+                foo_day.co2 = float(et_cell.weather_pd.at[step_dt, 'co2_grass'])
+            elif crop.co2_type == 'TREES':
+                foo_day.co2 = float(et_cell.weather_pd.at[step_dt, 'co2_trees'])
+            elif crop.co2_type == 'C4':
+                foo_day.co2 = float(et_cell.weather_pd.at[step_dt, 'co2_c4'])
+            else:
+                foo_day.co2 = 1.0
 
         ## DEADBEEF - Why make copies?
         foo_day.cgdd_0_lt = np.copy(et_cell.climate['main_cgdd_0_lt'])
