@@ -161,9 +161,14 @@ class CropETData():
             self.end_dt = None
 
         ## Compute additional variables
-        self.niwr_flag = config.getboolean(crop_et_sec, 'niwr_flag')
-        self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
-        self.co2_flag = config.getboolean(crop_et_sec, 'co2_flag')
+        try: self.cutting_flag = config.getboolean(crop_et_sec, 'cutting_flag')
+        except: self.cutting_flag = True
+        try: self.niwr_flag = config.getboolean(crop_et_sec, 'niwr_flag')
+        except: self.cutting_flag = True
+        try: self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
+        except: self.cutting_flag = True
+        try: self.co2_flag = config.getboolean(crop_et_sec, 'co2_flag')
+        except: self.cutting_flag = False
 
         ## Static cell/crop files
         def check_static_file(static_name, static_var):

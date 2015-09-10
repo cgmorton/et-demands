@@ -109,6 +109,15 @@ class CropParameters:
         else:
             logging.warning('  Crop {} not in INI CO2 lists'.format(self.class_number))
             self.co2_type = None
+            
+        ## Cuttings
+        ## Special case for ALFALFA   1 added 4/18/08
+        if (self.class_number in [1,2,3] or
+            (self.class_number >= 4 and
+             self.curve_name.upper() == "ALFALFA 1ST CYCLE")):
+            self.cutting_crop = True
+        else:
+            self.cutting_crop = False
 
     def __str__(self):
         """ """

@@ -79,6 +79,7 @@ class InitializeCropCycle:
     in_season = False             #' false if outside season, true if inside
     dormant_setup_flag = False
     crop_setup_flag = True        #' flag to setup crop parameter information
+    cutting = False
 
     ## TP - Looks like its value comes from compute_crop_et(),
     ## but needed for setup_dormant() below...
@@ -414,3 +415,4 @@ class InitializeCropCycle:
         self.crop_pd['dperc'] = np.nan
         self.crop_pd['niwr'] = np.nan
         self.crop_pd['season'] = 0
+        self.crop_pd['cutting'] = 0

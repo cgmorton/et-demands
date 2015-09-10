@@ -290,6 +290,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
             ##    cgdd_term *= et_cell.crop_flags[crop.class_number] 
             #' cgdd_efc is not effected, only period following EFC
 
+            ## Reset cutting flag (this probably doesn't need to happen every time step)
+            foo.cutting = False
+            
             ## Special case for ALFALFA hay (typical, beef or dairy)  ' 4/09
             if ((crop.class_number == 1 and data.crop_one_flag) or
                 crop.class_number == 2 or crop.class_number == 3 or
@@ -365,8 +368,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                     #    #' reduce ncumGDD to make curve stretch longer
                     #    ncumGDD = ncumGDD / cropFlags(ETCellCount, ctCount) 
                     #End If
-                    if foo.n_cgdd < 1:     
-                        foo.n_cgdd = 1 #' keep from going back into dev. period
+                    
+                    #' keep from going back into dev. period
+                    foo.n_cgdd = max(foo.n_cgdd, 1)
                     int_cgdd = min(foo.max_lines_in_crop_curve_table - 1, int(foo.n_cgdd * 10))
                     foo.mad = foo.mad_mid
                     lentry = et_cell.crop_coeffs[curve_number].lentry
@@ -387,20 +391,15 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                             (foo.kc_bas, int_cgdd, curve_number, lentry))
                 else:
                     ## End of season by exceeding cumGDD for termination.
-                    ## Set flag to 0
-
                     ## Note that for cumGDD based crops, there is no extension past computed end
                     foo.in_season = False 
                     foo.stress_event = False
-                    logging.debug('kcb_daily(): curve_type 1  in_season %d' % (foo.in_season))
-                    
+                    logging.debug('kcb_daily(): curve_type 1  in_season %d' % (foo.in_season))  
 
-                    ## Special case for ALFALFA   1 added 4/18/08
-                    if (crop.class_number in [1,2,3] or
-                        (crop.class_number >= 4 and
-                         crop.curve_name.upper() == "ALFALFA 1ST CYCLE")):
+                    if crop.cutting_crop:
                         ## (three curves for cycles, two cumGDD's for first and other cycles)
-    
+                        foo.cutting = True
+
                         ## The review code is commented out
                         ## Remember gu, cutting and frost dates for alfalfa crops for review
                         ##foo.cutting[foo.cycle] = foo_day.doy
