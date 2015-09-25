@@ -2,7 +2,7 @@
 # Name:         rasterize_soil_polygons.py
 # Purpose:      Convert soil polygons to raster
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-25
 # Python:       2.7
 #--------------------------------
 
@@ -28,7 +28,7 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
-        soil_ws (str): Folder/workspace path of the common soils data
+        input_soil_ws (str): Folder/workspace path of the common soils data
         prop_list (list): String of the soil types to build
             (i.e. awc, clay, sand, all)
         overwrite_flag (bool): If True, overwrite output rasters
@@ -39,9 +39,11 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
     Returns:
         None
     """
+    logging.info('\nRasterizing Soil Polygons')
+    
     folder_fmt = 'gsmsoil_{}'
-    polygon_fmt = 'gsmsoilmu_a_us_{}_albers.shp'
-    output_soil_ws = os.path.join(gis_ws, 'statsgo')
+    polygon_fmt = 'gsmsoilmu_a_{}_albers.shp'
+    output_soil_ws = os.path.join(gis_ws, 'soils')
 
     scratch_ws = os.path.join(gis_ws, 'scratch')
     zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
@@ -62,7 +64,9 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
 
     if pyramids_flag:
         levels = '2 4 8 16 32 64 128'
+        ##gdal.SetConfigOption('USE_RRD', 'YES')
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
+        
     logging.info('Soil Property:   {}'.format(', '.join(prop_list)))
     if prop_list == ['all']:
         prop_list = ['awc', 'clay', 'sand']
@@ -73,7 +77,7 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
                       'does not exist\n'.format(gis_ws))
         sys.exit()
     elif not os.path.isdir(input_soil_ws):
-        logging.error(('\nERROR: The input soil folder {} '+
+        logging.error(('\nERROR: The input soil workspace {} '+
                        'does not exist').format(input_soil_ws))
         sys.exit()
     elif not os.path.isfile(zone_raster_path):
@@ -89,7 +93,7 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
 
     temp_polygon_path = os.path.join(output_soil_ws, 'temp_polygon.shp')
     if os.path.isfile(temp_polygon_path):
-        remove_file(temp_polygon_path)
+        util.remove_file(temp_polygon_path)
         ##subprocess.call(['gdalmanage', 'delete', '-f', '', temp_polygon_path])
 
     ## Reference all output rasters zone raster

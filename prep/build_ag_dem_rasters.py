@@ -2,7 +2,7 @@
 # Name:         build_ag_dem_rasters.py
 # Purpose:      Extract DEM data for agricultural CDL pixels
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-25
 # Python:       2.7
 #--------------------------------
 
@@ -22,7 +22,7 @@ import util
 
 ################################################################################
 
-def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False, 
+def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False, 
          overwrite_flag=False, pyramids_flag=False, stats_flag=False):
     """Mask DEM values for non-agricultural pixels
 
@@ -40,6 +40,8 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
     Returns:
         None
     """
+    logging.info('\nExtracting Agriculatural DEM Values')
+    
     input_dem_name = 'ned_30m_albers.img'
     cdl_format = '{0}_30m_cdls.img'
     dem_ws = os.path.join(gis_ws, 'dem')
@@ -77,8 +79,9 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
         sys.exit()
 
     if pyramids_flag:
-        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
         levels = '2 4 8 16 32 64 128'
+        ##gdal.SetConfigOption('USE_RRD', 'YES')
+        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
     ## Process existing dem rasters (from merge_dems.py)
     input_rows, input_cols = gdc.raster_path_shape(input_dem_path)
@@ -154,7 +157,7 @@ def arg_parse():
         '-y', '--years', metavar='YEAR', required=True,
         help='CDL years, comma separate list and/or range')
     parser.add_argument(
-        '-bs', '--blocksize', default=32768, type=int, metavar='N',
+        '-bs', '--blocksize', default=16384, type=int, metavar='N',
         help='Block size')
     parser.add_argument(
         '--mask', default=None, action='store_true', 

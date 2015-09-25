@@ -2,7 +2,7 @@
 # Name:         clip_cdl_raster.py
 # Purpose:      Clip CDL rasters in order to build agland rasters
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-24
 # Python:       2.7
 #--------------------------------
 
@@ -44,6 +44,8 @@ def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,
 
     if pyramids_flag:
         levels = '2 4 8 16 32 64 128'
+        ##gdal.SetConfigOption('USE_RRD', 'YES')
+        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
     ## Check input folders
     if not os.path.isdir(gis_ws):
