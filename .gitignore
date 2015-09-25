@@ -1,10 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.bak
 
-# CropET output folder/files
 example
-example/cet
-example/cet_test
-
-todo.txt
