@@ -2,7 +2,7 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-09-10
+# Created       2015-09-25
 # Python:       2.7
 #--------------------------------
 
@@ -210,6 +210,12 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             if station == 'temp':
                 logging.debug('      Skipping')
                 continue
+            elif crop_skip_list and crop_num in crop_skip_list:
+                logging.debug('    Skipping, crop number in crop_skip_list')
+                continue
+            elif crop_keep_list and crop_num not in crop_keep_list:
+                logging.debug('    Skipping, crop number not in crop_keep_list')
+                continue
 
             ## Get crop name
             with open(file_path, 'r') as file_f:
@@ -260,13 +266,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             leap_array = (doy_array == 366)
             doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
 
-            if crop_skip_list and crop_num in crop_skip_list:
-                logging.debug('    Skipping, crop number in crop_skip_list')
-                continue
-            elif crop_keep_list and crop_num not in crop_keep_list:
-                logging.debug('    Skipping, crop number not in crop_keep_list')
-                continue
-            
             ## Build separate arrays for each set of crop specific fields
             etact_array = np.array(data_df[etact_field])
             etpot_array = np.array(data_df[etpot_field])
@@ -307,7 +306,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
                     line_dash="dotted")
                     ##line_dash="dashdot")
             ##f1.title = 'Evapotranspiration [mm]'
-            f1.grid.grid_line_alpha=0.3
+            f1.grid.grid_line_alpha = 0.3
             f1.yaxis.axis_label = 'Evapotranspiration [mm]'
             f1.yaxis.axis_label_text_font_size = figure_ylabel_size
             ##f1.xaxis.bounds = x_bounds
@@ -321,7 +320,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             f2.line(dt_array, season_array, color='black', legend='Season',
                     line_dash="dashed")
             ##f2.title = 'Kc and Kcb (dimensionless)'
-            f2.grid.grid_line_alpha=0.3
+            f2.grid.grid_line_alpha = 0.3
             f2.yaxis.axis_label = 'Kc and Kcb (dimensionless)'
             f2.yaxis.axis_label_text_font_size = figure_ylabel_size
             ##f2.xaxis.bounds = x_bounds
@@ -334,7 +333,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             f3.line(dt_array, irrig_array, color='black', legend='Irrigation',
                     line_dash="dotted")
             ##f3.title = 'PPT and Irrigation [mm]'
-            f3.grid.grid_line_alpha=0.3
+            f3.grid.grid_line_alpha = 0.3
             ##f3.xaxis.axis_label = 'Date'
             f3.yaxis.axis_label = 'PPT and Irrigation [mm]'
             f3.yaxis.axis_label_text_font_size = figure_ylabel_size
@@ -364,10 +363,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
 
     except:
         logging.exception('Unhandled Exception Error\n\n')
-            
-    finally:
-        pass
-        ##raw_input('\nPress ENTER to close')
 
 ################################################################################
 
