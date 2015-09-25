@@ -121,7 +121,7 @@ Mask the non-agricultural CDL pixels
 ##### Elevation
 Elevation data is set using the 30m (1 arc-second) or 10m (1/3 arc-second) National Elevation Dataset (NED) rasters.  These can be easily downloaded in 1x1 degree tiles for the CONUS from the [USGS FTP](rockyftp.cr.usgs.gov) in the folder vdelivery/Datasets/Staged/Elevation.  They can also be downloaded using the provided DEM download script. 
 ```
-> python ..\et-demands\prep\download_dem_raster.py --tiles ..\common\dem\tiles
+> python ..\et-demands\prep\download_dem_rasters.py --tiles ..\common\dem\tiles
 ```
 
 Merge and clip the DEM tiles to the study area:
@@ -141,7 +141,7 @@ Currently, for the example, it is assumed that you already have shapefiles of th
 
 Rasterize the soil shapefiles to match the CDL grid size and spatial reference:
 ```
-> python ..\et-demands\prep\rasterize_soil_polygons.py --soil ..\common\statsgo --buffer 300 -o --stats
+> python ..\et-demands\prep\rasterize_soil_polygons.py --soil ..\common\statsgo -o --stats
 ```
 
 Extract the soil values for each CDL ag pixel:
