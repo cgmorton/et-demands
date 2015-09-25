@@ -35,3 +35,9 @@ The CropET scripts do support basic multiprocessing that can be enabled using th
 ```
 > python run_basin.py -i example.ini -mp
 ```
+```
+
+#### Plots
+Plots of the ET, ETo, Kc, growing season, irrigation, precipitation, and NIWR can be generated using the plotting tool.  The plots are generated using [Bokeh](http://bokeh.pydata.org/en/latest/) and saved as HTML files.  The output folder for the plots is set in the input file, typically "daily_plots".
+```
+> python ..\et-demands\tools\plot_py_crop_daily_timeseries.py -i example.ini
