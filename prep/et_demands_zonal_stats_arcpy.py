@@ -2,7 +2,7 @@
 # Name:         et_demands_zonal_stats_arcpy.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-25
 # Python:       2.7
 #--------------------------------
 
@@ -18,13 +18,15 @@ import arcpy
 
 import util
 
-def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
+def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8', 
+         overwrite_flag=False, cleanup_flag=False):
     """Calculate zonal statistics needed to run ET-Demands model
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
+        input_soil_ws (str): Folder/workspace path of the common soils data
         cdl_year (int): Cropland Data Layer year
-        huc (int): HUC level
+        zone_type (str): Zone type (huc8, huc10, county)
         overwrite_flag (bool): If True, overwrite existing files
         cleanup_flag (bool): If True, remove temporary files
 
@@ -39,14 +41,19 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
     cell_elev_units = 'FEET'
     
     ## DEADBEEF - Hardcode for now
-    if huc == 10:
+    if zone_type == 'huc10':
         zone_path = os.path.join(gis_ws, 'huc10', 'wbdhu10_albers.shp')
         zone_field = 'HUC10'
         cell_name_fmt = 'HUC10 '
-    elif huc == 8:
+    elif zone_type == 'huc8':
         zone_path = os.path.join(gis_ws, 'huc8', 'wbdhu8_albers.shp')
         zone_field = 'HUC8'
         cell_name_fmt = 'HUC8 '
+    elif zone_type == 'county':
+        zone_path = os.path.join(gis_ws, 'counties', 'county_nrcs_a_mbr_albers.shp')
+        zone_field = 'COUNTYNAME'
+        ##zone_field = 'FIPSCO'
+        cell_name_fmt = ''
 
     ##zone_path = os.path.join(gis_ws, 'nldas_4km', 'nldas_4km_albers_sub.shp')
     ##zone_field = 'NLDAS_ID'
@@ -72,12 +79,11 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
 
     cdl_ws = os.path.join(gis_ws, 'cdl')
     dem_ws = os.path.join(gis_ws, 'dem')
-    soil_ws = os.path.join(gis_ws, 'statsgo')
-    huc_ws = os.path.join(gis_ws, 'huc{}'.format(huc))
+    soil_ws = os.path.join(gis_ws, 'soils')
+    zone_ws = os.path.dirname(zone_path)
 
     agland_path = os.path.join(cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
     agmask_path = os.path.join(cdl_ws, 'agmask_{}_30m_cdls.img'.format(cdl_year))
-    huc_path = os.path.join(huc_ws, 'wbdhu{}_albers.shp'.format(huc))
     table_fmt = 'zone_{0}.dbf'
 
     ## Field names
@@ -87,7 +93,6 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     station_id_field = 'STATION_ID'
-    huc_field = 'HUC{}'.format(huc)
     awc_field = 'AWC'
     clay_field = 'CLAY'
     sand_field = 'SAND'
@@ -251,15 +256,21 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
         logging.error(('\nERROR: The soil workspace {0} '+
                        'does not exist\n').format(soil_ws))
         sys.exit()
-    elif not os.path.isdir(huc_ws):
-        logging.error(('\nERROR: The HUC workspace {0} '+
-                       'does not exist\n').format(huc_ws))
+    elif input_soil_ws != soil_ws and not os.path.isdir(input_soil_ws):
+        logging.error(('\nERROR: The input soil folder {} '+
+                       'does not exist\n').format(input_soil_ws))
+        sys.exit()
+    elif not os.path.isdir(zone_ws):
+        logging.error(('\nERROR: The zone workspace {0} '+
+                       'does not exist\n').format(zone_ws))
         sys.exit()
     logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
     logging.info('CDL Workspace:   {0}'.format(cdl_ws))
     logging.info('DEM Workspace:   {0}'.format(dem_ws))
     logging.info('Soil Workspace:  {0}'.format(soil_ws))
-    logging.info('HUC Workspace:   {0}'.format(huc_ws))
+    if input_soil_ws != soil_ws:
+        logging.info('Soil Workspace:  {0}'.format(input_soil_ws))
+    logging.info('Zone Workspace:  {0}'.format(zone_ws))
 
     ## Check input files
     if not os.path.isfile(snap_raster):
@@ -274,9 +285,9 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
         logging.error('\nERROR: The agmask raster {0} '+
                       'does not exist\n'.format(agland_path))
         raise SystemExit()
-    elif not os.path.isfile(huc_path):
-        logging.error('\nERROR: The HUC shapefile {0} '+
-                      'does not exist\n'.format(huc_path))
+    elif not os.path.isfile(zone_path):
+        logging.error('\nERROR: The zone shapefile {0} '+
+                      'does not exist\n'.format(zone_path))
         raise SystemExit()
     
     ## Check units
@@ -316,9 +327,9 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
 
     raster_list = [
         [cell_elev_field, 'MEAN', os.path.join(dem_ws, 'ned_30m_albers.img')],
-        [awc_field, 'MEAN', os.path.join(soil_ws, 'awc_30m_albers.img')],
-        [clay_field, 'MEAN', os.path.join(soil_ws, 'clay_30m_albers.img')],
-        [sand_field, 'MEAN', os.path.join(soil_ws, 'sand_30m_albers.img')],
+        [awc_field, 'MEAN', os.path.join(input_soil_ws, 'awc_30m_albers.img')],
+        [clay_field, 'MEAN', os.path.join(input_soil_ws, 'clay_30m_albers.img')],
+        [sand_field, 'MEAN', os.path.join(input_soil_ws, 'sand_30m_albers.img')],
         ['AG_COUNT', 'SUM', agmask_path],
         ['AG_ACRES', 'SUM', agmask_path],
         ['AG_'+cell_elev_field, 'MEAN', os.path.join(
@@ -352,21 +363,22 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
     ## Copy the zone_path
     if overwrite_flag and arcpy.Exists(et_cells_path):
         arcpy.Delete_management(et_cells_path)
+    ## Just copy the input shapefile
     if not arcpy.Exists(et_cells_path):
-        ## Join the input shapefile to the HUC and read in the matches
-        zone_field_list = [f.name for f in arcpy.ListFields(zone_path)]
-        zone_field_list.append(huc_field)
-        ##zone_field_list.append('OBJECTID_1')
-        arcpy.SpatialJoin_analysis(zone_path, huc_path, et_cells_path)
-        delete_field_list = [f.name for f in arcpy.ListFields(et_cells_path)
-                             if f.name not in zone_field_list]
-        logging.info('Deleting Fields')
-        for field_name in delete_field_list:
-            logging.debug('  {0}'.format(field_name))
-            try: arcpy.DeleteField_management(et_cells_path, field_name)
-            except: pass
-        ## Just copy the input shapefile
-        ##arcpy.Copy_management(zone_path, et_cells_path)
+        arcpy.Copy_management(zone_path, et_cells_path)
+    ##if not arcpy.Exists(et_cells_path):
+    ##    ## Join the input shapefile to the zones and read in the matches
+    ##    zone_field_list = [f.name for f in arcpy.ListFields(zone_path)]
+    ##    zone_field_list.append(huc_field)
+    ##    ##zone_field_list.append('OBJECTID_1')
+    ##    arcpy.SpatialJoin_analysis(zone_path, huc_path, et_cells_path)
+    ##    delete_field_list = [f.name for f in arcpy.ListFields(et_cells_path)
+    ##                         if f.name not in zone_field_list]
+    ##    logging.info('Deleting Fields')
+    ##    for field_name in delete_field_list:
+    ##        logging.debug('  {0}'.format(field_name))
+    ##        try: arcpy.DeleteField_management(et_cells_path, field_name)
+    ##        except: pass
 
 
     ## Get spatial reference
@@ -396,9 +408,9 @@ def main(gis_ws, cdl_year, huc=8, overwrite_flag=False, cleanup_flag=False):
     if station_id_field not in field_list:
         logging.debug('  {0}'.format(station_id_field))
         arcpy.AddField_management(et_cells_path, station_id_field, 'TEXT', '', '', 24)
-    if huc_field not in field_list:
-        logging.debug('  {0}'.format(huc_field))
-        arcpy.AddField_management(et_cells_path, huc_field, 'TEXT', '', '', 8)
+    if zone_field not in field_list:
+        logging.debug('  {0}'.format(zone_field))
+        arcpy.AddField_management(et_cells_path, zone_field, 'TEXT', '', '', 8)
 
     ## Status flags
     ##if active_flag_field not in field_list:
@@ -689,11 +701,16 @@ def arg_parse():
         type=lambda x: util.is_valid_directory(parser, x), 
         help='GIS workspace/folder', metavar='FOLDER')
     parser.add_argument(
+        '--zone', default=8, metavar='STR', type=str,
+        choices=('huc8', 'huc10', 'county'), help='Zone type')
+    parser.add_argument(
         '-y', '--year', metavar='YEAR', required=True, type=int,
         help='CDL year')
     parser.add_argument(
-        '--huc', default=8, metavar='INT', type=int,
-        choices=(8, 10), help='HUC level')
+        '--soil', metavar='FOLDER',
+        nargs='?', default=os.path.join(os.getcwd(), 'gis', 'soils'),  
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='Common soil workspace/folder')    
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing file')
@@ -708,6 +725,8 @@ def arg_parse():
     ## Convert relative paths to absolute paths
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
+    if args.soil and os.path.isdir(os.path.abspath(args.soil)):
+        args.soil = os.path.abspath(args.soil)
     return args
 
 ################################################################################
@@ -720,5 +739,6 @@ if __name__ == '__main__':
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, cdl_year=args.year, huc=args.huc, 
+    main(gis_ws=args.gis, input_soil_ws=args.soil, 
+         cdl_year=args.year, zone_type=args.zone, 
          overwrite_flag=args.overwrite, cleanup_flag=args.clean)

@@ -207,8 +207,8 @@ def arg_parse():
     ## Convert input file to an absolute path
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
-    if args.gis and os.path.isdir(os.path.abspath(args.gis)):
-        args.gis = os.path.abspath(args.gis)
+    if args.soil and os.path.isdir(os.path.abspath(args.soil)):
+        args.soil = os.path.abspath(args.soil)
     return args
 
 ################################################################################
