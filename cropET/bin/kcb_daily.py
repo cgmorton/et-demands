@@ -749,7 +749,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
             foo.kc_bas = 0.1 #' was 0.3
             ##foo.kc_bas_wscc[3] = foo.kc_bas
         logging.debug('kcb_daily(): Kc_bas %.6f' % foo.kc_bas)
-
+        
     ## Open water evaporation "crops"
     ##   55: Open water shallow systems (large ponds, streams)
     ##   56: Open water deep systems (lakes, reservoirs)
@@ -781,9 +781,11 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
         foo.etc_act = foo.kc_act * foo_day.etref 
         foo.etc_pot = foo.kc_pot * foo_day.etref
         foo.etc_bas = foo.kc_bas * foo_day.etref
-
+        
     ## Apply CO2 correction to all crops
-    elif data.co2_flag:   
+    ## DEADBEEF - It probably isn't necessary to check the crop number again
+    elif (data.co2_flag and 
+          crop.class_number not in [44, 45, 46, 55, 56, 57]):
         foo.kc_bas *= foo_day.co2
         logging.debug(
             ('compute_crop_et(): co2 %.6f  Kc_bas %.6f') %
