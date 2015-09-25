@@ -64,13 +64,17 @@ Project
 |   \---tools
 |
 \---example
+    +---annual_stats
     +---daily_baseline
+    +---daily_plots
+    +---daily_stats
     +---gis
     |   +---dem
     |   +---huc8
     |   |       wbdhu8_albers.shp
     |   \---stations
     |           nldas_4km_dd_pts_cat_basins.shp
+    +---monthly_stats
     \---static
 ```
 
