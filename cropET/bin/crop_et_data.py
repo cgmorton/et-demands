@@ -57,7 +57,7 @@ class CropETData():
             sys.exit()
         elif not os.path.isdir(crop_et_ws):
             logging.critical(
-                'ERROR: The project folder does not exist\n  %s' % crop_et_ws)
+                'ERROR: The cropET folder does not exist\n  %s' % crop_et_ws)
             sys.exit()
 
         ## Basin   

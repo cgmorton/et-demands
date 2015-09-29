@@ -30,10 +30,10 @@ def main(ini_path, log_level=logging.WARNING,
     Returns:
         None
     """
-    ## Start console logging immediatly
+    ## Start console logging immediately
     logger = util.console_logger(log_level=log_level)
     
-    logging.warning('\nRunning Python ET-Demands')
+    logging.warning('\nPython ET-Demands')
     if vb_flag:
         logging.warning('  Mimicking VB calculations')
     if debug_flag and mp_procs > 1:
