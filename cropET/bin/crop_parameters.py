@@ -8,7 +8,7 @@ import numpy as np
 class CropParameters:
     name = ''
 
-    def __init__(self, crop_params_path, data):
+    def __init__(self, crop_params_path, data=None):
         """
         
         Args:
@@ -98,13 +98,13 @@ class CropParameters:
             ##    self.day_of_pl_or_gu).timetuple().tm_yday
         
         ## CO2 correction
-        if not data.co2_flag:
+        if not data or not data.co2_flag:
             self.co2_type = None
-        elif self.class_number in data.co2_grass_crops:
+        elif data.co2_grass_crops and self.class_number in data.co2_grass_crops:
             self.co2_type = 'GRASS'
-        elif self.class_number in data.co2_trees_crops:
+        elif data.co2_trees_crops and self.class_number in data.co2_trees_crops:
             self.co2_type = 'TREES'
-        elif self.class_number in data.co2_c4_crops:
+        elif data.co2_c4_crops and self.class_number in data.co2_c4_crops:
             self.co2_type = 'C4'
         else:
             logging.warning('  Crop {} not in INI CO2 lists'.format(self.class_number))
