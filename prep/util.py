@@ -1,4 +1,5 @@
 ##import argparse
+import ConfigParser
 import glob
 import logging
 import os
@@ -53,3 +54,17 @@ def parse_int_set(nputstr=""):
     ##print "Invalid set: " + str(invalid)
     return selection
 
+def read_ini(ini_path, section='CROP_ET'):
+    """Open the INI file and check for obvious errors"""
+    logging.info('  INI: {}'.format(os.path.basename(ini_path)))
+    config = ConfigParser.ConfigParser()
+    try:
+        ini = config.readfp(open(ini_path))
+    except:
+        logging.error('\nERROR: Config file could not be read, '+
+                      'is not an input file, or does not exist\n')
+        sys.exit()
+    if section not in config.sections():
+        logging.error('\nERROR: The input file must have a section: [CROP_ET]\n')
+        sys.exit()
+    return config
