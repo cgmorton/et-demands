@@ -42,37 +42,20 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
         logging.debug('kcb_daily(): Kc_bas %.6f  Kc_bas_prev %.6f' % (
             foo.kc_bas, foo.kc_bas_prev))
 
-    #### Flag_for_means_to_estimate_pl_or_gu Case 1 #########
-    #Select Case Flag_for_means_to_estimate_pl_or_gu(ctCount)
-    #    Case 1
+    #### Flag_for_means_to_estimate_pl_or_gu Case 1
     if crop.flag_for_means_to_estimate_pl_or_gu == 1:
-        # Only allow start flag to begin if < July 15 to prevent GU in fall after freezedown
+        ## Only allow start flag to begin if < July 15 to prevent GU in fall after freezedown
         if foo_day.doy < (crop.gdd_trigger_doy + 195):
             #' before finding date of startup using normal cgdd, determine if it is after latest
             #' allowable start by checking to see if pl or gu need to be constrained based on long term means
             #' estimate date based on long term mean:
             #' prohibit specifying start of season as long term less 40 days when it is before that date.
             
-            foo_day.cgdd_0_lt[0] = foo_day.cgdd_0_lt[1]
-            try:
-                longterm_pl = int(np.where(np.diff(np.array(
-                    foo_day.cgdd_0_lt > crop.t30_for_pl_or_gu_or_cgdd, 
-                    dtype=np.int8)) > 0)[0][0]) + 1
-            except TypeError:
-                logging.error('  kcb_daily(): error finding DOY index')
-                longterm_pl = 0
-            ##for doy in range(1,367):
-            ##    if (foo_day.cgdd_0_lt[doy] > crop.t30_for_pl_or_gu_or_cgdd and
-            ##        foo_day.cgdd_0_lt[doy-1] < crop.t30_for_pl_or_gu_or_cgdd):
-            ##        longterm_pl = doy
-            ##        ## DEADBEEF - Stop after after a value is found?
-            ##        ##break
-
             # Check if getting too late in season
             # Season hasn't started yet
             # was longterm_pl + 40 ----4/30/2009
-            if (longterm_pl > 0 and
-                foo_day.doy > (longterm_pl + 40) and
+            if (foo.longterm_pl > 0 and
+                foo_day.doy > (foo.longterm_pl + 40) and
                 not foo.real_start):      
                 foo.doy_start_cycle = foo_day.doy 
                 foo.real_start = True
@@ -87,9 +70,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
 
                 #' This is modelled startup day, but check to see if it is too early
                 #' use +/- 40 days from longterm as constraint
-                if longterm_pl > 0 and foo_day.doy < (longterm_pl - 40):    
+                if foo.longterm_pl > 0 and foo_day.doy < (foo.longterm_pl - 40):    
                     foo.real_start = False #' too early to start season
-                    foo.doy_start_cycle = longterm_pl - 40
+                    foo.doy_start_cycle = foo.longterm_pl - 40
                     if foo.doy_start_cycle < 1:     
                         foo.doy_start_cycle += 365
                 else:
@@ -117,15 +100,12 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
             if debug_flag:
                 logging.debug(
                     'kcb_daily(): in_season %d  longterm_pl %d  doy %d  doy_start_cycle %d' %
-                    (foo.in_season, longterm_pl, foo_day.doy, foo.doy_start_cycle))
+                    (foo.in_season, foo.longterm_pl, foo_day.doy, foo.doy_start_cycle))
                 logging.debug(
                     'kcb_daily(): t30_for_pl_or_gu_or_cgdd %.6f' %
                     (crop.t30_for_pl_or_gu_or_cgdd))
-                logging.debug(
-                    'kcb_daily(): cumGDD0LT156 %.6f  cumGDD0LT155 %.6f' %
-                    (foo_day.cgdd_0_lt[156], foo_day.cgdd_0_lt[155]))
 
-    #### Flag_for_means_to_estimate_pl_or_gu Case 2 ####
+    #### Flag_for_means_to_estimate_pl_or_gu Case 2
     elif crop.flag_for_means_to_estimate_pl_or_gu == 2:
         ## Use T30 for startup
         ## Caution - need some constraints for oscillating T30 and for late summer
@@ -137,23 +117,10 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
             ## Estimate date based on long term mean
             ## Prohibit specifying start of season as long term less
             ##   40 days when it is before that date.
-            t30_lt = et_cell.climate['main_t30_lt']           
-            try:
-                longterm_pl = int(np.where(np.diff(np.array(
-                    t30_lt > crop.t30_for_pl_or_gu_or_cgdd, 
-                    dtype=np.int8)) > 0)[0][0]) + 1
-            except TypeError:
-                logging.error('  kcb_daily(): error finding DOY index')
-                longterm_pl = 0
-            except IndexError:
-                logging.error('  kcb_daily(): error finding DOY index '+
-                              '(T30 didn\'t go above threshold?)')
-                longterm_pl = 0
-
-            ## check if getting too late in season
-            ##   and season hasn't started yet
-            if (longterm_pl > 0 and
-                foo_day.doy > (longterm_pl + 40) and
+            
+            ## Check if getting too late in season and season hasn't started yet
+            if (foo.longterm_pl > 0 and
+                foo_day.doy > (foo.longterm_pl + 40) and
                 not foo.real_start):
                 ## longterm_pl + 40 'it is unseasonably warm (too warm).
                 ## Delay start ' set to Doy on 4/29/09 (nuts)
@@ -169,9 +136,9 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
             #' use +/- 40 days from longterm as constraint
             if not foo.real_start:     
                 if foo_day.t30 > crop.t30_for_pl_or_gu_or_cgdd:     #' 'JH,RGA 4/13/09
-                    if longterm_pl > 0 and foo_day.doy < (longterm_pl - 40):    
+                    if foo.longterm_pl > 0 and foo_day.doy < (foo.longterm_pl - 40):    
                         foo.real_start = False #' too early to start season
-                        foo.doy_start_cycle = longterm_pl - 40
+                        foo.doy_start_cycle = foo.longterm_pl - 40
                         logging.debug('kcb_daily(): doy_start_cycle %d  Start is too early' % (
                             foo.doy_start_cycle))
                         if foo.doy_start_cycle < 1:     
@@ -206,7 +173,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                     if foo.doy_start_cycle < 1:     
                         foo.doy_start_cycle = foo.doy_start_cycle + 365
             if debug_flag:
-                logging.debug('kcb_daily(): longterm_pl %d' % (longterm_pl))
+                logging.debug('kcb_daily(): longterm_pl %d' % (foo.longterm_pl))
                 logging.debug(
                     'kcb_daily(): doy_start_cycle %d  doy %d  real_start %d' %
                     (foo.doy_start_cycle, foo_day.doy, foo.real_start))
@@ -215,7 +182,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                     (foo_day.t30, crop.t30_for_pl_or_gu_or_cgdd, crop.date_of_pl_or_gu))
                 logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
 
-    #### Flag_for_means_to_estimate_pl_or_gu Case 3 ####
+    #### Flag_for_means_to_estimate_pl_or_gu Case 3
     elif crop.flag_for_means_to_estimate_pl_or_gu == 3:
         ## Planting or greenup day of year
         doy = datetime.datetime(
@@ -234,7 +201,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
             foo.setup_crop(crop) 
         logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
         
-    #### Flag_for_means_to_estimate_pl_or_gu Case 4 ####
+    #### Flag_for_means_to_estimate_pl_or_gu Case 4
     elif crop.flag_for_means_to_estimate_pl_or_gu == 4:
         foo.in_season = True
         ## Reset severe stress event flag if first
@@ -242,8 +209,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
             foo.stress_event = False 
         foo.dormant_setup_flag = True 
         logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
-        
-    #### Case Else ####
+    
     else:
         logging.error('\nERROR: kcb_daily() Unrecognized flag_for_means_to_estimate_pl_or_gu value')
         sys.exit()
@@ -253,7 +219,6 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
         ##    foo.stress_event = False
         ##foo.dormant_setup_flag = True
         ##logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
-    #### END Case ####
 
 
     ## Set MAD to MADmid universally at the start.

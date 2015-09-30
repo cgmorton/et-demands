@@ -6,13 +6,13 @@ import logging
 import multiprocessing as mp
 import os
 import sys
+from time import clock
 
 import numpy as np
 import pandas as pd
 
 import crop_et_data
 import crop_cycle
-import crop_cycle_mp
 import et_cell
 import util
 
@@ -30,6 +30,7 @@ def main(ini_path, log_level=logging.WARNING,
     Returns:
         None
     """
+    clock_start = clock()
     ## Start console logging immediately
     logger = util.console_logger(log_level=log_level)
     
@@ -54,39 +55,105 @@ def main(ini_path, log_level=logging.WARNING,
         logger = util.file_logger(
             logger, log_level=logging.DEBUG, output_ws=data.project_ws)
 
+    ## Read in common crop specific parameters and coefficients
+    ## File paths are read in from INI
+    data.set_crop_params()
+    data.set_crop_coeffs()
+    if data.co2_flag:
+        cell.set_crop_co2(data)
+            
     ## Read in cell properties, crops and cuttings
-    ## DEADBEEF - These could be called directly from the CropETData class
+    ## Could  these be called directly from the CropETData class
     cells = et_cell.ETCellData()
     cells.set_cell_properties(data.cell_properties_path)
     cells.set_cell_crops(data.cell_crops_path)
     cells.set_cell_cuttings(data.cell_cuttings_path)
-
-    ## Process each cell/station
-    for cell_id, cell in sorted(cells.et_cells_dict.items()):
-        logging.warning('CellID: {}'.format(cell_id))
-
-        ## DEADBEEF - The "cell" could inherit the "data" values instead
-        ## Read in crop specific parameters and coefficients
-        cell.set_crop_params(data.crop_params_path, data)
-        cell.set_crop_coeffs(data.crop_coefs_path)
-
-        ## DEADBEEF - The pandas dataframes could be inherited instead
-        cell.set_refet_data(data.refet)
-        cell.set_weather_data(data.weather)
-
-        ## Process climate arrays
-        cell.process_climate()
-        cell.subset_weather_data(data.start_dt, data.end_dt)
-
-        ## Run the model
-        ## For now, handle multiprocessing in separate scripts
-        if mp_procs > 1:
-            crop_cycle_mp.crop_cycle(data, cell, debug_flag, vb_flag, mp_procs)
+    
+    ## Filter cells if all crops are "off"
+    ## This could also be done in set_cell_crops() (when they are read in)
+    if data.crop_skip_list or data.crop_test_list:
+        cells.filter_cell_crops(data.crop_skip_list, data.crop_test_list)
+    
+    ## First apply the static crop parameters to all cells
+    ## Could the "cell" just inherit the "data" values instead
+    cells.set_static_crop_params(data.crop_params)
+    cells.set_static_crop_coeffs(data.crop_coeffs)
+    
+    ## Read in spatially varying crop parameters
+    if data.spatial_cal_flag:
+        cells.set_spatial_crop_params(data.spatial_cal_ws)
+           
+    ## Multiprocessing logic
+    ## If cell count is low, process crops in parallel
+    ## If cell count is high, process cells in parallel (crops in serial)
+    cell_mp_list, cell_mp_flag, crop_mp_flag = [], False, False
+    if mp_procs > 1:
+        logging.warning("\nSetting multiprocessing logic")
+        cell_count = len(cells.et_cells_dict.keys())
+        crop_count = len(cells.crop_num_list)
+        logging.warning('  Cell count: {}'.format(cell_count))
+        logging.warning('  Crop count: {}'.format(crop_count))
+        ## The 0.5 multiplier is to prefer multiprocessing by cell
+        ## because of 1 CPU time spent loading/processing weather data
+        ## when multiprocessing by crop
+        if (0.5 * cell_count) > crop_count:
+            logging.warning("  Multiprocessing by cell")
+            cell_mp_flag = True
         else:
+            logging.warning("  Multiprocessing by crop")
+            crop_mp_flag = True
+   
+    ## Process each cell/station
+    logging.warning("")
+    for cell_id, cell in sorted(cells.et_cells_dict.items()):
+        if cell_mp_flag:
+            ## Multiprocessing by cell
+            cell_mp_list.append([data, cell, vb_flag, mp_procs])
+        elif crop_mp_flag:
+            ## Multiprocessing by crop
+            logging.warning('CellID: {}'.format(cell_id))
+            cell.initialize_weather(data)
+            crop_cycle.crop_cycle_mp(data, cell, vb_flag, mp_procs)
+        else:
+            logging.warning('CellID: {}'.format(cell_id))
+            cell.initialize_weather(data)
             crop_cycle.crop_cycle(data, cell, debug_flag, vb_flag)
+            
+    ## Process all cells
+    results = []
+    if cell_mp_list:
+        pool = mp.Pool(mp_procs)
+        results = pool.imap(cell_mp, cell_mp_list, 1)
+        pool.close()
+        pool.join()
+        del pool, results      
+        
+    logging.info('\n{} seconds'.format(clock()-clock_start))
 
 ################################################################################
+  
+def cell_mp(tup):
+    """Pool multiprocessing friendly function
 
+    mp.Pool needs all inputs are packed into a single tuple
+    Tuple is unpacked and and single processing version of function is called
+
+    Args:
+        data ():
+        et_cell ():
+        vb_flag (bool): If True, mimic calculations in VB version of code
+    """
+    return cell_sp(*tup)
+def cell_sp(data, cell, vb_flag, mp_procs=1):
+    """Compute crop cycle for each cell"""
+    if mp_procs == 1:
+        logging.warning('CellID: {}'.format(cell.cell_id))
+    else:
+        print('CellID: {}'.format(cell.cell_id))
+    cell.initialize_weather(data)
+    ## Force debug_flag false when multiprocessing
+    crop_cycle.crop_cycle(data, cell, False, vb_flag, mp_procs)
+    
 def parse_args():  
     parser = argparse.ArgumentParser(
         description='Crop ET-Demands',

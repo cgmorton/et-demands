@@ -3,12 +3,11 @@
 import numpy as np
 
 class CropCoeff:
-    name = None
-    gdd_type_name = ''
-
     def __init__(self):
         """ """
-        pass
+        self.name = None
+        self.gdd_type_name = ''
+
     ## CGM 9/1/2015 - Not sure the point of this implementation of the init function
     ##def __init__(self, fn=''):
     ##    """ """

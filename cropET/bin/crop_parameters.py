@@ -6,16 +6,16 @@ import sys
 import numpy as np
 
 class CropParameters:
-    name = ''
-
-    def __init__(self, crop_params_path, data=None):
+    def __init__(self, crop_params_path):
         """
         
         Args:
             crop_params_path (str): file path of the crop parameters text file
-            data (): CropETData class
         
+        Returns:
+            None
         """
+        
         ## If there is a comma in the string, it will also have quotes
         self.name = str(crop_params_path[0]).replace('"', '').strip()
         self.class_number = abs(int(crop_params_path[1]))
@@ -36,7 +36,6 @@ class CropParameters:
         self.end_of_root_growth_fraction_time = float(crop_params_path[11])
         self.height_initial = float(crop_params_path[12])
         self.height_max = float(crop_params_path[13])
-        ## [140822] changed for RioGrande
         self.curve_number = int(crop_params_path[14])
         self.curve_name = str(crop_params_path[15]).replace('"', '').strip()
         self.curve_type = int(crop_params_path[16])
@@ -62,6 +61,7 @@ class CropParameters:
         else:
             self.gdd_trigger_doy = 1
             self.winter_crop = False
+            
         ## DEADBEEF
         ## In older versions of VB code, "WINTER CANOLA" GDD trigger day isn't changed
         ##   but it is still processed as a "winter" crop in the rest of the code
@@ -78,7 +78,8 @@ class CropParameters:
         ##    self.gdd_trigger_doy = 1
         ##    self.winter_crop = False
             
-        ## Pre-compute parameters instead of re-computing them daily
+        ## Pre-compute parameters instead of re-computing them daily                
+        #### Flag_for_means_to_estimate_pl_or_gu Case 3
         if self.flag_for_means_to_estimate_pl_or_gu == 3:
             ## Compute planting or green-up date from fractional month
             ## Putting in a date_of_pl_or_gu of "1" will return Jan. 15th
@@ -96,20 +97,7 @@ class CropParameters:
             ##self.doy_of_pl_or_gu = datetime.datetime(
             ##    foo_day.year, self.month_of_pl_or_gu, 
             ##    self.day_of_pl_or_gu).timetuple().tm_yday
-        
-        ## CO2 correction
-        if not data or not data.co2_flag:
-            self.co2_type = None
-        elif data.co2_grass_crops and self.class_number in data.co2_grass_crops:
-            self.co2_type = 'GRASS'
-        elif data.co2_trees_crops and self.class_number in data.co2_trees_crops:
-            self.co2_type = 'TREES'
-        elif data.co2_c4_crops and self.class_number in data.co2_c4_crops:
-            self.co2_type = 'C4'
-        else:
-            logging.warning('  Crop {} not in INI CO2 lists'.format(self.class_number))
-            self.co2_type = None
-            
+                    
         ## Cuttings
         ## Special case for ALFALFA   1 added 4/18/08
         if (self.class_number in [1,2,3] or
@@ -131,15 +119,15 @@ class CropParameters:
         #self.cn_coarse_soil_winter = int(crop_params_path[29])
         #self.cn_medium_soil_winter = int(crop_params_path[30])
         #self.cn_fine_soil_winter   = int(crop_params_path[31])
-
-def read_crop_parameters(fn, vb_flag=False):
+        
+def read_crop_parameters(fn):
     """Read in the crop parameter text file"""
 
     ## For now, hardcode reading the first 32 lines after the 3 header rows
     crop_param_data = np.loadtxt(fn, delimiter="\t", dtype='str', skiprows=3)
     crop_param_data = crop_param_data[:32,:]
 
-    ## Replace empty values
+    ## Replace empty values with 0
     crop_param_data[crop_param_data == ''] = '0'
     ##crop_param_data = np.where(crop_param_data == '', '0', crop_param_data)
 
@@ -149,7 +137,7 @@ def read_crop_parameters(fn, vb_flag=False):
             crop_num = abs(int(crop_num))
         else:
             break
-        crops_dict[crop_num] = CropParameters(crop_param_data[:,crop_i+2], vb_flag)
+        crops_dict[crop_num] = CropParameters(crop_param_data[:,crop_i+2])
     return crops_dict
 
 if __name__ == '__main__':

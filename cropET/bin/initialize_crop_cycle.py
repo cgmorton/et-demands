@@ -1,3 +1,4 @@
+import logging
 import sys
 
 import numpy as np
@@ -6,135 +7,134 @@ import numpy as np
 de_initial = 10.0 #' mm initial depletion for first day of crop
 
 class InitializeCropCycle:
-    """Initialize for crops cycle"""
-    ad = 0.
-    aw = 0
-    aw3 = 0.
-    cn2 = 0.
-    cgdd = 0.
-    cgdd_penalty = 0.
-    cum_evap = 0.
-    cum_evap_prev = 0.
-    depl_ze = 0.
-    depl_zep = 0.
-    dperc = 0.
-    dperc_ze = 0.
-    density = 0.
-    depl_surface = 0.
-    depl_root = 0.
-    etc_act = 0.
-    etc_pot = 0.
-    etc_bas = 0.
-    etref_30 = 0.   #' thirty day mean ETref  ' added 12/2007
-    fc = 0.
-    fw = 0.
-    fw_spec = 0.
-    fw_std = 0.
-    fw_irr = 0.
-    gdd = 0.0
-    gdd_penalty = 0.
-    height_min = 0.
-    height_max = 0.
-    height = 0
-    irr_auto = 0.
-    irr_sim = 0.
-    kc_act = 0.
-    kc_pot = 0
-    kc_max = 0.
-    kc_min = 0.
-    kc_bas = 0.
-    kc_bas_mid = 0.
-    kc_bas_prev = 0.
-    ke = 0.
-    ke_irr = 0
-    ke_ppt = 0.
-    kr2 = 0.
-    ks = 0.
-    kt_reducer = 1.
-    mad = 0.
-    mad_ini = 0.
-    mad_mid = 0.
-    niwr = 0.
-    ppt_inf = 0.
-    ppt_inf_prev = 0.
-    rew = 0.
-    tew = 0.
-    tew2 = 0.
-    tew3 = 0.
-    s = 0.
-    s1 = 0.
-    s2 = 0.
-    s3 = 0.
-    s4 = 0.
-    sro = 0.
-    zr_min = 0.
-    zr_max = 0.
-    z = 0.
-
-    ##
-    doy_start_cycle = 0
-    cycle = 1
-    real_start = False
-    irr_flag = False
-    in_season = False             #' false if outside season, true if inside
-    dormant_setup_flag = False
-    crop_setup_flag = True        #' flag to setup crop parameter information
-    cutting = False
-
-    ## TP - Looks like its value comes from compute_crop_et(),
-    ## but needed for setup_dormant() below...
-    totwatin_ze = 0.
-
-    ## CGM - These are not pre-initialized in the 32-bit VB code
-    cgdd_at_planting = 0.
-    wt_irr = 0.
-    ## CGM - Initialized to 0 in latest VB code
-    kc_bas_prev = 0.
-
-    ## TP - Added
-    max_lines_in_crop_curve_table = 34
-
-    ## CGM - In VB code, crops 44-46 were run first to set these values kn kcb_daily()
-    ##   Initialize here instead
-    ##   Using a dictionary instead of an array to make the indexing more obvious
-    kc_bas_wscc = dict()
-    kc_bas_wscc[1] = 0.1
-    kc_bas_wscc[2] = 0.1
-    kc_bas_wscc[3] = 0.1
-
-    ## TP - Minimum net depth of application for germination irrig., etc.
-    irr_min = 10.
-    
-    ## CGM - Code to write a cutting review file is not currently implemented
-    ##cutting = np.zeros(20, dtype=np.int)
-    
-    ## TP - Not initialized in VB code, probably should be initialized to 0
-    ##T2Days = 0
-
-    ## CGM - It doesn't seem like these need to be initialized
-    ##e = 0.
-    ##n_cgdd = 0.
-    ##n_pl_ec = 0.
-    ##tei = 0
-    ##Kcmult = 1
-    ##irr_manual = 0
-    ##irr_real = 0
-    ##irr_special = 0
-    ##ei = 0
-    ##ep = 0
-    ##few = 0
-    ##kr = 0
-    ##kt_prop = 1
-    ##ze = 0.
-
-
     def __init__(self):
-        """ """
+        """Initialize for crops cycle"""
+        self.ad = 0.
+        self.aw = 0
+        self.aw3 = 0.
+        self.cn2 = 0.
+        self.cgdd = 0.
+        self.cgdd_penalty = 0.
+        self.cum_evap = 0.
+        self.cum_evap_prev = 0.
+        self.depl_ze = 0.
+        self.depl_zep = 0.
+        self.dperc = 0.
+        self.dperc_ze = 0.
+        self.density = 0.
+        self.depl_surface = 0.
+        self.depl_root = 0.
+        self.etc_act = 0.
+        self.etc_pot = 0.
+        self.etc_bas = 0.
+        self.etref_30 = 0.   #' thirty day mean ETref  ' added 12/2007
+        self.fc = 0.
+        self.fw = 0.
+        self.fw_spec = 0.
+        self.fw_std = 0.
+        self.fw_irr = 0.
+        self.gdd = 0.0
+        self.gdd_penalty = 0.
+        self.height_min = 0.
+        self.height_max = 0.
+        self.height = 0
+        self.irr_auto = 0.
+        self.irr_sim = 0.
+        self.kc_act = 0.
+        self.kc_pot = 0
+        self.kc_max = 0.
+        self.kc_min = 0.
+        self.kc_bas = 0.
+        self.kc_bas_mid = 0.
+        self.kc_bas_prev = 0.
+        self.ke = 0.
+        self.ke_irr = 0
+        self.ke_ppt = 0.
+        self.kr2 = 0.
+        self.ks = 0.
+        self.kt_reducer = 1.
+        self.mad = 0.
+        self.mad_ini = 0.
+        self.mad_mid = 0.
+        self.n_cgdd = 0.
+        self.niwr = 0.
+        self.ppt_inf = 0.
+        self.ppt_inf_prev = 0.
+        self.rew = 0.
+        self.tew = 0.
+        self.tew2 = 0.
+        self.tew3 = 0.
+        self.s = 0.
+        self.s1 = 0.
+        self.s2 = 0.
+        self.s3 = 0.
+        self.s4 = 0.
+        self.sro = 0.
+        self.zr_min = 0.
+        self.zr_max = 0.
+        self.z = 0.
+        
+        ##
+        self.doy_start_cycle = 0
+        self.cycle = 1
+        self.real_start = False
+        self.irr_flag = False
+        self.in_season = False             #' false if outside season, true if inside
+        self.dormant_setup_flag = False
+        self.crop_setup_flag = True        #' flag to setup crop parameter information
+        self.cutting = False
+        
+        ## TP - Looks like its value comes from compute_crop_et(),
+        ## but needed for setup_dormant() below...
+        self.totwatin_ze = 0.
+        
+        ## CGM - These are not pre-initialized in the 32-bit VB code
+        self.cgdd_at_planting = 0.
+        self.wt_irr = 0.
+        ## CGM - Initialized to 0 in latest VB code
+        self.kc_bas_prev = 0.
+        
+        ## TP - Added
+        self.max_lines_in_crop_curve_table = 34
+        
+        ## CGM - In VB code, crops 44-46 were run first to set these values kn kcb_daily()
+        ##   Initialize here instead
+        ##   Using a dictionary instead of an array to make the indexing more obvious
+        self.kc_bas_wscc = dict()
+        self.kc_bas_wscc[1] = 0.1
+        self.kc_bas_wscc[2] = 0.1
+        self.kc_bas_wscc[3] = 0.1
+        
+        ## TP - Minimum net depth of application for germination irrig., etc.
+        self.irr_min = 10.
+        
+        ## CGM - Code to write a cutting review file is not currently implemented
+        ##self.cutting = np.zeros(20, dtype=np.int)
+        
+        ## TP - Not initialized in VB code, probably should be initialized to 0
+        ##self.T2Days = 0
+        
+        ## CGM - It doesn't seem like these need to be initialized
+        ##self.e = 0.
+        ##self.n_pl_ec = 0.
+        ##self.tei = 0
+        ##self.Kcmult = 1
+        ##self.irr_manual = 0
+        ##self.irr_real = 0
+        ##self.irr_special = 0
+        ##self.ei = 0
+        ##self.ep = 0
+        ##self.few = 0
+        ##self.kr = 0
+        ##self.kt_prop = 1
+        ##self.ze = 0.
 
-    # Initialize some variables for beginning of crop seasons
-    # Called in crop_cycle if not in season and crop setup flag is true
-    # Called in kcb_daily for startup/greenup type 1, 2, and 3 when startup conditions are met
     def setup_crop(self, crop):
+        """Initialize some variables for beginning of crop seasons
+        
+        Called in crop_cycle if not in season and crop setup flag is true
+        Called in kcb_daily for startup/greenup type 1, 2, and 3 when startup conditions are met
+        """
         #' zr_dormant was never assigned a value - what's its purpose - dlk 10/26/2011 ???????????????????
         zr_dormant = 0.0
     
@@ -275,12 +275,56 @@ class InitializeCropCycle:
         ##    self.irr_flag = False #' turn irrigation off even in irrigated region if this crop has no flag
         ##if crop.irrigation_flag > 2:  #' added Jan 2007 to force grain and turf irrigation in rainfed region
         ##    self.irr_flag = True #' turn irrigation on for specific irrigated crops even in nonirrigated region if this crop has flag=3
+        
+        ## Pre-compute parameters instead of re-computing them daily
+        ## Moved from kcb_daily.kcb_daily()        
+        ## Flag_for_means_to_estimate_pl_or_gu Case 1
+        if crop.flag_for_means_to_estimate_pl_or_gu == 1:
+            try:
+                self.longterm_pl = int(np.where(np.diff(np.array(
+                    et_cell.climate['main_cgdd_0_lt'] > crop.t30_for_pl_or_gu_or_cgdd, 
+                    dtype=np.int8)) > 0)[0][0]) + 1
+            except:
+                logging.error(
+                    ('  initialize_crop_cycle():\n'+
+                     '  Crop: {0:2d}, CellID: {1}\n'+
+                     '  Error computing longterm_pl for \n'+
+                     '  Setting longerm_pl = 0').format(
+                        crop.class_number))
+                self.longterm_pl = 0
+        ## Flag_for_means_to_estimate_pl_or_gu Case 2
+        elif crop.flag_for_means_to_estimate_pl_or_gu == 2:
+            ## Moved from kcb_daily.kcb_daily()
+            try:
+                self.longterm_pl = int(np.where(np.diff(np.array(
+                    et_cell.climate['main_t30_lt'] > crop.t30_for_pl_or_gu_or_cgdd, 
+                    dtype=np.int8)) > 0)[0][0]) + 1
+            except IndexError:
+                self.longterm_pl = 0
+                logging.error(
+                    ('  initialize_crop_cycle(): \n'+
+                     '  Crop: {0:2d}, CellID: {1}\n'+
+                     '  Error computing longterm_pl, T30 didn\'t go above threshold ({2})\n'+
+                     '  Setting longerm_pl = 0').format(
+                        crop.class_number, et_cell.cell_id, 
+                        crop.t30_for_pl_or_gu_or_cgdd))
+                logging.info('  Station long term T30:')
+                logging.info(et_cell.climate['main_t30_lt'])
+                self.longterm_pl = 0
+            except:
+                self.longterm_pl = 0
+                logging.error(
+                    ('  initialize_crop_cycle():\n'+
+                     '  Crop: {0:2d}, CellID: {1}\n'+
+                     '  Unknown error computing longterm_pl\n'+
+                     '  Setting longerm_pl = 0').format(
+                        crop.class_number, et_cell.cell_id))
+        ##
         self.setup_crop(crop)
 
     def setup_dormant(self,  et_cell, crop):
-        """
+        """Start of dormant season
         
-        Start of dormant season
         Set up for soil water reservoir during non-growing season
           to collect soil moisture for next growing season
 
@@ -416,3 +460,64 @@ class InitializeCropCycle:
         self.crop_pd['niwr'] = np.nan
         self.crop_pd['season'] = 0
         self.crop_pd['cutting'] = 0
+        
+    def set_spatial_crop_params(self, calibration_ws):
+        logging.info('  Setting spatially varying crop parameters')
+        
+        ## Get list of crop parameter shapefiles
+        crop_shp_dict = dict([
+            (int(item.split('_')[1]), os.path.join(calibration_ws, item))
+            for item in os.listdir(calibration_ws)
+            if item.lower().endswith('shp')])
+        
+        ## Dictionary to convert shapefile field names to crop parameters
+        crop_field_dict = {
+            'Name':'name',
+            'ClassNum':'class_number',
+            'IsAnnual':'is_annual',
+            'IrrigFlag':'irrigation_flag',
+            'IrrigDays':'days_after_planting_irrigation',
+            'Crop_FW':'crop_fw', 
+            'WinterCov':'winter_surface_cover_class',
+            'CropKcMax':'kc_max',
+            'MAD_Init':'mad_initial',
+            'MAD_Mid':'mad_midseason',
+            'RootDepIni':'rooting_depth_initial',
+            'RootDepMax':'rooting_depth_max',
+            'EndRootGrw':'end_of_root_growth_fraction_time',
+            'HeightInit':'height_initial',
+            'HeightMax':'height_max',
+            'CurveNum':'curve_number',
+            'CurveName':'curve_name',
+            'CurveType':'curve_type',
+            'PL_GU_Flag':'flag_for_means_to_estimate_pl_or_gu',
+            'T30_CGDD':'t30_for_pl_or_gu_or_cgdd',
+            'PL_GU_Date':'date_of_pl_or_gu',
+            'CGDD_Tbase':'tbase',
+            'CGDD_EFC':'cgdd_for_efc',
+            'CGDD_Term':'cgdd_for_termination',
+            'Time_EFC':'time_for_efc',
+            'Time_Harv':'time_for_harvest',
+            'KillFrostC':'killing_frost_temperature',
+            'InvokeStrs':'invoke_stress',
+            'CN_Coarse':'cn_coarse_soil',
+            'CN_Medium':'cn_medium_soil',
+            'CN_Fine':'cn_fine_soil'}
+    
+        ## Process each crop parameter shapefile
+        for crop_num, crop_shp in sorted(crop_shp_dict.items()):
+            print crop_num, crop_shp
+            crop_f = DBF(crop_shp.replace('.shp', '.dbf'))
+            for record in crop_f:
+                for k,v in record.items():
+                    print k,v
+                raw_input('ENTER')
+            ##crop_f.close()
+        ##crop_param_dict = defaultdict(dict)
+        ##print crop_shp_dict
+        
+        for cell_id, cell in sorted(self.et_cells_dict.items()):
+            for param in x:
+                self.et_cells_dict[cell_id].crop_params.param = value
+    
+        raw_input('ENTER')
