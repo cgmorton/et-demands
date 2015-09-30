@@ -2,7 +2,7 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-09-25
+# Created       2015-09-28
 # Python:       2.7
 #--------------------------------
 
@@ -27,8 +27,8 @@ import pandas as pd
 ################################################################################
 
 def main(ini_path, figure_show_flag=False, figure_save_flag=True,
-         figure_size=(1000,300), start_date=None, end_date=None,
-         crop_str='', overwrite_flag=False):
+         figure_size=(1000,200), start_date=None, end_date=None,
+         crop_str='', responsive_flag=True, overwrite_flag=False):
     """Plot full daily data by crop
 
     Args:
@@ -39,6 +39,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
         crop_str (str): comma separate list or range of crops to compare
+        responsive_flag (bool): If True, allow responsive plot resizing
         overwrite_flag (bool): If True, overwrite existing files
 
     Returns:
@@ -77,7 +78,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
     header_lines = 2
 
     ## Additional figure controls
-    figure_dynamic_size = False
     figure_ylabel_size = '12pt'
 
     ## Delimiter
@@ -168,19 +168,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         ##x_bounds = (
         ##    np.datetime64(dt.datetime(year_start,1,1), 's'),
         ##    np.datetime64(dt.datetime(year_end+1,1,1), 's'))
-
-        #### Windows only a
-        ##if figure_dynamic_size:
-        ##    try:
-        ##        logging.info('Setting plots width/height dynamically')
-        ##        from win32api import GetSystemMetrics
-        ##        figure_width = int(0.92 * GetSystemMetrics(0))
-        ##        figure_height = int(0.28 * GetSystemMetrics(1))
-        ##        logging.info('  {0} {1}'.format(GetSystemMetrics(0), GetSystemMetrics(1)))
-        ##        logging.info('  {0} {1}'.format(figure_width, figure_height))
-        ##    except:
-        ##        figure_width = 1200
-        ##        figure_height = 300
 
         ## Regular expressions
         def list_re_or(input_list):
@@ -297,8 +284,10 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
 
             f1 = figure(
                 x_axis_type='datetime', x_range=x_range,
-                width=figure_size[0], height=figure_size[1], 
-                tools=TOOLS, toolbar_location="right")
+                ##width=figure_size[0],
+                ##height=figure_size[1], 
+                tools=TOOLS, toolbar_location="right",
+                responsive=responsive_flag)
                 ##title='Evapotranspiration', x_axis_type='datetime',
             f1.line(dt_array, etact_array, color='blue', legend='ETact')
             f1.line(dt_array, etbas_array, color='green', legend='ETbas')
@@ -313,8 +302,10 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
 
             f2 = figure(
                 x_axis_type = "datetime", x_range=f1.x_range, 
-                width=figure_size[0], height=figure_size[1],
-                tools=TOOLS, toolbar_location="right")
+                ##width=figure_size[0],
+                ##height=figure_size[1],
+                tools=TOOLS, toolbar_location="right",
+                responsive=responsive_flag)
             f2.line(dt_array, kc_array, color='blue', legend='Kc')
             f2.line(dt_array, kcb_array, color='green', legend='Kcb')
             f2.line(dt_array, season_array, color='black', legend='Season',
@@ -327,8 +318,10 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
 
             f3 = figure(
                 x_axis_type = "datetime", x_range=f1.x_range, 
-                width=figure_size[0], height=figure_size[1],
-                tools=TOOLS, toolbar_location="right")
+                ##width=figure_size[0],
+                ##height=figure_size[1],
+                tools=TOOLS, toolbar_location="right",
+                responsive=responsive_flag)
             f3.line(dt_array, precip_array, color='blue', legend='PPT')
             f3.line(dt_array, irrig_array, color='black', legend='Irrigation',
                     line_dash="dotted")
@@ -463,7 +456,7 @@ def parse_args():
     ##parser.add_argument(
     ##    '--stats', metavar='FOLDER', help='Daily Stats Folder')
     parser.add_argument(
-        '--size', default=(1000, 300), type=int,
+        '--size', default=(1000,200), type=int,
         nargs=2, metavar=('WIDTH','HEIGHT'),
         help='Figure size in pixels')
     parser.add_argument(
@@ -482,13 +475,17 @@ def parse_args():
         '-c', '--crops', default='', type=str, 
         help='Comma separate list or range of crops to compare')
     parser.add_argument(
-        '-o', '--overwrite', default=None, action="store_true", 
+        '--fixed', default=False, action="store_true", 
+        help='Fix figure size to defaults (not responsive)')
+    parser.add_argument(
+        '-o', '--overwrite', default=False, action="store_true", 
         help='Force overwrite of existing files')
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
-
+    args.responsive = not args.fixed
+    
     ## Convert project folder to an absolute path if necessary
     if args.ini and os.path.isfile(os.path.abspath(args.ini)):
         args.ini = os.path.abspath(args.ini)
@@ -525,4 +522,4 @@ if __name__ == '__main__':
     main(ini_path, figure_show_flag=args.show, 
          figure_save_flag=args.no_save, figure_size=args.size,
          start_date=args.start, end_date=args.end, crop_str=args.crops,
-         overwrite_flag=args.overwrite)
+         responsive_flag=args.responsive, overwrite_flag=args.overwrite)
