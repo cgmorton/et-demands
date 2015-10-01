@@ -3,4 +3,5 @@ __pycache__/
 *.py[cod]
 *.bak
 
+docs/_build
 example
