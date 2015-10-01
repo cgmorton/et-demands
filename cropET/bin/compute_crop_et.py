@@ -3,14 +3,11 @@ import logging
 import math
 import sys
 
-import compute_crop_gdd
-import calculate_height
 import grow_root
-import kcb_daily
 import runoff
 import util
 
-def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False):
+def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     """crop et computations
     
     Args:
@@ -20,20 +17,10 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
         foo (): 
         foo_day (): 
         debug_flag (bool): If True, write debug level comments to debug.txt
-        vb_flag (bool): If True, mimic calculations in VB version of code
     
     Returns:
         None
     """
-    ##logging.debug('compute_crop_et()')
-    compute_crop_gdd.compute_crop_gdd(data, crop, foo, foo_day, debug_flag)
-
-    ## Calculate height of vegetation.  Call was moved up to this point 12/26/07 for use in adj. Kcb and kc_max
-    calculate_height.calculate_height(crop, foo, debug_flag)
-
-    ## Interpolate Kcb and make climate adjustment (for ETo basis)
-    kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag, vb_flag)
-
     ## Don't compute cropET for open water
     ## open_water_evap() was called in kcb_daily()
     if crop.class_number in [55, 56, 57]:
@@ -461,6 +448,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
     # Make adjustment to kc_act
     foo.kc_act = kc_mult * ks * foo.kc_bas + ke
     foo.kc_pot = foo.kc_bas + ke
+    
     # ETref is defined (to ETo or ETr) in CropCycle sub #'Allen 12/26/2007
     foo.etc_act = foo.kc_act * foo_day.etref
     foo.etc_pot = foo.kc_pot * foo_day.etref
@@ -475,7 +463,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
         logging.debug(
             ('compute_crop_et(): ETcbas %.6f  ETcpot %.6f  ETcact %.6f') %
             (foo.etc_bas, foo.etc_pot, foo.etc_act))
-
+    
     e = ke * foo_day.etref
     e_irr = ke_irr * foo_day.etref
     e_ppt = ke_ppt * foo_day.etref
@@ -613,15 +601,28 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag
         return
 
     foo.kc_act = kc_mult * ks * foo.kc_bas + ke
-    foo.etc_act = foo.kc_act * foo_day.etref
-    # Note that etc_act will be checked later against depl_root and TAW
     foo.kc_pot = foo.kc_bas + ke
 
-    # etref is defined (to eto or etr) in crop_cycle sub'Allen 12/26/2007
+    #### CO2 correction 
+    ##if data.co2_flag:
+    ##    ##foo.kc_bas *= foo_day.co2
+    ##    foo.kc_act *= foo_day.co2
+    ##    foo.kc_pot *= foo_day.co2
+    ##    if debug_flag:  
+    ##        logging.debug(
+    ##            ('compute_crop_et(): co2 %.6f  Kc_pot %.6f  Kc_act %.6f') %
+    ##            (foo_day.co2, foo.kc_pot, foo.kc_act))    
+    ##        logging.debug(
+    ##            ('compute_crop_et(): ETcpot %.6f  ETcact %.6f') %
+    ##            ( foo.etc_pot, foo.etc_act))
 
+    # etref is defined (to eto or etr) in crop_cycle sub'Allen 12/26/2007
+    # Note that etc_act will be checked later against depl_root and TAW
+    foo.etc_act = foo.kc_act * foo_day.etref
     foo.etc_pot = foo.kc_pot * foo_day.etref
     foo.etc_bas = foo.kc_bas * foo_day.etref
 
+    
     # Accumulate evaporation following each irrigation event.
     # Subtract evaporation from precipitation.
     # Precipitation evaporation is set to evaporation that would have occurred

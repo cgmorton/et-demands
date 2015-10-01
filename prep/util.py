@@ -1,11 +1,14 @@
 ##import argparse
+import ConfigParser
 import glob
+import logging
 import os
 
 def remove_file(file_path):
     """Remove a feature/raster and all of its anciallary files"""
     file_ws = os.path.dirname(file_path)
     for file_name in glob.glob(os.path.splitext(file_path)[0]+".*"):
+        logging.debug('  Remove: {}'.format(os.path.join(file_ws, file_name)))
         os.remove(os.path.join(file_ws, file_name))
 
 def is_valid_file(parser, arg):
@@ -51,3 +54,17 @@ def parse_int_set(nputstr=""):
     ##print "Invalid set: " + str(invalid)
     return selection
 
+def read_ini(ini_path, section='CROP_ET'):
+    """Open the INI file and check for obvious errors"""
+    logging.info('  INI: {}'.format(os.path.basename(ini_path)))
+    config = ConfigParser.ConfigParser()
+    try:
+        ini = config.readfp(open(ini_path))
+    except:
+        logging.error('\nERROR: Config file could not be read, '+
+                      'is not an input file, or does not exist\n')
+        sys.exit()
+    if section not in config.sections():
+        logging.error('\nERROR: The input file must have a section: [CROP_ET]\n')
+        sys.exit()
+    return config

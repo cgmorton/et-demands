@@ -9,6 +9,9 @@ import sys
 import numpy as np
 
 ##import et_cell
+import crop_coefficients
+import crop_parameters
+import util
 
 class CropETData():
     def __init__(self):
@@ -160,8 +163,14 @@ class CropETData():
             self.end_dt = None
 
         ## Compute additional variables
-        self.niwr_flag = config.getboolean(crop_et_sec, 'niwr_flag')
-        self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
+        try: self.cutting_flag = config.getboolean(crop_et_sec, 'cutting_flag')
+        except: self.cutting_flag = True
+        try: self.niwr_flag = config.getboolean(crop_et_sec, 'niwr_flag')
+        except: self.cutting_flag = True
+        try: self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
+        except: self.cutting_flag = True
+        try: self.co2_flag = config.getboolean(crop_et_sec, 'co2_flag')
+        except: self.cutting_flag = False
 
         ## Static cell/crop files
         def check_static_file(static_name, static_var):
@@ -187,6 +196,19 @@ class CropETData():
             'CropParams.txt', 'crop_params_name')
         self.crop_coefs_path = check_static_file(
             'CropCoefs.txt', 'crop_coefs_name')
+        
+        ## Spatially varying calibration
+        try: self.spatial_cal_flag = config.getboolean(crop_et_sec, 'spatial_cal_flag')
+        except: self.spatial_cal_flag = False
+        try: 
+            self.spatial_cal_ws = config.get(crop_et_sec, 'spatial_cal_folder')
+        except: 
+            self.spatial_cal_ws = None
+        if (self.spatial_cal_flag and self.spatial_cal_ws is not None and 
+            not os.path.isdir(self.spatial_cal_ws)):
+            logging.error(('ERROR: The spatial calibration folder {} '+
+                           'does not exist').format(self.spatial_cal_ws))
+            sys.exit()
         
         ## RefET parameters
         self.refet = {}
@@ -345,7 +367,7 @@ class CropETData():
 
         ## Snow and snow depth are optional
         try: self.weather['fields']['snow'] = config.get(weather_sec, 'snow_field')
-        except:  self.weather['fields']['snow'] = None
+        except: self.weather['fields']['snow'] = None
         try: self.weather['fields']['snow_depth'] = config.get(weather_sec, 'depth_field')
         except: self.weather['fields']['snow_depth'] = None
         if self.weather['fields']['snow'] is not None:
@@ -361,7 +383,7 @@ class CropETData():
                 
         ## Tdew can be set or computed from Q (specific humidity)
         try: self.weather['fields']['tdew'] = config.get(weather_sec, 'tdew_field')
-        except:  self.weather['fields']['tdew'] = None
+        except: self.weather['fields']['tdew'] = None
         try: self.weather['fields']['q'] = config.get(weather_sec, 'q_field')
         except: self.weather['fields']['q'] = None
         if self.weather['fields']['tdew'] is not None:
@@ -374,7 +396,33 @@ class CropETData():
             except:                     
                 logging.error('  ERROR: WEATHER {}_units must be set in the INI'.format('q'))
                 sys.exit()
-       
+
+        ## CO2 correction factors are optional
+        try: self.weather['fields']['co2_grass'] = config.get(weather_sec, 'co2_grass_field')
+        except: self.weather['fields']['co2_grass'] = None
+        try: self.weather['fields']['co2_trees'] = config.get(weather_sec, 'co2_trees_field')
+        except: self.weather['fields']['co2_trees'] = None
+        try: self.weather['fields']['co2_c4'] = config.get(weather_sec, 'co2_c4_field')
+        except: self.weather['fields']['co2_c4'] = None
+        ## For now, assume values are always 0-1, eventually let user change this?
+        self.weather['units']['co2_grass'] = None
+        self.weather['units']['co2_trees'] = None
+        self.weather['units']['co2_c4'] = None
+        if self.co2_flag:
+            logging.info('  CO2 correction')
+            try: self.co2_grass_crops = sorted(list(util.parse_int_set(
+                config.get(crop_et_sec, 'co2_grass_list'))))
+            except: self.co2_grass_crops = []
+            try: self.co2_trees_crops = sorted(list(util.parse_int_set(
+                config.get(crop_et_sec, 'co2_trees_list'))))
+            except: self.co2_trees_crops = []
+            try: self.co2_c4_crops = sorted(list(util.parse_int_set(
+                config.get(crop_et_sec, 'co2_c4_list'))))
+            except: self.co2_c4_crops = []
+            logging.info('    Grass (C3): {}'.format(self.co2_grass_crops))
+            logging.info('    Trees (C3): {}'.format(self.co2_trees_crops))
+            logging.info('    C4: {}'.format(self.co2_c4_crops))
+            
         ## Wind speeds measured at heights other than 2m will be scaled
         try: 
             self.weather['wind_height'] = config.getfloat(
@@ -392,55 +440,50 @@ class CropETData():
         units_list = (
             ['c', 'mm', 'm/s', 'mj/m2', 'mj/m^2', 'kg/kg'] + 
             ['k', 'f', 'in*100', 'in', 'w/m2', 'w/m^2'])
-        for k,v in self.weather['units'].items():
+        for k,v in self.weather['units'].iteritems():
             if v is not None and v.lower() not in units_list:
                 logging.error(
                     '  ERROR: {0} units {1} are not currently supported'.format(k,v))
                 sys.exit()
     
-##def get_date_params(date_str='1/1/1950', date_fmt='%m/%d/%Y'):
-##    dt = datetime.strptime(date_str, date_fmt)
-##    return dt.year, dt.month, dt.day, dt.timetuple().tm_yday
+    def set_crop_params(self):
+        """ List of <CropParameter> instances """
+        logging.info('  Reading crop parameters')
+        self.crop_params = crop_parameters.read_crop_parameters(self.crop_params_path)
 
-  
-##def read_cell_txt_files(static_ws=os.getcwd()):
-##    """ """
-##    if not os.path.isdir(static_ws):
-##        logging.warning(
-##            'crop_et_data.read_cell_txt_files(): static workspace not found')
-##        sys.exit()
-##    cet = CropETData()
-##
-##    # Init cells with property info
-##    fn = os.path.join(static_ws, 'ETCellsProperties.txt')
-##    print '\nRead Cell Properties:', fn
-##    et_cells = et_cell.read_et_cells_properties(fn)
-##
-##    # Add the crop to cells
-##    fn = os.path.join(static_ws, 'ETCellsCrops.txt')
-##    print '\nRead Cell crops:', fn
-##    et_cell.read_et_cells_crops(fn, et_cells)
-##
-##    # Add mean cuttings
-##    fn = os.path.join(static_ws, 'MeanCuttings.txt')
-##    print '\nRead mean cuttings:', fn
-##    et_cell.read_mean_cuttings(fn, et_cells)
-##    cet.set_et_cells(et_cells)
-##
-##    fn = os.path.join(static_ws, 'CropParams.txt')
-##    print '\nRead Crop Parameters:', fn
-##    cet.set_crop_parameters(fn)
-##
-##    fn = os.path.join(static_ws, 'CropCoefs.txt')
-##    print '\nRead Crop Coefficients:', fn
-##    cet.set_crop_coefficients(fn)
-##    return cet
+        ## Filter crop parameters based on skip and test lists
+        ## Filtering could happen in read_crop_parameters()
+        if self.crop_skip_list or self.crop_test_list:
+            ## Leave bare soil "crop" parameters 
+            ## Used in initialize_crop_cycle()
+            non_crop_list = [44]
+            ##non_crop_list = [44,45,46,55,56,57]
+            self.crop_params = {
+                k:v for k,v in self.crop_params.iteritems()
+                if ((self.crop_skip_list and k not in self.crop_skip_list) or 
+                    (self.crop_test_list and k in self.crop_test_list) or
+                    (k in non_crop_list))}
+    
+    def set_crop_coeffs(self):
+        """ List of <CropCoeff> instances """
+        logging.info('  Reading crop coefficients')
+        self.crop_coeffs = crop_coefficients.read_crop_coefs(self.crop_coefs_path)
+
+    def set_crop_co2(self):
+        """Set crop CO2 type using"""
+        for crop_num, crop_param in self.crop_params.iteritems():
+            if not self.co2_flag:
+                crop_param.co2_type = None
+            elif self.co2_grass_crops and crop_num in self.co2_grass_crops:
+                crop_param.co2_type = 'GRASS'
+            elif self.co2_trees_crops and crop_num in self.co2_trees_crops:
+                crop_param.co2_type = 'TREES'
+            elif self.co2_c4_crops and crop_num in self.co2_c4_crops:
+                crop_param.co2_type = 'C4'
+            else:
+                logging.warning('  Crop {} not in INI CO2 lists'.format(crop_num))
+                crop_param.co2_type = None
+            self.crop_params[crop_num] = crop_param
 
 if __name__ == '__main__':
     pass
-    ##data = CropETData()
-    ##data.set_et_cells_properties(os.path.join(txt_ws, 'ETCellsProperties.txt'))
-    ##data.set_et_cells_crops(os.path.join(txt_ws, 'ETCellsCrops.txt'))
-    ##data.set_mean_cuttings(os.path.join(txt_ws, 'MeanCuttings.txt'))
-    ##data.set_crop_parameters(os.path.join(txt_ws, 'CropParams.txt'))
-    ##data.set_crop_coefficients(os.path.join(txt_ws, 'CropCoefs.txt'))

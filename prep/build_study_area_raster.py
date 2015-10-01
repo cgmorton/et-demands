@@ -2,7 +2,7 @@
 # Name:         build_study_area_raster.py
 # Purpose:      Build study area raster
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-24
 # Python:       2.7
 #--------------------------------
 
@@ -81,6 +81,8 @@ def main(gis_ws, cdl_ws, cdl_year, study_area_path, study_area_buffer=None,
 
     if pyramids_flag:
         levels = '2 4 8 16 32 64 128'
+        ##gdal.SetConfigOption('USE_RRD', 'YES')
+        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
     ## Overwrite
     if os.path.isfile(zone_raster_path) and overwrite_flag:

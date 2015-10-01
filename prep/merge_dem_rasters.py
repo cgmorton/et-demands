@@ -2,7 +2,7 @@
 # Name:         merge_dem_rasters.py
 # Purpose:      Prepare NED DEM rasters
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-24
 # Python:       2.7
 #--------------------------------
 
@@ -100,6 +100,7 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
 
     if pyramids_flag:
         levels = '2 4 8 16 32 64 128'
+        ##gdal.SetConfigOption('USE_RRD', 'YES')
         ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
     ## Reference all output rasters zone raster
@@ -126,29 +127,43 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
 
     ## Get list of available tiles that intersect the extent
     input_path_list = sorted(list(set([
-        os.path.join(tile_ws, tile_fmt.format(lat, -lon))
+        tile_fmt.format(lat, -lon)
+        ##os.path.join(tile_ws, tile_fmt.format(lat, -lon))
         for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
-        for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])))
+        for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)
+        if os.path.isfile(os.path.join(tile_ws, tile_fmt.format(lat, -lon)))])))
     logging.debug('Tiles')
-    for input_path in input_path_list:
-        logging.debug('  {}'.format(input_path))
+    ##for input_path in input_path_list:
+    ##    logging.debug('  {}'.format(input_path))
    
     ## Calculate using GDAL utilities
     if input_path_list:
         logging.info('Merging tiles')
         if os.path.isfile(dem_gcs_path) and overwrite_flag:
-            subprocess.call(
-                ['gdalmanage', 'delete', '-f', 'HFA', dem_gcs_path])
+            util.remove_file(dem_gcs_path)
+            ##subprocess.call(
+            ##    ['gdalmanage', 'delete', '-f', 'HFA', dem_gcs_path])
         if not os.path.isfile(dem_gcs_path):
-            subprocess.call(
-                ['set', 'GDAL_DATA={}\Lib\site-packages\osgeo\data\gdal'.format(sys.exec_prefix)],
-                shell=True)
-            subprocess.call(
-                ['gdal_merge.py', '-o', dem_gcs_path, '-of', 'HFA',
+            ## gdal_merge.py was only working if shell=True
+            ## It would also work to add the scripts folder to the path (in Pythong)
+            ## Or the scripts folder could be added to the system PYTHONPATH?
+            args_list = [
+                 'python', '{}\scripts\gdal_merge.py'.format(sys.exec_prefix), 
+                 '-o', dem_gcs_path, '-of', 'HFA',
                  '-co', 'COMPRESSED=YES', '-a_nodata',
-                 str(f32_nodata)] + input_path_list,
-                shell=True)
-
+                 str(f32_nodata)] + input_path_list
+            logging.debug(args_list)
+            logging.debug('command length: {}'.format(len(' '.join(args_list))))
+            subprocess.call(args_list, cwd=tile_ws)
+            ##subprocess.call(
+            ##    ['set', 'GDAL_DATA={}\Lib\site-packages\osgeo\data\gdal'.format(sys.exec_prefix)],
+            ##    shell=True)
+            ##subprocess.call(
+            ##    ['gdal_merge.py', '-o', dem_gcs_path, '-of', 'HFA',
+            ##     '-co', 'COMPRESSED=YES', '-a_nodata',
+            ##     str(f32_nodata)] + input_path_list,
+            ##    shell=True)
+            
     ## Convert DEM from meters to feet
     if output_units == 'FEET':
         ## DEADBEEF - This won't run when called through subprocess?
@@ -177,7 +192,7 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
             ['-te'] + str(output_extent).split() + 
             ##['-srcnodata', 'None', '-dstnodata', str(f32_nodata), 
             ['-of', 'HFA', '-co', 'COMPRESSED=YES', '-overwrite',
-             '-multi', '-wm', '1024',
+             '-multi', '-wm', '1024', '-wo', 'NUM_THREADS=ALL_CPUS',
              dem_gcs_path, dem_proj_path])
     if (not os.path.isfile(dem_hs_path) and
         os.path.isfile(dem_proj_path)):

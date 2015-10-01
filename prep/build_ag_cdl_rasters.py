@@ -2,7 +2,7 @@
 # Name:         build_ag_cdl_rasters.py
 # Purpose:      Build agricultural land and mask rasters from CDL rasters
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-25
 # Python:       2.7
 #--------------------------------
 
@@ -20,7 +20,7 @@ from osgeo import gdal, ogr, osr
 import gdal_common as gdc
 import util
 
-def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False, 
+def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False, 
          overwrite_flag=False, pyramids_flag=False, stats_flag=False,
          agland_nodata=0, agmask_nodata=0):
     """Mask CDL values for non-agricultural pixels
@@ -42,6 +42,7 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
         None
 
     """
+    logging.info('\nExtracting Agriculatural CDL Values')
 
     cdl_format = '{0}_30m_cdls.img'
     cdl_ws = os.path.join(gis_ws, 'cdl')
@@ -79,8 +80,9 @@ def main(gis_ws, cdl_year='', block_size=32768, mask_flag=False,
     logging.info('CDL Workspace:   {}'.format(cdl_ws))
     
     if pyramids_flag:
-        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
         levels = '2 4 8 16 32 64 128'
+        ##gdal.SetConfigOption('USE_RRD', 'YES')
+        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
     ## Process each CDL year separately
     for cdl_year in list(util.parse_int_set(cdl_year)):

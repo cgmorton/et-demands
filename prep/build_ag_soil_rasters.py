@@ -2,7 +2,7 @@
 # Name:         build_ag_soil_rasters.py
 # Purpose:      Extract soils data for agricultural CDL pixels
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-25
 # Python:       2.7
 #--------------------------------
 
@@ -22,8 +22,8 @@ import util
 
 ################################################################################
 
-def main(gis_ws, cdl_year='', prop_list=['all'], 
-         block_size=32768, mask_flag=False, 
+def main(gis_ws, input_soil_ws, cdl_year='', prop_list=['all'], 
+         block_size=16384, mask_flag=False, 
          overwrite_flag=False, pyramids_flag=False, stats_flag=False):
     """Mask DEM values for non-agricultural pixels
 
@@ -31,6 +31,7 @@ def main(gis_ws, cdl_year='', prop_list=['all'],
 
     Args:
         gis_ws (str): Folder/workspace path of the GIS data for the project
+        input_soil_ws (str): Folder/workspace path of the common soils data
         cdl_year (str): Cropland Data Layer year comma separated list and/or range
         prop_list (list): String of the soil types to build
             (i.e. awc, clay, sand, all)
@@ -44,25 +45,29 @@ def main(gis_ws, cdl_year='', prop_list=['all'],
     Returns:
         None
     """
+    logging.info('\nExtracting Agriculatural Soil Values')
+    
     input_soil_fmt = '{}_30m_albers.img'
     cdl_format = '{0}_30m_cdls.img'
-    soil_ws = os.path.join(gis_ws, 'statsgo')
     cdl_ws = os.path.join(gis_ws, 'cdl')
+    ##input_soil_ws = os.path.join(gis_ws, 'statsgo')
+    output_soil_ws = os.path.join(gis_ws, 'soils')
+    
     scratch_ws = os.path.join(gis_ws, 'scratch')  
     zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
 
     ## Check input folders
     if not os.path.isdir(gis_ws):
-        logging.error(('\nERROR: The GIS workspace {} '+
+        logging.error(('\nERROR: The GIS folder {} '+
                        'does not exist\n').format(gis_ws))
         sys.exit()
     elif not os.path.isdir(cdl_ws):
-        logging.error(('\nERROR: The CDL workspace {} '+
+        logging.error(('\nERROR: The CDL folder {} '+
                        'does not exist\n').format(cdl_ws))
         sys.exit()
-    elif not os.path.isdir(soil_ws):
-        logging.error(('\nERROR: The soil workspace {} '+
-                       'does not exist\n').format(soil_ws))
+    elif not os.path.isdir(input_soil_ws):
+        logging.error(('\nERROR: The input soil folder {} '+
+                       'does not exist\n').format(input_soil_ws))
         sys.exit()
     elif mask_flag and not os.path.isfile(zone_raster_path):
         logging.error(
@@ -71,11 +76,13 @@ def main(gis_ws, cdl_year='', prop_list=['all'],
         sys.exit()
     logging.info('\nGIS Workspace:   {}'.format(gis_ws))
     logging.info('CDL Workspace:   {}'.format(cdl_ws))
-    logging.info('Soil Workspace:  {}'.format(soil_ws))
+    logging.info('Input Soil Workspace:  {}'.format(input_soil_ws))
+    logging.info('Output Soil Workspace: {}'.format(output_soil_ws))
 
     if pyramids_flag:
-        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
         levels = '2 4 8 16 32 64 128'
+        ##gdal.SetConfigOption('USE_RRD', 'YES')
+        ##gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
     ## Process each CDL year separately
     for cdl_year in list(util.parse_int_set(cdl_year)):
@@ -97,8 +104,8 @@ def main(gis_ws, cdl_year='', prop_list=['all'],
         ## Process existing soil rasters (from rasterize script)
         for prop_str in prop_list:
             logging.info('\nSoil: {}'.format(prop_str.upper()))
-            input_soil_path = os.path.join(soil_ws, input_soil_fmt.format(prop_str))
-            output_soil_path = os.path.join(soil_ws, output_soil_fmt.format(prop_str))
+            input_soil_path = os.path.join(input_soil_ws, input_soil_fmt.format(prop_str))
+            output_soil_path = os.path.join(output_soil_ws, output_soil_fmt.format(prop_str))
             if not os.path.isfile(input_soil_path):
                 logging.error('\nERROR: The raster {} does not exist'.format(
                     input_soil_path))
@@ -161,14 +168,20 @@ def arg_parse():
         description='Build Ag Soils Rasters',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--gis', nargs='?', default=os.path.join(os.getcwd(), 'gis'),
+        '--gis', metavar='FOLDER',
+        nargs='?', default=os.path.join(os.getcwd(), 'gis'),
         type=lambda x: util.is_valid_directory(parser, x), 
-        help='GIS workspace/folder', metavar='FOLDER')
+        help='GIS workspace/folder')
+    parser.add_argument(
+        '--soil', metavar='FOLDER',
+        nargs='?', default=os.path.join(os.getcwd(), 'gis', 'soils'),  
+        type=lambda x: util.is_valid_directory(parser, x), 
+        help='Common soil workspace/folder')    
     parser.add_argument(
         '-y', '--years', metavar='YEAR', required=True,
         help='CDL years, comma separate list and/or range')
     parser.add_argument(
-        '-bs', '--blocksize', default=32768, type=int, metavar='N',
+        '-bs', '--blocksize', default=16384, type=int, metavar='N',
         help='Block size')
     parser.add_argument(
         '--mask', default=None, action='store_true', 
@@ -183,9 +196,9 @@ def arg_parse():
         '--stats', default=None, action='store_true', 
         help='Build statistics')
     parser.add_argument(
-        '--soil', default=['all'], nargs='*', metavar='STR',
+        '--type', default=['all'], nargs='*', metavar='STR',
         choices=('all', 'awc', 'clay', 'sand'), 
-        help='Soil property (all, awc, clay, sand)')
+        help='Soil property type (all, awc, clay, sand)')
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
@@ -194,6 +207,8 @@ def arg_parse():
     ## Convert input file to an absolute path
     if args.gis and os.path.isdir(os.path.abspath(args.gis)):
         args.gis = os.path.abspath(args.gis)
+    if args.soil and os.path.isdir(os.path.abspath(args.soil)):
+        args.soil = os.path.abspath(args.soil)
     return args
 
 ################################################################################
@@ -206,7 +221,7 @@ if __name__ == '__main__':
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(gis_ws=args.gis, cdl_year=args.years, 
-         prop_list=args.soil, block_size=args.blocksize, 
+    main(gis_ws=args.gis, input_soil_ws=args.soil, cdl_year=args.years, 
+         prop_list=args.type, block_size=args.blocksize, 
          mask_flag=args.mask, overwrite_flag=args.overwrite,
          pyramids_flag=args.pyramids, stats_flag=args.stats)

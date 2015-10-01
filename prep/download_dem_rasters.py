@@ -2,13 +2,15 @@
 # Name:         download_dem_rasters.py
 # Purpose:      Download NED tiles
 # Author:       Charles Morton
-# Created       2015-09-03
+# Created       2015-09-25
 # Python:       2.7
 #--------------------------------
 
 import argparse
 import datetime as dt
+import json
 import logging
+import math
 import os
 import subprocess
 import sys
@@ -22,7 +24,7 @@ import util
 
 ################################################################################
 
-def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
+def main(gis_ws, tile_ws, dem_cs, mask_flag=False, overwrite_flag=False):
     """Download NED tiles that intersect the study_area
 
     Script assumes DEM data is in 1x1 WGS84 degree tiles
@@ -35,6 +37,7 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
         gis_ws (str): Folder/workspace path of the GIS data for the project
         tile_ws (str): Folder/workspace path of the DEM tiles
         dem_cs (int): DEM cellsize (10 or 30m)
+        mask_flag (bool): If True, only download tiles intersecting zones mask
         overwrite_flag (bool): If True, overwrite existing files
         
     Returns:
@@ -60,11 +63,18 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
 
     scratch_ws = os.path.join(gis_ws, 'scratch')
     zone_raster_path = os.path.join(scratch_ws, 'zone_raster.img')
+    zone_polygon_path = os.path.join(scratch_ws, 'zone_polygon.shp')
 
     ## Error checking
     if not os.path.isfile(zone_raster_path):
         logging.error(
             ('\nERROR: The zone raster {} does not exist'+
+             '\n  Try re-running "build_study_area_raster.py"').format(
+             zone_raster_path))
+        sys.exit()
+    if mask_flag and not os.path.isfile(zone_polygon_path):
+        logging.error(
+            ('\nERROR: The zone polygon {} does not exist and mask_flag=True'+
              '\n  Try re-running "build_study_area_raster.py"').format(
              zone_raster_path))
         sys.exit()
@@ -85,21 +95,27 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
     logging.debug('  Output Extent: {}'.format(output_extent))   
     logging.debug('  Output cellsize: {}'.format(output_cs))
     logging.debug('  Output UL/LR: {}'.format(output_ullr))
+    
+    if mask_flag:
+        ## Keep tiles that intersect zone polygon
+        lat_lon_list = polygon_tiles(
+            zone_polygon_path, tile_osr, tile_x, tile_y, tile_cs, tile_buffer=0)
+    else:
+        ## Keep tiles that intersect zone raster extent
+        ## Project study area extent to DEM tile coordinate system
+        tile_extent = gdc.project_extent(output_extent, output_osr, tile_osr)
+        logging.debug('Output Extent: {}'.format(tile_extent))
         
-    ## Project study area extent to DEM tile coordinate system
-    tile_extent = gdc.project_extent(output_extent, output_osr, tile_osr)
-    logging.debug('Output Extent: {}'.format(tile_extent))
-
-    ## Extent needed to select 1x1 degree tiles
-    tile_extent.buffer_extent(tile_buffer)
-    tile_extent.adjust_to_snap('EXPAND', tile_x, tile_y, tile_cs)
-    logging.debug('Tile Extent: {}'.format(tile_extent))
-
-    ## Get list of available tiles that intersect the extent
-    lat_lon_list = sorted(list(set([
-        (lat, -lon)
-        for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
-        for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])))
+        ## Extent needed to select 1x1 degree tiles
+        tile_extent.buffer_extent(tile_buffer)
+        tile_extent.adjust_to_snap('EXPAND', tile_x, tile_y, tile_cs)
+        logging.debug('Tile Extent: {}'.format(tile_extent))
+        
+        ## Get list of available tiles that intersect the extent
+        lat_lon_list = sorted(list(set([
+            (lat, -lon)
+            for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
+            for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)])))
 
     ## Attempt to download the tiles
     logging.debug('Downloading')
@@ -125,6 +141,77 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False):
         except: pass
 
 ################################################################################
+def polygon_tiles(input_path, tile_osr=gdc.epsg_osr(4269), 
+                  tile_x=0, tile_y=0, tile_cs=1, tile_buffer=0.5):
+    """"""
+    lat_lon_list = []
+    shp_driver = ogr.GetDriverByName('ESRI Shapefile')
+    input_ds = shp_driver.Open(input_path, 0)
+    input_layer = input_ds.GetLayer()
+    input_osr = input_layer.GetSpatialRef()
+    input_ftr = input_layer.GetNextFeature() 
+    tx = osr.CoordinateTransformation(input_osr, tile_osr)
+    while input_ftr:
+        input_fid = input_ftr.GetFID()
+        logging.debug('  {0}'.format(input_fid))
+        input_geom = input_ftr.GetGeometryRef()
+                
+        ## This finds the tiles that intersect the extent of each feature 
+        input_extent = gdc.extent(input_geom.GetEnvelope())
+        input_extent = input_extent.ogrenv_swap()
+        logging.debug('  Feature Extent: {}'.format(input_extent))
+        
+        ## Project feature extent to the DEM tile coordinate system
+        tile_extent = gdc.project_extent(input_extent, input_osr, tile_osr)
+        logging.debug('  Feature Extent: {}'.format(tile_extent))
+
+        ## Extent needed to select 1x1 degree tiles
+        tile_extent.buffer_extent(tile_buffer)
+        tile_extent.adjust_to_snap('EXPAND', tile_x, tile_y, tile_cs)
+        logging.debug('  Tile Extent: {}'.format(tile_extent))
+
+        ## Get list of available tiles that intersect the extent
+        lat_lon_list.extend([
+            (lat, -lon)
+            for lon in range(int(tile_extent.xmin), int(tile_extent.xmax)) 
+            for lat in range(int(tile_extent.ymax), int(tile_extent.ymin), -1)]) 
+        del input_extent, tile_extent            
+
+        #### This finds the tiles that intersect the geometry of each feature 
+        #### Project the feature geometry to the DEM tile coordinate system
+        ##output_geom = input_geom.Clone()
+        ##output_geom.Transform(tx)
+        ##output_geom = output_geom.Buffer(tile_buffer)
+        ##logging.debug('  Geometry type: {}'.format(output_geom.GetGeometryName()))
+        ##
+        #### Compute the upper left tile coordinate for each feature vertex
+        ##output_json = json.loads(output_geom.ExportToJson())
+        #### DEADBEEF - Add a point adjust_to_snap method
+        ##if output_geom.GetGeometryName() == 'POLYGON':
+        ##    output_list = sorted(list(set([ 
+        ##        (int(math.ceil((pnt[1] - tile_y) / tile_cs) * tile_cs + tile_y),
+        ##         -int(math.floor((pnt[0] - tile_x) / tile_cs) * tile_cs + tile_x))
+        ##        for ring in output_json['coordinates'] 
+        ##        for pnt in ring])))
+        ##elif output_geom.GetGeometryName() == 'MULTIPOLYGON':
+        ##    output_list = sorted(list(set([ 
+        ##        (int(math.ceil((pnt[1] - tile_y) / tile_cs) * tile_cs + tile_y),
+        ##         -int(math.floor((pnt[0] - tile_x) / tile_cs) * tile_cs + tile_x))
+        ##        for poly in output_json['coordinates'] 
+        ##        for ring in poly 
+        ##        for pnt in ring])))
+        ##else:
+        ##    logging.error('Invalid geometry type')
+        ##    sys.exit()
+        ##lat_lon_list.extend(output_list)
+        ##del output_geom, output_list
+        
+        ## Cleanup
+        input_geom = None
+        del input_fid, input_geom
+        input_ftr = input_layer.GetNextFeature()
+    del input_ds
+    return sorted(list(set(lat_lon_list)))
 
 def arg_parse():
     parser = argparse.ArgumentParser(
@@ -140,6 +227,9 @@ def arg_parse():
     parser.add_argument(
         '-cs', '--cellsize', default=30, metavar='INT', type=int,
         choices=(10, 30), help='DEM cellsize (10 or 30m)')
+    parser.add_argument(
+        '--mask', default=None, action='store_true', 
+        help='Download tiles intersecting zones mask')
     parser.add_argument(
         '-o', '--overwrite', default=None, action="store_true", 
         help='Force overwrite of existing files')
@@ -166,4 +256,4 @@ if __name__ == '__main__':
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, tile_ws=args.tiles, dem_cs=args.cellsize,
-         overwrite_flag=args.overwrite)
+         mask_flag=args.mask, overwrite_flag=args.overwrite)

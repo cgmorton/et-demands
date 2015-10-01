@@ -2,12 +2,13 @@
 # Name:         plot_py_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-09-01
+# Created       2015-09-28
 # Python:       2.7
 #--------------------------------
 
 import argparse
 import calendar
+import ConfigParser
 import datetime as dt
 import gc
 import logging
@@ -25,30 +26,29 @@ import pandas as pd
 
 ################################################################################
 
-def main(project_ws, figure_show_flag=False, figure_save_flag=True,
-         figure_size=(1000,300), start_date=None, end_date=None,
-         crop_str='', overwrite_flag=False):
+def main(ini_path, figure_show_flag=False, figure_save_flag=True,
+         figure_size=(1000,200), start_date=None, end_date=None,
+         crop_str='', responsive_flag=True, overwrite_flag=False):
     """Plot full daily data by crop
 
     Args:
-        project_ws (str): Project workspace
+        ini_path (str): file path of the project INI file
         figure_show_flag (bool): if True, show figures
         figure_save_flag (bool): if True, save figures
         figure_size (tuple): width, height of figure in pixels
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
         crop_str (str): comma separate list or range of crops to compare
+        responsive_flag (bool): If True, allow responsive plot resizing
         overwrite_flag (bool): If True, overwrite existing files
 
     Returns:
         None
     """
 
-    ## Input names
-    input_folder = 'daily_stats'
-
-    ## Output names
-    output_folder = 'daily_plots'
+    ## Input/output names
+    ##input_folder = 'daily_stats'
+    ##output_folder = 'daily_plots'
 
     ## Only process a subset of the crops
     crop_keep_list = list(parse_int_set(crop_str))
@@ -78,37 +78,69 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
     header_lines = 2
 
     ## Additional figure controls
-    figure_dynamic_size = False
     figure_ylabel_size = '12pt'
 
     ## Delimiter
     sep = ','
     ##sep = r"\s*"
 
+    sub_x_range_flag = True
+
     ########################################################################
 
     try:
-        logging.info('\nPlot mean daily data by crop')
-        logging.info('  Project Folder: {0}'.format(project_ws))
+        logging.info('\nPlot mean daily data by crop')        
+        logging.info('  INI: {}'.format(ini_path))
 
-        ## If save and show flags were not set, prompt user
-        ##logging.info('')
-        ##if figure_save_flag is None:
-        ##    figure_save_flag = query_yes_no('Save Figures', 'yes')
-        ##if figure_show_flag is None:
-        ##    figure_show_flag = query_yes_no('Show Figures', 'no')
-
-        ## Input workspaces
-        input_ws = os.path.join(project_ws, input_folder)
-
-        ## Output workspaces
-        output_ws = os.path.join(project_ws, output_folder)
+        ## Check that the INI file can be read
+        config = ConfigParser.ConfigParser()
+        try:
+            ini = config.readfp(open(ini_path))
+        except:
+            logging.error('\nERROR: Config file could not be read, '+
+                          'is not an input file, or does not exist\n')
+            sys.exit()
+        ## Check that all the sections are present
+        crop_et_sec = 'CROP_ET'
+        if crop_et_sec not in config.sections():
+            logging.error(
+                '\nERROR: The input file must have a {} sections'.format(crop_et_sec))
+            sys.exit()
+        ## Get the project workspace and daily ET folder from the INI file
+        try:
+            project_ws = config.get(crop_et_sec, 'project_folder')
+        except:
+            logging.error(
+                'ERROR: The project_folder '+
+                'parameter is not set in the INI file')
+            sys.exit()
+        ##crop_et_ws = config.get(crop_et_sec, 'crop_et_folder')
+        try:
+            input_ws = os.path.join(
+                project_ws, config.get(crop_et_sec, 'daily_output_folder'))
+        except:
+            logging.error(
+                'ERROR: The daily_output_folder '+
+                'parameter is not set in the INI file')
+            sys.exit()
+        try:
+            output_ws = os.path.join(
+                project_ws, config.get(crop_et_sec, 'daily_plots_folder'))
+        except:
+            if 'stats' in input_ws:
+                output_ws = input_ws.replace('stats', 'plots')
+            else:
+                output_ws = os.path.join(project_ws, 'daily_stats_folder')
 
         ## Check workspaces
-        if not os.path.isdir(project_ws):
-            logging.error(
-                '\nERROR: The project folder {0} could be found\n'.format(project_ws))
-            sys.exit()
+        ##if not os.path.isdir(project_ws):
+        ##    logging.error(
+        ##        '\nERROR: The project folder {0} could be found\n'.format(project_ws))
+        ##    sys.exit()
+        ##elif not os.path.isdir(crop_et_ws):
+        ##    logging.critical(
+        ##        'ERROR: The project folder does not exist\n  %s' % crop_et_ws)
+        ##    sys.exit()
         if not os.path.isdir(input_ws):
             logging.error(
                 '\nERROR: The daily ET folder {0} could be found\n'.format(input_ws))
@@ -136,26 +168,6 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
         ##x_bounds = (
         ##    np.datetime64(dt.datetime(year_start,1,1), 's'),
         ##    np.datetime64(dt.datetime(year_end+1,1,1), 's'))
-        ## Initial range of timeseries to show
-        ## This is independent of what timeseries is in the data and is only 
-        ##   based on the end year
-        ## Need to add a check to see if this range is in the data
-        ##x_range = (
-        ##    np.datetime64(dt.datetime(year_end-9,1,1), 's'),
-        ##    np.datetime64(dt.datetime(year_end+1,1,1), 's'))
-
-        #### Windows only a
-        ##if figure_dynamic_size:
-        ##    try:
-        ##        logging.info('Setting plots width/height dynamically')
-        ##        from win32api import GetSystemMetrics
-        ##        figure_width = int(0.92 * GetSystemMetrics(0))
-        ##        figure_height = int(0.28 * GetSystemMetrics(1))
-        ##        logging.info('  {0} {1}'.format(GetSystemMetrics(0), GetSystemMetrics(1)))
-        ##        logging.info('  {0} {1}'.format(figure_width, figure_height))
-        ##    except:
-        ##        figure_width = 1200
-        ##        figure_height = 300
 
         ## Regular expressions
         def list_re_or(input_list):
@@ -184,6 +196,12 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
             logging.debug('    Crop Num:        {0}'.format(crop_num))
             if station == 'temp':
                 logging.debug('      Skipping')
+                continue
+            elif crop_skip_list and crop_num in crop_skip_list:
+                logging.debug('    Skipping, crop number in crop_skip_list')
+                continue
+            elif crop_keep_list and crop_num not in crop_keep_list:
+                logging.debug('    Skipping, crop number not in crop_keep_list')
                 continue
 
             ## Get crop name
@@ -217,6 +235,14 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
             year_sub_array = np.sort(np.unique(np.array(data_df['year']).astype(np.int)))
             logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
 
+            ## Initial range of timeseries to show
+            ## For now default to last ~8 year
+            if sub_x_range_flag:
+                x_range = (
+                    np.datetime64(dt.datetime(
+                        max(crop_year_end-9, crop_year_start),1,1), 's'),
+                    np.datetime64(dt.datetime(crop_year_end+1,1,1), 's'))
+
             ## Build separate arrays for each field of non-crop specific data
             dt_array = np.array(data_df[date_field])
             doy_array = np.array(data_df[doy_field]).astype(np.int)
@@ -227,13 +253,6 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
             leap_array = (doy_array == 366)
             doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
 
-            if crop_skip_list and crop_num in crop_skip_list:
-                logging.debug('    Skipping, crop number in crop_skip_list')
-                continue
-            elif crop_keep_list and crop_num not in crop_keep_list:
-                logging.debug('    Skipping, crop number not in crop_keep_list')
-                continue
-            
             ## Build separate arrays for each set of crop specific fields
             etact_array = np.array(data_df[etact_field])
             etpot_array = np.array(data_df[etpot_field])
@@ -264,9 +283,11 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
             TOOLS = 'xpan,xwheel_zoom,box_zoom,reset,save'
 
             f1 = figure(
-                x_axis_type='datetime', 
-                width=figure_size[0], height=figure_size[1], 
-                tools=TOOLS, toolbar_location="right")
+                x_axis_type='datetime', x_range=x_range,
+                ##width=figure_size[0],
+                ##height=figure_size[1], 
+                tools=TOOLS, toolbar_location="right",
+                responsive=responsive_flag)
                 ##title='Evapotranspiration', x_axis_type='datetime',
             f1.line(dt_array, etact_array, color='blue', legend='ETact')
             f1.line(dt_array, etbas_array, color='green', legend='ETbas')
@@ -274,34 +295,38 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
                     line_dash="dotted")
                     ##line_dash="dashdot")
             ##f1.title = 'Evapotranspiration [mm]'
-            f1.grid.grid_line_alpha=0.3
+            f1.grid.grid_line_alpha = 0.3
             f1.yaxis.axis_label = 'Evapotranspiration [mm]'
             f1.yaxis.axis_label_text_font_size = figure_ylabel_size
             ##f1.xaxis.bounds = x_bounds
 
             f2 = figure(
                 x_axis_type = "datetime", x_range=f1.x_range, 
-                width=figure_size[0], height=figure_size[1],
-                tools=TOOLS, toolbar_location="right")
+                ##width=figure_size[0],
+                ##height=figure_size[1],
+                tools=TOOLS, toolbar_location="right",
+                responsive=responsive_flag)
             f2.line(dt_array, kc_array, color='blue', legend='Kc')
             f2.line(dt_array, kcb_array, color='green', legend='Kcb')
             f2.line(dt_array, season_array, color='black', legend='Season',
                     line_dash="dashed")
             ##f2.title = 'Kc and Kcb (dimensionless)'
-            f2.grid.grid_line_alpha=0.3
+            f2.grid.grid_line_alpha = 0.3
             f2.yaxis.axis_label = 'Kc and Kcb (dimensionless)'
             f2.yaxis.axis_label_text_font_size = figure_ylabel_size
             ##f2.xaxis.bounds = x_bounds
 
             f3 = figure(
                 x_axis_type = "datetime", x_range=f1.x_range, 
-                width=figure_size[0], height=figure_size[1],
-                tools=TOOLS, toolbar_location="right")
+                ##width=figure_size[0],
+                ##height=figure_size[1],
+                tools=TOOLS, toolbar_location="right",
+                responsive=responsive_flag)
             f3.line(dt_array, precip_array, color='blue', legend='PPT')
             f3.line(dt_array, irrig_array, color='black', legend='Irrigation',
                     line_dash="dotted")
             ##f3.title = 'PPT and Irrigation [mm]'
-            f3.grid.grid_line_alpha=0.3
+            f3.grid.grid_line_alpha = 0.3
             ##f3.xaxis.axis_label = 'Date'
             f3.yaxis.axis_label = 'PPT and Irrigation [mm]'
             f3.yaxis.axis_label_text_font_size = figure_ylabel_size
@@ -331,55 +356,40 @@ def main(project_ws, figure_show_flag=False, figure_save_flag=True,
 
     except:
         logging.exception('Unhandled Exception Error\n\n')
-            
-    finally:
-        pass
-        ##raw_input('\nPress ENTER to close')
 
 ################################################################################
 
-def get_project_directory(workspace):
+##def get_directory(workspace, title_str):
+##    """"""
+##    import Tkinter, tkFileDialog
+##    root = Tkinter.Tk()
+##    user_ws = tkFileDialog.askdirectory(
+##        initialdir=workspace, parent=root, title=title_str, mustexist=True)
+##    root.destroy()
+##    return user_ws
+
+def get_path(workspace, title_str, file_types=[('INI files', '.ini')]):
+    """"""
     import Tkinter, tkFileDialog
     root = Tkinter.Tk()
-    user_ws = tkFileDialog.askdirectory(
-        initialdir=workspace, parent=root,
-        title='Select the project directory', mustexist=True)
+    path = tkFileDialog.askopenfilename(
+        initialdir=workspace, parent=root, filetypes=file_types,
+        title=title_str)
     root.destroy()
-    return user_ws
+    return path
 
-def query_yes_no(question, default="yes"):
-    """Ask a yes/no question via raw_input() and return their answer.
-
-    "question" is a string that is presented to the user.
-    "default" is the presumed answer if the user just hits <Enter>.
-        It must be "yes" (the default), "no" or None (meaning
-        an answer is required of the user).
-
-    The "answer" return value is True for "yes" or False for "no".
-
-    From: http://stackoverflow.com/questions/3041986/python-command-line-yes-no-input
-    """
-    valid = {"yes": True, "y": True, "ye": True,
-             "no": False, "n": False}
-    if default is None:
-        prompt = " [y/n]: "
-    elif default == "yes":
-        prompt = " [Y/n]: "
-    elif default == "no":
-        prompt = " [y/N]: "
+def is_valid_file(parser, arg):
+    """"""
+    if not os.path.isfile(arg):
+        parser.error('The file {} does not exist!'.format(arg))
     else:
-        raise ValueError("invalid default answer: '%s'" % default)
-
-    while True:
-        sys.stdout.write(question + prompt)
-        choice = raw_input().lower()
-        if default is not None and choice == '':
-            return valid[default]
-        elif choice in valid:
-            return valid[choice]
-        else:
-            sys.stdout.write("Please respond with 'yes' or 'no' "
-                             "(or 'y' or 'n').\n")
+        return arg
+def is_valid_directory(parser, arg):
+    """"""
+    if not os.path.isdir(arg):
+        parser.error('The directory {} does not exist!'.format(arg))
+    else:
+        return arg
 
 def valid_date(input_date):
     """Check that a date string is ISO format (YYYY-MM-DD)
@@ -411,7 +421,7 @@ def parse_int_set(nputstr=""):
     """
     selection = set()
     invalid = set()
-    # tokens are comma seperated values
+    # tokens are comma separated values
     tokens = [x.strip() for x in nputstr.split(',')]
     for i in tokens:
         try:
@@ -441,9 +451,12 @@ def parse_args():
         description='Plot Crop Daily Timeseries',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '--project', metavar='FOLDER', help='Project Folder')
+        '-i', '--ini', metavar='PATH',
+        type=lambda x: is_valid_file(parser, x), help='Input file')
+    ##parser.add_argument(
+    ##    '--stats', metavar='FOLDER', help='Daily Stats Folder')
     parser.add_argument(
-        '--size', default=(1000, 300), type=int,
+        '--size', default=(1000,200), type=int,
         nargs=2, metavar=('WIDTH','HEIGHT'),
         help='Figure size in pixels')
     parser.add_argument(
@@ -462,16 +475,20 @@ def parse_args():
         '-c', '--crops', default='', type=str, 
         help='Comma separate list or range of crops to compare')
     parser.add_argument(
-        '-o', '--overwrite', default=None, action="store_true", 
+        '--fixed', default=False, action="store_true", 
+        help='Fix figure size to defaults (not responsive)')
+    parser.add_argument(
+        '-o', '--overwrite', default=False, action="store_true", 
         help='Force overwrite of existing files')
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
     args = parser.parse_args()
-
+    args.responsive = not args.fixed
+    
     ## Convert project folder to an absolute path if necessary
-    if args.project and os.path.isdir(os.path.abspath(args.project)):
-        args.project = os.path.abspath(args.project)
+    if args.ini and os.path.isfile(os.path.abspath(args.ini)):
+        args.ini = os.path.abspath(args.ini)
     return args
 
 ################################################################################
@@ -480,26 +497,29 @@ if __name__ == '__main__':
     args = parse_args()
 
     ## Try using the command line argument if it was set
-    if args.project:
-        project_ws = args.project
+    if args.ini:
+        ini_path = args.ini
     ## If script was double clicked, set project folder with GUI
     elif not 'PROMPT' in os.environ:
-        project_ws = get_project_directory(os.getcwd())
-    ## Try using the current working directory
+        ini_path = get_path(os.getcwd(), 'Select the target INI file')
+    ## Try using the current working directory if there is only one INI
     ## Could look for daily_stats folder, run_basin.py, and/or ini file
-    elif (os.path.isdir(os.path.join(os.getcwd(), 'daily_stats')) and
-          os.path.isfile(os.path.join(os.getcwd(), 'run_basin.py'))):
-        project_ws = os.getcwd()
+    elif len([x for x in os.listdir(os.getcwd()) if x.lower().endswith('.ini')]) == 1:
+        ini_path = [
+            os.path.join(os.getcwd(), x) for x in os.listdir(os.getcwd()) 
+            if x.lower().endswith('.ini')][0]
+    ## Eventually list available INI files and prompt the user to select one
+    ## For now though, use the GUI
     else:
-        project_ws = get_project_directory(os.getcwd())
+        ini_path = get_path(os.getcwd(), 'Select the target INI file')
     
     logging.basicConfig(level=args.loglevel, format='%(message)s')
     logging.info('\n{0}'.format('#'*80))
     logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('{0:<20s} {1}'.format('Current Directory:', project_ws))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(project_ws, figure_show_flag=args.show, 
+    main(ini_path, figure_show_flag=args.show, 
          figure_save_flag=args.no_save, figure_size=args.size,
          start_date=args.start, end_date=args.end, crop_str=args.crops,
-         overwrite_flag=args.overwrite)
+         responsive_flag=args.responsive, overwrite_flag=args.overwrite)
