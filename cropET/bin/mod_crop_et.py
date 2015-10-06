@@ -43,7 +43,7 @@ def main(ini_path, log_level=logging.WARNING,
     if mp_procs > 1:
         logging.warning('  Multiprocessing mode, {0} cores'.format(mp_procs))
 
-    ## All data will be handled in this class
+    ## All general data will be handled in this class
     data = crop_et_data.CropETData()
     
     ## Read in the INI file
@@ -60,7 +60,7 @@ def main(ini_path, log_level=logging.WARNING,
     data.set_crop_params()
     data.set_crop_coeffs()
     if data.co2_flag:
-        cell.set_crop_co2(data)
+        data.set_crop_co2()
             
     ## Read in cell properties, crops and cuttings
     ## Could  these be called directly from the CropETData class
@@ -113,11 +113,13 @@ def main(ini_path, log_level=logging.WARNING,
             ## Multiprocessing by crop
             logging.warning('CellID: {}'.format(cell_id))
             cell.initialize_weather(data)
-            crop_cycle.crop_cycle_mp(data, cell, vb_flag, mp_procs)
+            crop_cycle.crop_cycle_mp(data, cell, vb_flag=vb_flag, 
+                                     mp_procs=mp_procs)
         else:
             logging.warning('CellID: {}'.format(cell_id))
             cell.initialize_weather(data)
-            crop_cycle.crop_cycle(data, cell, debug_flag, vb_flag)
+            crop_cycle.crop_cycle(data, cell, debug_flag=debug_flag, 
+                                  vb_flag=vb_flag)
             
     ## Process all cells
     results = []
@@ -152,7 +154,8 @@ def cell_sp(data, cell, vb_flag, mp_procs=1):
         print('CellID: {}'.format(cell.cell_id))
     cell.initialize_weather(data)
     ## Force debug_flag false when multiprocessing
-    crop_cycle.crop_cycle(data, cell, False, vb_flag, mp_procs)
+    crop_cycle.crop_cycle(data, cell, debug_flag=False, vb_flag=vb_flag, 
+                          mp_procs=mp_procs)
     
 def parse_args():  
     parser = argparse.ArgumentParser(

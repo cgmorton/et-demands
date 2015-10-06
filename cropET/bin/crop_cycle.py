@@ -45,25 +45,10 @@ def crop_cycle_mp(data, et_cell, vb_flag=False, mp_procs=1):
     results = []
     if crop_mp_list:
         pool = mp.Pool(mp_procs)
-        results = pool.imap(crop_day_loop_mp, crop_mp_list)
+        results = pool.imap(crop_day_loop_mp, crop_mp_list, 1)
         pool.close()
         pool.join()
         del pool, results
-        
-def crop_day_loop_mp(tup):
-    """Pool multiprocessing friendly crop_day_loop function
-
-    mp.Pool needs all inputs are packed into a single tuple
-    Tuple is unpacked and and single processing version of function is called
-
-    Args:
-        data ():
-        et_cell ():
-        crop ():
-        debug_flag (bool): If True, write debug level comments to debug.txt
-        vb_flag (bool): If True, mimic calculations in VB version of code
-    """
-    return crop_day_loop(*tup)
         
 def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
     """Compute crop ET for all crops
@@ -82,6 +67,21 @@ def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
             continue              
         crop_day_loop(data, et_cell, crop, debug_flag, vb_flag, mp_procs)  
 
+def crop_day_loop_mp(tup):
+    """Pool multiprocessing friendly crop_day_loop function
+
+    mp.Pool needs all inputs are packed into a single tuple
+    Tuple is unpacked and and single processing version of function is called
+
+    Args:
+        data ():
+        et_cell ():
+        crop ():
+        debug_flag (bool): If True, write debug level comments to debug.txt
+        vb_flag (bool): If True, mimic calculations in VB version of code
+    """
+    return crop_day_loop(*tup)
+    
 def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False, mp_procs=1):
     """Compute crop ET for each daily timestep
 
@@ -108,6 +108,10 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False, mp_procs
 
     ## First time through for crop, load basic crop parameters and process climate data
     foo.crop_load(et_cell, crop)
+    
+    ## Get the CO2 correction factors for each crop
+    if data.co2_flag:
+        foo.setup_co2(et_cell, crop)
     
     ## Initialize crop data frame
     foo.setup_dataframe(et_cell)
@@ -163,17 +167,9 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False, mp_procs
         foo_day.t30 = float(et_cell.climate_pd.at[step_dt, 't30'])
         ##foo_day.precip = float(et_cell.climate_pd.at[step_dt, 'precip'])
         
-        ## DEADBEEF - Set the CO2 correction factor for each day
-        ## This should probably be done outside the time step loop
+        ## Get the CO2 correction factor for each day
         if data.co2_flag:
-            if crop.co2_type == 'GRASS':
-                foo_day.co2 = float(et_cell.weather_pd.at[step_dt, 'co2_grass'])
-            elif crop.co2_type == 'TREES':
-                foo_day.co2 = float(et_cell.weather_pd.at[step_dt, 'co2_trees'])
-            elif crop.co2_type == 'C4':
-                foo_day.co2 = float(et_cell.weather_pd.at[step_dt, 'co2_c4'])
-            else:
-                foo_day.co2 = 1.0
+            foo_day.co2 = float(foo.co2.at[step_dt])
                 
         ## Compute crop growing degree days
         compute_crop_gdd.compute_crop_gdd(crop, foo, foo_day, debug_flag)
@@ -215,14 +211,44 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False, mp_procs
                 ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f  NIWR %.6f') %
                 (foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
         
-        ## Write output files
-        if (data.daily_output_flag or data.monthly_output_flag or 
-            data.annual_output_flag or data.gs_output_flag):
-            crop_write_output(data, et_cell, crop, foo)
-        return True
+    ## Write output files
+    if (data.daily_output_flag or data.monthly_output_flag or 
+        data.annual_output_flag or data.gs_output_flag):
+        write_crop_output(data, et_cell, crop, foo)
+    return True
 
-def crop_write_output(data, et_cell, crop, foo):
-    """"""
+def write_crop_output(data, et_cell, crop, foo):
+    """Write ET-Demands output files for each cell/crop
+    
+    Args:
+        data ():
+        et_cell ():
+        crop ():
+        foo ():
+    """
+    year_field = 'Year'
+    month_field = 'Month'
+    day_field = 'Day'
+    doy_field = 'DOY'
+    pmeto_field  = 'PMETo'
+    precip_field = 'PPT'
+    etact_field  = 'ETact'
+    etpot_field  = 'ETpot'
+    etbas_field  = 'ETbas'
+    irrig_field  = 'Irrigation'
+    season_field = 'Season'
+    cutting_field = 'Cutting'
+    runoff_field = 'Runoff'
+    dperc_field = 'DPerc'
+    niwr_field = 'NIWR'
+    kc_field = 'Kc'
+    kcb_field = 'Kcb'
+    gs_start_doy_field = 'Start_DOY'
+    gs_end_doy_field = 'End_DOY'
+    gs_start_date_field = 'Start_Date'
+    gs_end_date_field = 'End_Date'
+    gs_length_field = 'GS_Length'
+    
     ## Merge the crop and weather data frames to form the daily output
     if (data.daily_output_flag or data.monthly_output_flag or 
         data.annual_output_flag or data.gs_output_flag):
@@ -232,78 +258,85 @@ def crop_write_output(data, et_cell, crop, foo):
             left_index=True, right_index=True)
         ## Rename the output columns
         daily_output_pd.index.rename('Date', inplace=True)
-        daily_output_pd['Year'] = daily_output_pd.index.year
+        daily_output_pd[year_field] = daily_output_pd.index.year
         daily_output_pd = daily_output_pd.rename(columns = {
-            'doy':'DOY', 'ppt':'PPT', 'etref':'PMETo',
-            'et_act':'ETact', 'et_pot':'ETpot', 'et_bas':'ETbas',
-            'kc_act':'Kc', 'kc_bas':'Kcb',
-            'niwr':'NIWR', 'irrigation':'Irrigation', 'runoff':'Runoff', 
-            'dperc':'DPerc', 'season':'Season', 'cutting':'Cutting'})
+            'doy':doy_field, 'ppt':precip_field, 'etref':pmeto_field,
+            'et_act':etact_field, 'et_pot':etpot_field, 'et_bas':etbas_field,
+            'kc_act':kc_field, 'kc_bas':kcb_field,
+            'niwr':niwr_field, 'irrigation':irrig_field, 'runoff':runoff_field, 
+            'dperc':dperc_field, 'season':season_field, 'cutting':cutting_field})
             ##'t30':'T30', 
     ## Compute monthly and annual stats before modifying daily format below
     if data.monthly_output_flag:
         monthly_resample_func = {
-            'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
-            'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum, 
-            'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 
-            'Season':np.sum, 'Cutting':np.sum}
+            pmeto_field:np.sum, etact_field:np.sum, etpot_field:np.sum, 
+            etbas_field:np.sum, kc_field:np.mean, kcb_field:np.mean, 
+            niwr_field:np.sum, precip_field:np.sum, irrig_field:np.sum, 
+            runoff_field:np.sum, dperc_field:np.sum, season_field:np.sum, 
+            cutting_field:np.sum}
         monthly_output_pd = daily_output_pd.resample('MS', how=monthly_resample_func)
     if data.annual_output_flag:
         resample_func = {
-            'PMETo':np.sum, 'ETact':np.sum, 'ETpot':np.sum, 'ETbas':np.sum,
-            'Kc':np.mean, 'Kcb':np.mean, 'NIWR':np.sum, 'PPT':np.sum,
-            'Irrigation':np.sum, 'Runoff':np.sum, 'DPerc':np.sum, 
-            'Season':np.sum, 'Cutting':np.sum}
+            pmeto_field:np.sum, etact_field:np.sum, etpot_field:np.sum, 
+            etbas_field:np.sum, kc_field:np.mean, kcb_field:np.mean, 
+            niwr_field:np.sum, precip_field:np.sum, irrig_field:np.sum, 
+            runoff_field:np.sum, dperc_field:np.sum, season_field:np.sum, 
+            cutting_field:np.sum}
         annual_output_pd = daily_output_pd.resample('AS', how=resample_func)
     ## Get growing season start and end DOY for each year
     ## Compute growing season length for each year
     if data.gs_output_flag:
-        gs_output_pd = daily_output_pd.resample('AS', how={'Year':np.mean})
-        gs_output_pd['Start_DOY'] = np.nan
-        gs_output_pd['End_DOY'] = np.nan
-        gs_output_pd['Start_Date'] = None
-        gs_output_pd['End_Date'] = None
-        gs_output_pd['GS_Length'] = np.nan
-        for year_i, (year, group) in enumerate(daily_output_pd.groupby(['Year'])):
+        gs_output_pd = daily_output_pd.resample('AS', how={year_field:np.mean})
+        gs_output_pd[gs_start_doy_field] = np.nan
+        gs_output_pd[gs_end_doy_field] = np.nan
+        gs_output_pd[gs_start_date_field] = None
+        gs_output_pd[gs_end_date_field] = None
+        gs_output_pd[gs_length_field] = np.nan
+        for year_i, (year, group) in enumerate(daily_output_pd.groupby([year_field])):
             ##if year_i == 0:
             ##    logging.debug('  Skipping first year')
             ##    continue
-            if not np.any(group['Season'].values):
+            if not np.any(group[season_field].values):
                 logging.debug('  Skipping, season flag was never set to 1')
                 continue
             else:
-                season_diff = np.diff(group['Season'].values)
+                season_diff = np.diff(group[season_field].values)
                 try:
                     start_i = np.where(season_diff == 1)[0][0] + 1
                     gs_output_pd.set_value(
-                        group.index[0], 'Start_DOY', int(group.ix[start_i, 'DOY']))
+                        group.index[0], gs_start_doy_field, 
+                        int(group.ix[start_i, doy_field]))
                 except:
                     gs_output_pd.set_value(
-                        group.index[0], 'Start_DOY', int(min(group['DOY'].values)))
+                        group.index[0], gs_start_doy_field, 
+                        int(min(group[doy_field].values)))
                 try:
                     end_i = np.where(season_diff == -1)[0][0] + 1
                     gs_output_pd.set_value(
-                        group.index[0], 'End_DOY', int(group.ix[end_i, 'DOY']))
+                        group.index[0], gs_end_doy_field, 
+                        int(group.ix[end_i, doy_field]))
                 except:
                     gs_output_pd.set_value(
-                        group.index[0], 'End_DOY', int(max(group['DOY'].values)))
+                        group.index[0], gs_end_doy_field, 
+                        int(max(group[doy_field].values)))
                 del season_diff
             gs_output_pd.set_value(
-                group.index[0], 'GS_Length', int(sum(group['Season'].values)))
+                group.index[0], gs_length_field, 
+                int(sum(group[season_field].values)))
     
     
     #### Write daily output
     if data.daily_output_flag:
-        daily_output_pd['Year'] = daily_output_pd.index.year
-        daily_output_pd['Month'] = daily_output_pd.index.month
-        daily_output_pd['Day'] = daily_output_pd.index.day
-        daily_output_pd['Year'] = daily_output_pd['Year'].map(lambda x: ' %4d' % x)
-        daily_output_pd['Month'] = daily_output_pd['Month'].map(lambda x: ' %2d' % x)
-        daily_output_pd['Day'] = daily_output_pd['Day'].map(lambda x: ' %2d' % x)
-        daily_output_pd['DOY'] = daily_output_pd['DOY'].map(lambda x: ' %3d' % x)
+        daily_output_pd[year_field] = daily_output_pd.index.year
+        daily_output_pd[month_field] = daily_output_pd.index.month
+        daily_output_pd[day_field] = daily_output_pd.index.day
+        daily_output_pd[year_field] = daily_output_pd[year_field].map(lambda x: ' %4d' % x)
+        daily_output_pd[month_field] = daily_output_pd[month_field].map(lambda x: ' %2d' % x)
+        daily_output_pd[day_field] = daily_output_pd[day_field].map(lambda x: ' %2d' % x)
+        daily_output_pd[doy_field] = daily_output_pd[doy_field].map(lambda x: ' %3d' % x)
         ## This will convert negative "zeros" to positive
-        daily_output_pd['NIWR'] = np.round(daily_output_pd['NIWR'], 6)
-        daily_output_pd['Season'] = daily_output_pd['Season'].map(
+        daily_output_pd[niwr_field] = np.round(daily_output_pd[niwr_field], 6)
+        daily_output_pd[season_field] = daily_output_pd[season_field].map(
             lambda x: ' %1d' % x)
         ##daily_output_pd['Irrigation'] = daily_output_pd['Irrigation'].map(
         ##    lambda x: daily_flt_format % x)
@@ -312,20 +345,21 @@ def crop_write_output(data, et_cell, crop, foo):
                 et_cell.cell_id, int(crop.class_number)))
         ## Set the output column order
         daily_output_columns = [
-            'Year', 'Month', 'Day', 'DOY', 
-            'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-            'PPT', 'Irrigation', 'Runoff', 'DPerc',  'NIWR', 'Season']
+            year_field, month_field, day_field, doy_field, pmeto_field, 
+            etact_field, etpot_field, etbas_field, kc_field, kcb_field, 
+            precip_field, irrig_field, runoff_field, dperc_field,  
+            niwr_field, season_field]
         ## Remove these (instead of appending) to preserve column order
         if not data.kc_flag:
-            daily_output_columns.remove('Kc')
-            daily_output_columns.remove('Kcb')
+            daily_output_columns.remove(kc_field)
+            daily_output_columns.remove(kcb_field)
         if not data.niwr_flag:
-            daily_output_columns.remove('NIWR')
+            daily_output_columns.remove(niwr_field)
         ## Most crops do not have cuttings, so append if needed
         if data.cutting_flag and crop.cutting_crop:
-            daily_output_pd['Cutting'] = daily_output_pd['Cutting'].map(
+            daily_output_pd[cutting_field] = daily_output_pd[cutting_field].map(
                 lambda x: ' %1d' % x)
-            daily_output_columns.append('Cutting')
+            daily_output_columns.append(cutting_field)
         with open(daily_output_path, 'w') as daily_output_f:
             daily_output_f.write(
                 '# {0:2d} - {1}\n'.format(crop.class_number, crop.name))
@@ -336,24 +370,26 @@ def crop_write_output(data, et_cell, crop, foo):
 
     ## Write monthly statistics
     if data.monthly_output_flag:
-        monthly_output_pd['Year'] = monthly_output_pd.index.year
-        monthly_output_pd['Month'] = monthly_output_pd.index.month
-        monthly_output_pd['Year'] = monthly_output_pd['Year'].map(
+        monthly_output_pd[year_field] = monthly_output_pd.index.year
+        monthly_output_pd[month_field] = monthly_output_pd.index.month
+        monthly_output_pd[year_field] = monthly_output_pd[year_field].map(
             lambda x: ' %4d' % x)
-        monthly_output_pd['Month'] = monthly_output_pd['Month'].map(
+        monthly_output_pd[month_field] = monthly_output_pd[month_field].map(
             lambda x: ' %2d' % x)
-        monthly_output_pd['Season'] = monthly_output_pd['Season'].map(
+        monthly_output_pd[season_field] = monthly_output_pd[season_field].map(
             lambda x: ' %2d' % x)
         monthly_output_path = os.path.join(
             data.monthly_output_ws, '{0}_monthly_crop_{1:02d}.csv'.format(
                 et_cell.cell_id, int(crop.class_number)))
         monthly_output_columns = [
-            'Year', 'Month', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-            'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            year_field, month_field, pmeto_field, etact_field, etpot_field, 
+            etbas_field, kc_field, kcb_field, precip_field, irrig_field, 
+            runoff_field, dperc_field, niwr_field, 
+            season_field]
         if data.cutting_flag and crop.cutting_crop:
-            monthly_output_pd['Cutting'] = monthly_output_pd['Cutting'].map(
+            monthly_output_pd[cutting_field] = monthly_output_pd[cutting_field].map(
                 lambda x: ' %1d' % x)
-            monthly_output_columns.append('Cutting')
+            monthly_output_columns.append(cutting_field)
         with open(monthly_output_path, 'w') as monthly_output_f:
             monthly_output_f.write(
                 '# {0:2d} - {1}\n'.format(crop.class_number, crop.name))
@@ -364,19 +400,20 @@ def crop_write_output(data, et_cell, crop, foo):
 
     ## Write annual statistics
     if data.annual_output_flag:
-        annual_output_pd['Year'] = annual_output_pd.index.year
-        annual_output_pd['Season'] = annual_output_pd['Season'].map(
+        annual_output_pd[year_field] = annual_output_pd.index.year
+        annual_output_pd[season_field] = annual_output_pd[season_field].map(
             lambda x: ' %3d' % x)
         annual_output_path = os.path.join(
             data.annual_output_ws, '{0}_annual_crop_{1:02d}.csv'.format(
                 et_cell.cell_id, int(crop.class_number)))
         annual_output_columns = [
-            'Year', 'PMETo', 'ETact', 'ETpot', 'ETbas', 'Kc', 'Kcb', 
-            'PPT', 'Irrigation', 'Runoff', 'DPerc', 'NIWR', 'Season']
+            year_field, pmeto_field, etact_field, etpot_field, etbas_field, 
+            kc_field, kcb_field, precip_field, irrig_field, runoff_field, 
+            dperc_field, niwr_field, season_field]
         if data.cutting_flag and crop.cutting_crop:
-            annual_output_pd['Cutting'] = annual_output_pd['Cutting'].map(
+            annual_output_pd[cutting_field] = annual_output_pd[cutting_field].map(
                 lambda x: ' %2d' % x)
-            annual_output_columns.append('Cutting')
+            annual_output_columns.append(cutting_field)
         with open(annual_output_path, 'w') as annual_output_f:
             annual_output_f.write(
                 '# {0:2d} - {1}\n'.format(crop.class_number, crop.name))
@@ -384,7 +421,7 @@ def crop_write_output(data, et_cell, crop, foo):
                 annual_output_f, sep=',', columns=annual_output_columns, 
                 float_format=' %9.4f', date_format='%Y', index = False)
         del annual_output_pd, annual_output_path, annual_output_columns
-      
+    
     ## Write growing season statistics
     if data.gs_output_flag:
         def doy_2_date(test_year, test_doy):
@@ -394,18 +431,19 @@ def crop_write_output(data, et_cell, crop, foo):
                     int(test_doy)), '%Y_%j').date().isoformat()
             except:
                 return 'None'
-        gs_output_pd['Start_Date'] = gs_output_pd[['Year', 'Start_DOY']].apply(
+        gs_output_pd[gs_start_date_field] = gs_output_pd[[year_field, gs_start_doy_field]].apply(
             lambda s:doy_2_date(*s), axis = 1)
-        gs_output_pd['End_Date'] = gs_output_pd[['Year', 'End_DOY']].apply(
+        gs_output_pd[gs_end_date_field] = gs_output_pd[[year_field, gs_end_doy_field]].apply(
             lambda s:doy_2_date(*s), axis = 1)
-        ##gs_output_pd['Start_DOY'] = gs_output_pd['Start_DOY'].map(lambda x: ' %3d' % x)
-        ##gs_output_pd['End_DOY'] = gs_output_pd['End_DOY'].map(lambda x: ' %3d' % x)
-        ##gs_output_pd['GS_Length'] = gs_output_pd['GS_Length'].map(lambda x: ' %3d' % x)
+        ##gs_output_pd[gs_start_doy_field] = gs_output_pd[gs_start_doy_field].map(lambda x: ' %3d' % x)
+        ##gs_output_pd[gs_end_doy_field] = gs_output_pd[gs_end_doy_field].map(lambda x: ' %3d' % x)
+        ##gs_output_pd[gs_length_field] = gs_output_pd[gs_length_field].map(lambda x: ' %3d' % x)
         gs_output_path = os.path.join(
             data.gs_output_ws, '{0}_gs_crop_{1:02d}.csv'.format(
                 et_cell.cell_id, int(crop.class_number)))
         gs_output_columns = [
-            'Year', 'Start_DOY', 'End_DOY', 'Start_Date', 'End_Date', 'GS_Length']
+            year_field, gs_start_doy_field, gs_end_doy_field, 
+            gs_start_date_field, gs_end_date_field, gs_length_field]
         with open(gs_output_path, 'w') as gs_output_f:
             gs_output_f.write(
                 '# {0:2d} - {1}\n'.format(crop.class_number, crop.name))

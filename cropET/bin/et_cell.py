@@ -10,9 +10,10 @@ import re
 import sys
 import time
 
-from dbfread import DBF
+##from dbfread import DBF
 import numpy as np
 import pandas as pd
+import shapefile
 
 import crop_et_data
 import util
@@ -220,12 +221,21 @@ class ETCellData():
         ## Process each crop parameter shapefile
         for crop_num, crop_dbf in sorted(crop_dbf_dict.items()):
             logging.debug('    {0:2d} {1}'.format(crop_num, crop_dbf))
-            crop_f = DBF(crop_dbf)
-            for record in crop_f:
-                cell_id = record[cell_id_field]
-                for field_name, row_value in dict(record).items():
-                    ## DEADBEEF - I really want to skip non-crop param fields
-                    ##   but also tell the user if a crop param field is missing
+            
+            ## Process using dbfread
+            ##crop_f = DBF(crop_dbf)
+            ##for record in crop_f:
+            ##    cell_id = record[cell_id_field]
+            ##    for field_name, row_value in dict(record).items():
+
+            ## Process using shapefile/pyshp
+            crop_f = shapefile.Reader(crop_dbf)
+            crop_fields = [f[0] for f in crop_f.fields if f[0] != 'DeletionFlag']
+            for record in crop_f.iterRecords():
+                cell_id = record[crop_fields.index(cell_id_field)]
+                for field_name, row_value in zip(crop_fields, record):
+                    ## DEADBEEF - I really want to skip non-crop parameter fields
+                    ##   but also tell the user if a crop parameter field is missing
                     try: param_name = param_field_dict[field_name]
                     except: param_name = None
                     try: cutting_name = cutting_field_dict[field_name]
@@ -234,24 +244,25 @@ class ETCellData():
                         try:
                             setattr(
                                 self.et_cells_dict[cell_id].crop_params[crop_num], 
-                                param_name, row_value)
+                                param_name, float(row_value))
                         except:
                             logging.warning(
                                 ('  The spatial crop parameter was not updated\n'+
                                  '    cell_id:    {0}\n    crop_num:   {1}\n'+
                                  '    field_name: {2}\n    parameter:  {3}').format(
                                  cell_id, crop_num, field_name, param_name))
-                            raw_input('ENTER')
                     elif cutting_name is not None:
                         try:
-                            setattr(self.et_cells_dict[cell_id], cutting_name, row_value)
+                            setattr(
+                                self.et_cells_dict[cell_id], 
+                                cutting_name, float(row_value))
                         except:
                             logging.warning(
                                 ('  The spatial cutting parameter was not updated\n'+
                                  '    cell_id:    {0}\n    crop_num:   {1}\n'+
                                  '    field_name: {2}\n    parameter:  {3}').format(
                                  cell_id, crop_num, field_name, cutting_name))
-                            raw_input('ENTER')
+        return True
                             
 class ETCell():
     def __init__(self):
@@ -354,9 +365,20 @@ class ETCell():
         ## Ignore header but assume header was set as a 1's based index
         skiprows = [i for i in range(refet['header_lines'])
                     if i+1 <> refet['names_line']]
-        self.refet_pd = pd.read_table(
-            refet_path, engine='python', header=refet['names_line']-1,
-            skiprows=skiprows, delimiter=refet['delimiter'])
+        try:
+            self.refet_pd = pd.read_table(
+                refet_path, engine='python', header=refet['names_line']-1,
+                skiprows=skiprows, delimiter=refet['delimiter'])
+        except IOError:
+            logging.error(('  IOError: RefET data file could not be read '+
+                           'and may not exist\n  {}').format(refet_path))
+            return False
+            ##sys.exit()
+        except:
+            logging.error(('  Unknown error reading RefET data '+
+                           'file\n {}').format(refet_path))
+            return False
+            ##sys.exit()
         logging.debug('  Columns: {}'.format(
             ', '.join(list(self.refet_pd.columns.values))))
 
@@ -389,9 +411,7 @@ class ETCell():
         ##self.refet_pd['date'] = pd.to_datetime(self.refet_pd['date'])
         self.refet_pd.set_index('date', inplace=True)
         self.refet_pd['doy'] = [int(ts.strftime('%j')) for ts in self.refet_pd.index]
-        
         return True
-        ## return refet_pd
 
     def set_weather_data(self, weather):
         """Read the meteorological/climate data file for a single station using Pandas
@@ -400,7 +420,7 @@ class ETCell():
             met_params (dict): Weater parameters from the INI file
 
         Returns:
-            Dictionary of the RefET data, keys are the columns,
+            Dictionary of the weather data, keys are the columns,
                 and values are numpy arrays of the data
         """
         logging.debug('Read meteorological/climate data')
@@ -411,12 +431,22 @@ class ETCell():
 
         ## Get list of 0 based line numbers to skip
         ## Ignore header but assume header was set as a 1's based index
-        data_skip = [i for i in range(weather['header_lines'])
-                     if i+1 <> weather['names_line']]
-        self.weather_pd = pd.read_table(
-            weather_path, engine='python',
-            header=weather['names_line']-1,
-            skiprows=data_skip, sep=weather['delimiter'])
+        skiprows = [i for i in range(weather['header_lines'])
+                    if i+1 <> weather['names_line']]
+        try:
+            self.weather_pd = pd.read_table(
+                weather_path, engine='python', header=weather['names_line']-1,
+                skiprows=skiprows, delimiter=weather['delimiter'])
+        except IOError:
+            logging.error(('  IOError: Weather data file could not be read '+
+                           'and may not exist\n  {}').format(weather_path))
+            return False
+            ##sys.exit()
+        except:
+            logging.error(('  Unknown error reading Weather data '+
+                           'file\n {}').format(weather_path))
+            return False
+            ##sys.exit()
         logging.debug('  Columns: {0}'.format(
             ', '.join(list(self.weather_pd.columns.values))))
 
@@ -492,15 +522,16 @@ class ETCell():
                 util.es_from_t(self.weather_pd['tmax'].values), 0, 1)
         
         ## Set CO2 correction values to 1 if they are not in the data
-        ##if 'co2_grass' not in self.weather_pd.columns:
-        ##    self.weather_pd['co2_grass'] = 1
-        ##if 'co2_trees' not in self.weather_pd.columns:
-        ##    self.weather_pd['co2_trees'] = 1
-        ##if 'co2_c4' not in self.weather_pd.columns:
-        ##    self.weather_pd['co2_c4'] = 1
-        
+        if 'co2_grass' not in self.weather_pd.columns:
+            logging.info('  Grass CO2 factor not in weather data, setting co2_grass = 1')
+            self.weather_pd['co2_grass'] = 1
+        if 'co2_trees' not in self.weather_pd.columns:
+            logging.info('  Tree CO2 factor not in weather data, setting co2_trees = 1')
+            self.weather_pd['co2_trees'] = 1
+        if 'co2_c4' not in self.weather_pd.columns:
+            logging.info('  C4 CO2 factor not in weather data, setting co2_c4 = 1')
+            self.weather_pd['co2_c4'] = 1
         return True
-        ## return weather_pd
 
     def process_climate(self):
         """ 
@@ -594,7 +625,7 @@ class ETCell():
                 self.weather_pd['snow_depth'][i] = snow_depth
         return True
         ## return climate_pd
-
+        
     def subset_weather_data(self, start_dt=None, end_dt=None): 
         """Subset the dataframes based on the start and end date"""
         if start_dt is not None:
