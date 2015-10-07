@@ -28,7 +28,7 @@ def calculate_height(crop, foo, debug_flag=False):
     
     if debug_flag:
         logging.debug(
-            ('calculate_height(): unadj_height %.6f  Kc_bas %.6f  Kc_min %.6f  Kc_bas_mid %.6f') %
+            ('calculate_height(): unadj_height %.6f  kc_bas %.6f  kc_min %.6f  kc_bas_mid %.6f') %
             (foo.height, foo.kc_bas, foo.kc_min, foo.kc_bas_mid))
         logging.debug(
             ('calculate_height(): height_min %.6f  height_max %.6f  height %.6f') %

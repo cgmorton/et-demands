@@ -75,15 +75,16 @@ class InitializeCropCycle:
         self.zr_max = 0.
         self.z = 0.
         
-        ##
+        ## CGM - I don't remember why these are grouped separately
+        ## Maybe because they are "flags"
         self.doy_start_cycle = 0
+        self.cutting = 0
         self.cycle = 1
         self.real_start = False
         self.irr_flag = False
         self.in_season = False             #' false if outside season, true if inside
         self.dormant_setup_flag = False
         self.crop_setup_flag = True        #' flag to setup crop parameter information
-        self.cutting = False
         
         ## TP - Looks like its value comes from compute_crop_et(),
         ## but needed for setup_dormant() below...
@@ -449,6 +450,9 @@ class InitializeCropCycle:
         self.irr_auto = 0
         self.irr_sim = 0
         self.dormant_setup_flag = False
+        
+        ## Clear cutting flag (just in case)
+        self.cutting = 0
         
     def setup_dataframe(self, et_cell):
         """Initialize output dataframe"""
