@@ -2,7 +2,7 @@
 # Name:         build_spatial_crop_params_arcpy.py
 # Purpose:      Build spatial parameter files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2015-09-30
+# Created       2015-10-06
 # Python:       2.7
 #--------------------------------
 
@@ -371,8 +371,8 @@ def arg_parse():
         choices=('huc8', 'huc10', 'county'), 
         help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county'])))
     parser.add_argument(
-        '--acres', default=10, type=float, 
-        help='Crop area threshold')
+        '--area', default=10, type=float, 
+        help='Crop area threshold [acres]')
     parser.add_argument(
         '--dairy', default=5, type=int, 
         help='Number of dairy hay cuttings')
@@ -404,7 +404,7 @@ if __name__ == '__main__':
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(ini_path=args.ini, zone_type=args.zone, area_threshold=args.acres, 
+    main(ini_path=args.ini, zone_type=args.zone, area_threshold=args.area, 
          dairy_cuttings=args.dairy, beef_cuttings=args.beef, 
          remove_empty_flag=args.empty,
          overwrite_flag=args.overwrite, clean_flag=args.clean)
