@@ -2,7 +2,7 @@
 # Name:         plot_crop_summary_maps.py
 # Purpose:      Plot crop summary maps
 # Author:       Charles Morton
-# Created       2015-10-05
+# Created       2015-10-06
 # Python:       2.7
 #--------------------------------
 
@@ -49,7 +49,7 @@ matplotlib.rc('font', family='sans-serif')
 
 def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
          figure_size=(12,12), figure_dpi=150, start_date=None, end_date=None,
-         crop_str='', simplify_tol=None, overwrite_flag=False):
+         crop_str='', simplify_tol=None, area_threshold=0):
     """Plot full daily data by crop
 
     Args:
@@ -57,15 +57,12 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         show_flag (bool): if True, show maps
         save_flag (bool): if True, save maps to disk
         label_flag (bool): if True, label maps with cell values
-        figure_size (tuple): width, height of figure in pixels
+        figure_size (tuple): width, height tuple [inches]
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
         crop_str (str): comma separate list or range of crops to compare
-        simplify_tol (float): simplify tolerance (in the units of ET Cells?)
-        overwrite_flag (bool): If True, overwrite existing files
-
-    Returns:
-        None
+        simplify_tol (float): simplify tolerance [in the units of ET Cells]
+        area_threshold (float): CDL area threshold [acres]
     """
 
     ## Input/output names
@@ -95,6 +92,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
     ##etbas_field  = 'ETbas'
     ##irrig_field  = 'Irrigation'
     season_field = 'Season'
+    cutting_field = 'Cutting'
     ##runoff_field = 'Runoff'
     ##dperc_field = 'DPerc'
     ##niwr_field = 'NIWR'
@@ -210,6 +208,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
 
+        
     ## Build list of all daily ET files
     daily_path_dict = defaultdict(dict)
     for f_name in os.listdir(daily_stats_ws):
@@ -255,9 +254,11 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
             if item_geom.is_empty:
                 continue
             elif item_geom.geom_type == 'MultiPolygon':
-                for item_poly in item_geom:
-                    if item_poly.is_empty:
-                        continue
+                ## Order the geometries from largest to smallest area
+                item_geom_list = sorted(
+                    [[g.area, g] for g in item_geom if not g.is_empty], 
+                    reverse=True)
+                for item_area, item_poly in item_geom_list:
                     cell_geom_dict[cell_id].append(item_poly)
             elif item_geom.geom_type == 'Polygon':
                 cell_geom_dict[cell_id].append(item_geom)
@@ -268,181 +269,308 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         logging.error('ET Cell shapefile not read in')
         sys.exit()
 
-    
+    ## Plot keyword arguments
+    plot_kwargs = {
+        'extent'     : cell_extent,
+        'fig_size'   : figure_size, 
+        'fig_dpi'    : figure_dpi,
+        'save_flag'  : save_flag, 
+        'show_flag'  : show_flag, 
+        'label_flag' : label_flag,
+        }
+
+    ## Plot CELL_ID
+    logging.info('\nPlotting total crop acreage')
+    cell_id_dict = {k:k.replace(' ', '\n') for k in cell_data_dict.iterkeys()}
+    ##cell_id_dict = {k:k for k in cell_data_dict.iterkeys()}
+    cell_plot_func(
+        os.path.join(output_ws, 'cell_id.png'), 
+        cell_geom_dict, cell_id_dict, cmap=None, 
+        title_str='CELL_ID', clabel_str='', 
+        label_size=6, **plot_kwargs)
+        
     ## Plot total CDL crop acreages
     logging.info('\nPlotting total crop acreage')
     crop_area_dict = {k:v[crop_area_field] for k,v in cell_data_dict.iteritems()}
+    ##crop_area_dict = {
+    ##    k:v[crop_area_field] for k,v in cell_data_dict.iteritems()
+    ##    if v[crop_area_field] > area_threshold}
     cell_plot_func(
         os.path.join(output_ws, 'total_crop_acreage.png'),
-        cell_geom_dict, crop_area_dict, extent=cell_extent,
-        cmap=cm.YlGn, title_str='Total CDL Crop Area', clabel_str='acres',
-        fig_size=figure_size, fig_dpi=figure_dpi,
-        save_flag=save_flag, show_flag=show_flag, label_flag=False)
+        cell_geom_dict, crop_area_dict, cmap=cm.YlGn, 
+        title_str='Total CDL Crop Area', clabel_str='acres', 
+        label_size=6, **plot_kwargs)
 
+    ## Plot PMETo
+    ##pmeto_dict = {
+    ##    k:v[crop_area_field] 
+    ##    for k,v in cell_data_dict.iteritems()}
+    ##cell_plot_func(
+    ##    os.path.join(output_ws, 'eto.png'),
+    ##    cell_geom_dict, pmeto_dict, cmap=cm.YlGn, 
+    ##    title_str='Reference ET', clabel_str='mm', 
+    ##    label_size=8, **plot_kwargs)
         
+    ## Build an empty dataframe to write the total area weighted ET
+    ##columns_dict = {cell_id_field:sorted(cell_data_dict.keys())}
+    columns_dict = {'CROP_{0:02d}'.format(k):None for k in daily_path_dict.keys()}
+    columns_dict[cell_id_field] = sorted(cell_data_dict.keys())
+    crop_area_df = pd.DataFrame(columns_dict).set_index(cell_id_field)
+    annual_et_df = pd.DataFrame(columns_dict).set_index(cell_id_field)
+    seasonal_et_df = pd.DataFrame(columns_dict).set_index(cell_id_field)
+       
     ## First process by crop
-    logging.debug('')
+    logging.info('')
     for crop_num in sorted(daily_path_dict.keys()):
+        crop_column = 'CROP_{0:02d}'.format(crop_num)
         logging.info('Crop Num: {0:2d}'.format(crop_num))
                 
+        ## First threshold CDL crop areas
+        ## Check all cell_id's against crop_area_dict keys
+        crop_area_dict = {k:v[crop_column] for k,v in cell_data_dict.iteritems()
+                          if (k in daily_path_dict[crop_num].keys() and 
+                              v[crop_column] > area_threshold)}
+        ##crop_area_dict = {k:v[crop_column] for k,v in cell_data_dict.iteritems()
+        ##                  if k in daily_path_dict[crop_num].keys()}
+
         ## Build an empty dataframe to write to
-        output_df = pd.DataFrame({
-            cell_id_field:sorted(daily_path_dict[crop_num].keys()), 
+        crop_output_df = pd.DataFrame({
+            cell_id_field:sorted(list(
+                set(daily_path_dict[crop_num].keys()) & 
+                set(crop_area_dict.keys()))), 
             annual_et_field:None, 
             seasonal_et_field:None, 
             gs_start_doy_field:None, 
             gs_end_doy_field:None, 
-            gs_length_field:None})
-        output_df.set_index(cell_id_field, inplace=True)
-        
-        test_clock = clock()
+            gs_length_field:None,
+            cutting_field:None})
+        crop_output_df.set_index(cell_id_field, inplace=True)      
+
+        ## Process each cell
         for cell_id, input_path in sorted(daily_path_dict[crop_num].items()):
             logging.debug('  Cell ID:   {0}'.format(cell_id))
+            
+            ## Skip if crop area is below threshold
+            if cell_id not in crop_area_dict.keys():
+                logging.debug('    Area below threshold, skipping')
+                continue
  
-            ## Get crop name
+            ## Get crop name from the first line of the output file
+            ## DEADBEEF - This may not exist in the output file...
             with open(input_path, 'r') as file_f:
                 crop_name = file_f.readline().split('-',1)[1].strip()
+                crop_name = crop_name.replace('--', ' - ')
                 logging.debug('  Crop:      {0}'.format(crop_name))
-            logging.debug('  {0}'.format(os.path.basename(input_path)))
+            logging.debug('    {0}'.format(os.path.basename(input_path)))
             
             ## Read data from file into record array (structured array)
             daily_df = pd.read_table(input_path, header=0, comment='#', sep=sep)  
-            logging.debug('\nFields: \n{0}'.format(daily_df.columns.values))
+            logging.debug('    Fields: {0}'.format(', '.join(daily_df.columns.values)))
             daily_df[date_field] = pd.to_datetime(daily_df[date_field])
             daily_df.set_index('Date', inplace=True)
             
             ## Build list of unique years
             year_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
-            logging.debug('\nAll Years: \n{0}'.format(year_array.tolist()))
+            logging.debug('    All Years: {0}'.format(
+                ','.join(map(str, year_array.tolist()))))
             
+            ## Don't include the first year in the stats
+            crop_year_start = min(daily_df[year_field])
+            logging.debug('    Skipping {}, first year'.format(crop_year_start))
+            daily_df = daily_df[daily_df[year_field] > crop_year_start]
+            
+            ## Check if start and end years have >= 365 days
+            crop_year_start = min(daily_df[year_field])
+            crop_year_end = max(daily_df[year_field])
+            if sum(daily_df[year_field] == crop_year_start) < 365:
+                logging.debug('    Skipping {}, missing days'.format(crop_year_start))
+                daily_df = daily_df[daily_df[year_field] > crop_year_start]
+            if sum(daily_df[year_field] == crop_year_end) < 365:
+                logging.debug('    Skipping {}, missing days'.format(crop_year_end))
+                daily_df = daily_df[daily_df[year_field] < crop_year_end]
+            del crop_year_start, crop_year_end             
+                    
             ## Only keep years between year_start and year_end
             if year_start:
-                crop_year_start = year_start
                 daily_df = daily_df[daily_df[year_field] >= year_start]
-                crop_year_start = max(year_end, year_array[0])
-            else:
-                crop_year_start = year_array[0]
             if year_end:
                 daily_df = daily_df[daily_df[year_field] <= year_end]
-                crop_year_end = min(year_end, year_array[-1])
-            else:
-                crop_year_end = year_array[-1]
+                
             year_sub_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
-            logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
+            logging.debug('    Plot Years: {0}'.format(
+                ','.join(map(str, year_sub_array.tolist()))))
             
             ## Seasonal/Annual ET
-            seasonal_df = daily_df[daily_df[season_field] > 0].resample(
+            crop_seasonal_et_df = daily_df[daily_df[season_field] > 0].resample(
                 'AS', how={etact_field:np.sum})
-            annual_df = daily_df.resample('AS', how={etact_field:np.sum})     
+            crop_annual_et_df = daily_df.resample('AS', how={etact_field:np.sum})     
+            crop_output_df.set_value(
+                cell_id, seasonal_et_field, float(crop_seasonal_et_df.mean()))
+            crop_output_df.set_value(
+                cell_id, annual_et_field, float(crop_annual_et_df.mean()))
+            del crop_seasonal_et_df, crop_annual_et_df
             
-            ## Compute growing season start/end from dailies
-            ## gs_path_dict is None:
-            gs_df = daily_df.resample('AS', how={year_field:np.mean})
-            gs_df[gs_start_doy_field] = None
-            gs_df[gs_end_doy_field] = None
-            gs_df[gs_length_field] = None
-            for year_i, (year, group) in enumerate(daily_df.groupby([year_field])):
-                ##if year_i == 0:
-                ##    logging.debug('  Skipping first year')
-                ##    continue
+            ## Compute growing season start and end DOY from dailies
+            crop_gs_df = daily_df[[year_field, season_field]].resample(
+                'AS', how={year_field:np.mean})
+            crop_gs_df[gs_start_doy_field] = None
+            crop_gs_df[gs_end_doy_field] = None
+
+            crop_gs_fields = [year_field, doy_field, season_field]
+            crop_gs_groupby = daily_df[crop_gs_fields].groupby([year_field])
+            for year, group in crop_gs_groupby:
                 if not np.any(group[season_field].values):
                     logging.debug('  Skipping, season flag was never set to 1')
                     continue
-                else:
-                    season_diff = np.diff(group[season_field].values)
-                    try:
-                        start_i = np.where(season_diff == 1)[0][0] + 1
-                        gs_df.set_value(
-                            group.index[0], gs_start_doy_field, int(group.ix[start_i, doy_field]))
-                    except:
-                        gs_df.set_value(
-                            group.index[0], gs_start_doy_field, int(min(group[doy_field].values)))
-                    try:
-                        end_i = np.where(season_diff == -1)[0][0] + 1
-                        gs_df.set_value(
-                            group.index[0], gs_end_doy_field, int(group.ix[end_i, doy_field]))
-                    except:
-                        gs_df.set_value(
-                            group.index[0], gs_end_doy_field, int(max(group[doy_field].values)))
-                    del season_diff
-                gs_df.set_value(
-                    group.index[0], gs_length_field, int(sum(group[season_field].values)))
-
-            output_df.set_value(cell_id, seasonal_et_field, float(seasonal_df.mean()))
-            output_df.set_value(cell_id, annual_et_field, float(annual_df.mean()))
-            output_df.set_value(cell_id, gs_start_doy_field, float(gs_df[gs_start_doy_field].mean()))
-            output_df.set_value(cell_id, gs_end_doy_field, float(gs_df[gs_end_doy_field].mean()))
-            output_df.set_value(cell_id, gs_length_field, float(gs_df[gs_length_field].mean()))
+                    
+                ## Identify "changes" in season flag
+                season_diff = np.diff(group[season_field].values)
+                
+                ## Growing season start
+                try:
+                    start_i = np.where(season_diff == 1)[0][0] + 1
+                    gs_start_doy = float(group.ix[start_i, doy_field])
+                except:
+                    gs_start_doy = float(min(group[doy_field].values))
+                crop_gs_df.set_value(
+                    group.index[0], gs_start_doy_field, gs_start_doy)
+                        
+                ## Growing season end
+                try:
+                    end_i = np.where(season_diff == -1)[0][0] + 1
+                    gs_end_doy = float(group.ix[end_i, doy_field])
+                except:
+                    gs_end_doy = float(max(group[doy_field].values))
+                crop_gs_df.set_value(
+                    group.index[0], gs_end_doy_field, gs_end_doy)
+                del season_diff
+                
+            ## Write mean growing season start and end DOY
+            crop_output_df.set_value(
+                cell_id, gs_start_doy_field, 
+                int(round(crop_gs_df[gs_start_doy_field].mean(), 0)))
+            crop_output_df.set_value(
+                cell_id, gs_end_doy_field, 
+                int(round(crop_gs_df[gs_end_doy_field].mean(), 0)))
+                
+            ## Growing season length
+            crop_output_df.set_value(
+                cell_id, gs_length_field, 
+                int(round(crop_gs_groupby[season_field].sum().mean(), 0)))
+                
+            ## Crop cuttings
+            ## Maybe only sum cuttings that are in season
+            if (cutting_field in list(daily_df.columns.values) and 
+                np.any(daily_df[cutting_field].values)):
+                gs_input_fields = [year_field, cutting_field]
+                crop_gs_groupby = daily_df[gs_input_fields].groupby([year_field])
+                crop_output_df.set_value(
+                    cell_id, cutting_field, 
+                    int(round(crop_gs_groupby[cutting_field].sum().mean(), 0)))
             
             ## Cleanup
-            del daily_df, seasonal_df, annual_df
-
+            del crop_gs_groupby, crop_gs_df, crop_gs_fields
             
         ## Make the maps
         logging.debug('')
-        title_base = 'Crop {0:02d} - {1} - '.format(crop_num, crop_name)
+        title_fmt = 'Crop {0:02d} - {1} - {2}'.format(crop_num, crop_name, '{}')
 
         ## Crop acreages
-        crop_area_dict = {k:v['CROP_{0:02d}'.format(crop_num)] 
-                          for k,v in cell_data_dict.iteritems()
-                          if k in daily_path_dict[crop_num].keys()}
         cell_plot_func(
-            os.path.join(output_ws, 'crop_{0:02d}_acreage.png'.format(crop_num)),
-            cell_geom_dict, crop_area_dict, extent=cell_extent,
-            cmap=cm.YlGn, title_str=title_base + 'CDL Area', 
-            clabel_str='acres', fig_size=figure_size, fig_dpi=figure_dpi,
-            save_flag=save_flag, show_flag=show_flag, label_flag=label_flag)
-
+            os.path.join(output_ws, 'crop_{0:02d}_cdl_acreage.png'.format(crop_num)),
+            cell_geom_dict, crop_area_dict, cmap=cm.YlGn, clabel_str='acres', 
+            title_str=title_fmt.format('CDL Area'), **plot_kwargs)
+        
         ## Annual/Seasonal ET
         cell_plot_func(
             os.path.join(output_ws, 'crop_{0:02d}_et_actual.png'.format(crop_num)), 
-            cell_geom_dict, output_df[annual_et_field].to_dict(), 
-            extent=cell_extent, cmap=cm.YlGn, clabel_str='mm', 
-            title_str=title_base + 'Annual Evapotranspiration'.format(crop_num, crop_name), 
-            fig_size=figure_size, fig_dpi=figure_dpi, 
-            save_flag=save_flag, show_flag=show_flag, label_flag=label_flag)
+            cell_geom_dict, crop_output_df[annual_et_field].to_dict(), 
+            cmap=cm.YlGn, clabel_str='mm', 
+            title_str=title_fmt.format('Annual Evapotranspiration'), **plot_kwargs)
         cell_plot_func(
             os.path.join(output_ws, 'crop_{0:02d}_et_seasonal.png'.format(crop_num)), 
-            cell_geom_dict, output_df[seasonal_et_field].to_dict(), 
-            extent=cell_extent, cmap=cm.YlGn, clabel_str='mm', 
-            title_str=title_base + 'Seasonal Evapotranspiration'.format(crop_num, crop_name), 
-            fig_size=figure_size, fig_dpi=figure_dpi, 
-            save_flag=save_flag, show_flag=show_flag, label_flag=label_flag)
-            
+            cell_geom_dict, crop_output_df[seasonal_et_field].to_dict(), 
+            cmap=cm.YlGn, clabel_str='mm', 
+            title_str=title_fmt.format('Seasonal Evapotranspiration'), **plot_kwargs)
+        
         ## Growing Season Start/End/Length
         cell_plot_func(
             os.path.join(output_ws, 'crop_{0:02d}_gs_start_doy.png'.format(crop_num)), 
-            cell_geom_dict, output_df[gs_start_doy_field].to_dict(), 
-            extent=cell_extent, cmap=cm.RdYlBu, clabel_str='Day of Year', 
-            title_str=title_base + 'Growing Season Start'.format(crop_num, crop_name), 
-            fig_size=figure_size, fig_dpi=figure_dpi, 
-            save_flag=save_flag, show_flag=show_flag, label_flag=label_flag)
+            cell_geom_dict, crop_output_df[gs_start_doy_field].to_dict(), 
+            cmap=cm.RdYlBu, clabel_str='Day of Year', 
+            title_str=title_fmt.format('Growing Season Start'), **plot_kwargs)
         cell_plot_func(
             os.path.join(output_ws, 'crop_{0:02d}_gs_end_doy.png'.format(crop_num)), 
-            cell_geom_dict, output_df[gs_end_doy_field].to_dict(), 
-            extent=cell_extent, cmap=cm.RdYlBu_r, clabel_str='Day of Year', 
-            title_str=title_base + 'Growing Season End'.format(crop_num, crop_name), 
-            fig_size=figure_size, fig_dpi=figure_dpi, 
-            save_flag=save_flag, show_flag=show_flag, label_flag=label_flag)
+            cell_geom_dict, crop_output_df[gs_end_doy_field].to_dict(), 
+            cmap=cm.RdYlBu_r, clabel_str='Day of Year', 
+            title_str=title_fmt.format('Growing Season End'), **plot_kwargs)
         cell_plot_func(
             os.path.join(output_ws, 'crop_{0:02d}_gs_length.png'.format(crop_num)), 
-            cell_geom_dict, output_df[gs_length_field].to_dict(), 
-            extent=cell_extent, cmap=cm.RdYlBu_r, clabel_str='Days', 
-            title_str=title_base + 'Growing Season Length'.format(crop_num, crop_name), 
-            fig_size=figure_size, fig_dpi=figure_dpi, 
-            save_flag=save_flag, show_flag=show_flag, label_flag=label_flag)
+            cell_geom_dict, crop_output_df[gs_length_field].to_dict(), 
+            cmap=cm.RdYlBu_r, clabel_str='Days', 
+            title_str=title_fmt.format('Growing Season Length'), **plot_kwargs)
         
+        ## Crop cuttings
+        if np.any(crop_output_df[cutting_field].values):
+            cell_plot_func(
+                os.path.join(output_ws, 'crop_{0:02d}_cuttings.png'.format(crop_num)), 
+                cell_geom_dict, crop_output_df[cutting_field].to_dict(), 
+                cmap=cm.RdYlBu_r, clabel_str='Cuttings', 
+                title_str=title_fmt.format('Crop Cuttings'), **plot_kwargs)
+      
+        ## Crop area weighted ET
+        crop_area_df[crop_column] = pd.Series(crop_area_dict)
+        annual_et_df[crop_column] = crop_output_df[annual_et_field]
+        seasonal_et_df[crop_column] = crop_output_df[seasonal_et_field]
+                
+        ## Compute and plot crop weighted average ET
+        annual_et = (annual_et_df * crop_area_df).sum(axis=1) / crop_area_df.sum(axis=1)
+        seasonal_et = (seasonal_et_df * crop_area_df).sum(axis=1) / crop_area_df.sum(axis=1)
+        cell_plot_func(
+            os.path.join(output_ws, 'et_actual.png'), 
+            cell_geom_dict, annual_et[annual_et.notnull()].to_dict(), 
+            cmap=cm.YlGn, clabel_str='mm', 
+            title_str='Crop Area Weighted Annual Evapotranspiration', 
+            **plot_kwargs)
+        cell_plot_func(
+            os.path.join(output_ws, 'et_seasonal.png'), 
+            cell_geom_dict, seasonal_et[seasonal_et.notnull()].to_dict(), 
+            cmap=cm.YlGn, clabel_str='mm', 
+            title_str='Crop Area Weighted Seasonal Evapotranspiration', 
+            **plot_kwargs)
+        del annual_et, seasonal_et
+                
         ## Cleanup
-        del output_df
+        del crop_output_df
         gc.collect()
         
-
+    ## Compute and plot crop weighted average ET
+    annual_et_df *= crop_area_df
+    seasonal_et_df *= crop_area_df
+    annual_et_df = annual_et_df.sum(axis=1) / crop_area_df.sum(axis=1)
+    seasonal_et_df = seasonal_et_df.sum(axis=1) / crop_area_df.sum(axis=1)
+    annual_et_df = annual_et_df[annual_et_df.notnull()]
+    seasonal_et_df = seasonal_et_df[seasonal_et_df.notnull()]
+    cell_plot_func(
+        os.path.join(output_ws, 'et_actual.png'), 
+        cell_geom_dict, annual_et_df.to_dict(), cmap=cm.YlGn, clabel_str='mm', 
+        title_str='Crop Area Weighted Annual Evapotranspiration', 
+        **plot_kwargs)
+    cell_plot_func(
+        os.path.join(output_ws, 'et_seasonal.png'), 
+        cell_geom_dict, seasonal_et_df.to_dict(), cmap=cm.YlGn, clabel_str='mm', 
+        title_str='Crop Area Weighted Seasonal Evapotranspiration', 
+        **plot_kwargs)
+        
+    ## Cleanup
+    del crop_area_df, annual_et_df, seasonal_et_df
+     
 ################################################################################
 
 def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str, 
-                   extent=None, cmap=cm.jet, v_min=None, v_max=None,
+                   extent=None, cmap=None, v_min=None, v_max=None,
                    fig_size=(12,12), fig_dpi=150, label_flag=False,
-                   save_flag=True, show_flag=False):
+                   save_flag=True, show_flag=False, label_size=8):
     """Plot a cell values for a single field with descartes and matplotlib
     
     Args:
@@ -457,12 +585,13 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
         fig_dpi (int): Figure dots per square inch
         save_flag (bool): If True, save the figure
         show_flag (bool): If True, show the figure
+        label_size (int): Label text font size
     """
     logging.info('  {}'.format(output_path))
     ##font = matplotlib.font_manager.FontProperties(
     ##    family='Comic Sans MS', weight='semibold', size=8)
     font = matplotlib.font_manager.FontProperties(
-        family='Tahoma', weight='semibold', size=8)
+        family='Tahoma', weight='semibold', size=label_size)
     ##font = matplotlib.font_manager.FontProperties(
     ##    family='Consolas', weight='semibold', size=7)
 
@@ -484,31 +613,55 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
         return False
     
     ## Build colormap
-    if v_min is None:
-        v_min = min(data_dict.values())
-        logging.debug('    v_min={}'.format(v_min))
-    if v_max is None:
-        v_max = max(data_dict.values())
-        logging.debug('    v_min={}'.format(v_max))
-    norm = colors.Normalize(vmin=v_min, vmax=v_max)
-    m = cm.ScalarMappable(norm=norm, cmap=cmap)
+    if cmap:
+        if v_min is None:
+            v_min = min(data_dict.values())
+            logging.debug('    v_min={}'.format(v_min))
+        if v_max is None:
+            v_max = max(data_dict.values())
+            logging.debug('    v_max={}'.format(v_max))
+        norm = colors.Normalize(vmin=v_min, vmax=v_max)
+        m = cm.ScalarMappable(norm=norm, cmap=cmap)
+        
+        ## If all values are the same
+        ##   don't color the patches or draw a colorbar
+        ## DEADBEEF - If the colorbar values were normalized for all crops
+        ##   this wouldn't be applicable
+        if abs(v_max - v_min) <= 1.:
+            cmap, m = None, None
     
     ## Draw patches
     for id, geom_list in geom_dict.items():
+        value_str = ''
+        hatch = ''
+        color = '#EFEFEF'
         try: 
             value_str = '{}'.format(int(round(data_dict[id],0)))
             color = m.to_rgba(data_dict[id])
-            hatch = ''
-        except: 
-            value_str = ''
-            color = '#EFEFEF'
-            hatch = ''
+        except KeyError: 
+            ## Key (CELL_ID) is not in data dictionary
+            pass
             ##hatch = '/'
+        ##except ValueError: 
+        ##    ## Value is NaN
+        ##    pass
+        except TypeError:
+            ## Value is a string (not a float/int)
+            value_str = data_dict[id]
+        except AttributeError:
+            ## Min and max values are identical
+            value_str = '{}'.format(int(round(data_dict[id],0)))
+            color = '#CCCCCC'
+        except:
+            print 'Unknown error'
+            print id, data_dict[id], '{}'.format(int(round(data_dict[id],0)))
+            print m.to_rgba(data_dict[id])
+            continue
 
         ## Write the geometry to the map/figure
         for geom_i, geom in enumerate(geom_list):
             p = ax.add_patch(PolygonPatch(
-                geom, fc=color, ec='#808080', lw=0.8, hatch=hatch))
+                geom, fc=color, ec='#808080', lw=0.7, hatch=hatch))
                 
             ## Label the patch with the value
             if geom_i == 0 and label_flag and value_str:
@@ -520,16 +673,24 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     ax.set_yticks([])
 
     ## Colorbar
-    plt.imshow(np.array([[v_min, v_max]]), cmap=cmap)
-    cbax = plt.axes([0.085, 0.09, 0.03, 0.30])
-    cbar = plt.colorbar(cax=cbax, orientation='vertical')
-    cbar.ax.tick_params(labelsize=10)
-    cbar.set_label(clabel_str)
+    if cmap:
+        plt.imshow(np.array([[v_min, v_max]]), cmap=cmap)
+        cbax = plt.axes([0.085, 0.09, 0.03, 0.30])
+        cbar = plt.colorbar(cax=cbax, orientation='vertical')
+        cbar.ax.tick_params(labelsize=10)
+        cbar.locator = matplotlib.ticker.MaxNLocator(integer=True)
+        cbar.update_ticks()
+        ##cbar.ax.set_major_locator(MaxNLocator(integer=True))
+        cbar.set_label(clabel_str)
     
     if save_flag:
         plt.savefig(output_path, dpi=fig_dpi)
     if show_flag:
         plt.show()
+        
+    fig.clf()
+    plt.close()
+    gc.collect()
 
         
     ## Plot with shapely/fiona/matplotlib
@@ -658,7 +819,6 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     ##        break
     ##plt.show()
 
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Plot Crop Summary Maps',
@@ -692,11 +852,11 @@ def parse_args():
         '-c', '--crops', default='', type=str, 
         help='Comma separate list or range of crops to compare')
     parser.add_argument(
-        '-simp', '--simplify', default=None, type=float, 
+        '--simp', default=None, type=float, 
         help='Shapely simplify tolerance (units same as ET Cell)')
     parser.add_argument(
-        '-o', '--overwrite', default=None, action="store_true", 
-        help='Force overwrite of existing files')
+        '--area', default=None, type=float, 
+        help='Crop area threshold [acres]')
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
@@ -739,4 +899,4 @@ if __name__ == '__main__':
     main(ini_path, show_flag=args.show, save_flag=args.no_save, 
          figure_size=args.size, figure_dpi=args.dpi, label_flag=args.label,
          start_date=args.start, end_date=args.end, crop_str=args.crops,
-         simplify_tol=args.simplify, overwrite_flag=args.overwrite)
+         simplify_tol=args.simp, area_threshold=args.area)
