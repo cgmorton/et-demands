@@ -93,17 +93,35 @@ class CropETData():
 
         ## For testing, allow the user to process a subset of the crops
         try: 
-            self.crop_skip_list = config.get(crop_et_sec, 'crop_skip_list').split(',')
-            self.crop_skip_list = [int(c.strip()) for c in self.crop_skip_list]
+            self.crop_skip_list = list(util.parse_int_set(
+                config.get(crop_et_sec, 'crop_skip_list')))
         except: 
             logging.debug('    crop_skip_list = []')
             self.crop_skip_list = []
         try: 
-            self.crop_test_list = config.get(crop_et_sec, 'crop_test_list').split(',')
-            self.crop_test_list = [int(c.strip()) for c in self.crop_test_list]
+            self.crop_test_list = list(util.parse_int_set(
+                config.get(crop_et_sec, 'crop_test_list')))
         except: 
             logging.debug('    crop_test_list = False')
             self.crop_test_list = []
+        ## Bare soils must be in crop list for computing winter cover
+        if self.crop_test_list:
+            self.crop_test_list = sorted(list(set(self.crop_test_list + [44,45,46])))
+
+        ## For testing, allow the user to process a subset of the cells
+        try: 
+            self.cell_skip_list = config.get(crop_et_sec, 'cell_skip_list').split(',')
+            self.cell_skip_list = [c.strip() for c in self.cell_skip_list]
+        except: 
+            logging.debug('    cell_skip_list = []')
+            self.cell_skip_list = []
+        try: 
+            self.cell_test_list = config.get(crop_et_sec, 'cell_test_list').split(',')
+            self.cell_test_list = [c.strip() for c in self.cell_test_list]
+        except: 
+            logging.debug('    cell_test_list = False')
+            self.cell_test_list = []
+            
             
         ## Input/output folders
         static_ws = os.path.join(

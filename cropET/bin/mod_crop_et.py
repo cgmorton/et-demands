@@ -72,7 +72,8 @@ def main(ini_path, log_level=logging.WARNING,
     ## Filter cells if all crops are "off"
     ## This could also be done in set_cell_crops() (when they are read in)
     if data.crop_skip_list or data.crop_test_list:
-        cells.filter_cell_crops(data.crop_skip_list, data.crop_test_list)
+        cells.filter_cell_crops(data.crop_skip_list, data.crop_test_list, 
+                                data.cell_skip_list, data.cell_test_list)
     
     ## First apply the static crop parameters to all cells
     ## Could the "cell" just inherit the "data" values instead

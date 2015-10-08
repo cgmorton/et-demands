@@ -113,33 +113,53 @@ class ETCellData():
             cell = self.et_cells_dict[cell_id]
             cell.init_cuttings_from_row(row)
    
-    def filter_cell_crops(self, skip_list=[], test_list=[]):
+    def filter_cell_crops(self, crop_skip_list=[], crop_test_list=[], 
+                          cell_skip_list=[], cell_test_list=[]):
         """Remove ET cells without active crops
     
         Args:
             fn (str): file path  of the ET cell crops text file
-            skip_list (list): crop numbers to skip
-            test_list (list): crop numbers to test
+            crop_skip_list (list): crop numbers to skip
+            crop_test_list (list): crop numbers to test
+            cell_skip_list (list): cell IDs to skip
+            cell_test_list (list): cell IDs to test
         """
-        if skip_list or test_list:
-            logging.info('Filtering ET Cell list based on crop lists')
-            logging.info('  Crop skip list: {}'.format(','.join(map(str, skip_list))))
-            logging.info('  Crop test list: {}'.format(','.join(map(str, test_list))))
+        if crop_skip_list or crop_test_list:
+            logging.info('\nFiltering ET Cell list based on crop lists')
+            logging.info('  Crop skip list: {}'.format(','.join(map(str, crop_skip_list))))
+            logging.info('  Crop test list: {}'.format(','.join(map(str, crop_test_list))))
             
             ## Filter main crop number list based on skip and test lists
             self.crop_num_list = [
                 crop_num for crop_num in self.crop_num_list
-                if ((skip_list and crop_num not in skip_list) or 
-                    (test_list and crop_num in test_list))]
+                if ((crop_skip_list and crop_num not in crop_skip_list) or 
+                    (crop_test_list and crop_num in crop_test_list))]
             
             ## Get max length of CELL_ID for formatting of log string
             cell_id_len = max([len(cell_id) for cell_id in self.et_cells_dict.keys()])
 
-            ## Remove cells without any active crops
             for cell_id, cell in sorted(self.et_cells_dict.items()):
+                ## Remove cells without any active crops
                 if not set(self.crop_num_list) & set(cell.crop_num_list):
                 ##if not any(c in self.crop_num_list for c in cell.crop_num_list):
-                    logging.debug('  CellID: {1:{0}s} skipping'.format(cell_id_len, cell_id))
+                    logging.info('  CellID: {1:{0}s} skipping'.format(cell_id_len, cell_id))
+                    del self.et_cells_dict[cell_id]
+                else:
+                    logging.debug(('  CellID: {}').format(cell_id))
+        if cell_skip_list or cell_test_list:
+            logging.info('\nFiltering ET Cell list based on cell lists')
+            logging.info('  Cell skip list: {}'.format(','.join(map(str, cell_skip_list))))
+            logging.info('  Cell test list: {}'.format(','.join(map(str, cell_test_list))))
+            
+            ## Get max length of CELL_ID for formatting of log string
+            cell_id_len = max([len(cell_id) for cell_id in self.et_cells_dict.keys()])
+
+            for cell_id, cell in sorted(self.et_cells_dict.items()):
+                if cell_skip_list and cell_id in cell_skip_list:
+                    logging.info('  CellID: {1:{0}s} skipping'.format(cell_id_len, cell_id))
+                    del self.et_cells_dict[cell_id]
+                elif cell_test_list and cell_id not in cell_test_list:
+                    logging.info('  CellID: {1:{0}s} skipping'.format(cell_id_len, cell_id))
                     del self.et_cells_dict[cell_id]
                 else:
                     logging.debug(('  CellID: {}').format(cell_id))
@@ -233,6 +253,9 @@ class ETCellData():
             crop_fields = [f[0] for f in crop_f.fields if f[0] != 'DeletionFlag']
             for record in crop_f.iterRecords():
                 cell_id = record[crop_fields.index(cell_id_field)]
+                ## Skip cells
+                if cell_id not in self.et_cells_dict.keys():
+                    continue
                 for field_name, row_value in zip(crop_fields, record):
                     ## DEADBEEF - I really want to skip non-crop parameter fields
                     ##   but also tell the user if a crop parameter field is missing
