@@ -22,8 +22,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
         None
     """
     # Following two variables are used in one equation each but are never assigned a value - dlk - ?
-    bcuttings = 0
-    dcuttings = 0
+    ##bcuttings = 0
+    ##dcuttings = 0
 
     # Determine if inside or outside growing period
     # Procedure for deciding start and return false of season.
@@ -275,8 +275,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                         ## Dairy hay.  Determine which of three kcb curves to use
                         ## This could be - 2 if at least one, and sometimes two final cycles are desired
                         ## DEADBEEF - dcuttings is set to 0 at top of script instead of using et_cell.dairy_cuttings
-                        #if foo.cycle < et_cell.dairy_cuttings + 0.01 - 1:     
-                        if foo.cycle < dcuttings + 0.01 - 1:
+                        if foo.cycle < et_cell.dairy_cuttings + 0.01 - 1:     
+                        #if foo.cycle < dcuttings + 0.01 - 1:
                             ## Increment alfalfa curve to intermediate cycle
                             curve_number = crop.curve_number + 1 
                         else: #' R.Allen 4/1/08
@@ -291,8 +291,8 @@ def kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag=False, vb_flag=False
                         ## Typical and beef hay.  Determine which of three kcb curves to use
                         ## This could be - 2 if at least one, and sometimes two final cycles are desired
                         ## DEADBEEF - bcuttings is set to 0 at top of script instead of using et_cell.beef_cuttings
-                        #if foo.cycle < et_cell.beef_cuttings + 0.01 - 1:     
-                        if foo.cycle < bcuttings + 0.01 - 1:
+                        if foo.cycle < et_cell.beef_cuttings + 0.01 - 1:     
+                        #if foo.cycle < bcuttings + 0.01 - 1:
                             curve_number = crop.curve_number + 1 #' increment alfalfa curve to intermediate cycle
                         else:
                             curve_number = crop.curve_number + 2 #' increment alfalfa curve to fall/winter cycle
