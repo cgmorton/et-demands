@@ -1,6 +1,7 @@
 import argparse
 import ConfigParser
 import datetime
+from itertools import groupby
 import logging
 import os
 import Tkinter, tkFileDialog
@@ -106,3 +107,16 @@ def read_ini(ini_path, section='CROP_ET'):
                        'a section: [{}]\n').format(section))
         sys.exit()
     return config
+    
+def ranges(i):
+    for a, b in groupby(enumerate(i), lambda (x, y): y - x):
+        b = list(b)
+        if b[0][1] == b[-1][1]:
+            yield str(b[0][1])
+        else:
+            yield '{0}-{1}'.format(b[0][1], b[-1][1])
+        ##yield b[0][1], b[-1][1]
+        
+def doy_2_date(test_year, test_doy):
+    return datetime.datetime.strptime('{0:04d}_{1:03d}'.format(
+        int(test_year), int(test_doy)), '%Y_%j').strftime('%Y-%m-%d')

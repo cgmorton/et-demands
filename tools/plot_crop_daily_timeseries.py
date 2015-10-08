@@ -2,7 +2,7 @@
 # Name:         plot_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-10-05
+# Created       2015-10-07
 # Python:       2.7
 #--------------------------------
 
@@ -205,29 +205,47 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             logging.debug('    Crop:            {0}'.format(crop_name))
         
         ## Read data from file into record array (structured array)
-        data_df = pd.read_table(file_path, header=0, comment='#', sep=sep)
-        logging.debug('\nFields: \n{0}'.format(data_df.columns.values))
-        data_df[date_field] = pd.to_datetime(data_df[date_field])
-        data_df[year_field] = data_df[date_field].map(lambda x: x.year)
+        daily_df = pd.read_table(file_path, header=0, comment='#', sep=sep)
+        logging.debug('    Fields: {0}'.format(', '.join(daily_df.columns.values)))
+        daily_df[date_field] = pd.to_datetime(daily_df[date_field])
+        daily_df.set_index(date_field, inplace=True)
+        daily_df[year_field] = daily_df.index.year
+        ##daily_df[year_field] = daily_df[date_field].map(lambda x: x.year)
+        print daily_df
 
         ## Build list of unique years
-        year_array = np.sort(np.unique(np.array(data_df[year_field]).astype(np.int)))
-        logging.debug('\nAll Years: \n{0}'.format(year_array.tolist()))
+        year_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
+        logging.debug('    All Years: {0}'.format(
+            ', '.join(list(util.ranges(year_array.tolist())))))
+        ##logging.debug('    All Years: {0}'.format(
+        ##    ','.join(map(str, year_array.tolist()))))
         
+        ## Don't include the first year in the stats
+        crop_year_start = min(daily_df[year_field])
+        logging.debug('    Skipping {}, first year'.format(crop_year_start))
+        daily_df = daily_df[daily_df[year_field] > crop_year_start]
+        
+        ## Check if start and end years have >= 365 days
+        crop_year_start = min(daily_df[year_field])
+        crop_year_end = max(daily_df[year_field])
+        if sum(daily_df[year_field] == crop_year_start) < 365:
+            logging.debug('    Skipping {}, missing days'.format(crop_year_start))
+            daily_df = daily_df[daily_df[year_field] > crop_year_start]
+        if sum(daily_df[year_field] == crop_year_end) < 365:
+            logging.debug('    Skipping {}, missing days'.format(crop_year_end))
+            daily_df = daily_df[daily_df[year_field] < crop_year_end]
+                
         ## Only keep years between year_start and year_end
         if year_start:
-            crop_year_start = year_start
-            data_df = data_df.ix[year_field >= year_start]
-            crop_year_start = max(year_end, year_array[0])
-        else:
-            crop_year_start = year_array[0]
+            daily_df = daily_df[daily_df[year_field] >= year_start]
         if year_end:
-            data_df = data_df.ix[year_field <= year_end]
-            crop_year_end = min(year_end, year_array[-1])
-        else:
-            crop_year_end = year_array[-1]
-        year_sub_array = np.sort(np.unique(np.array(data_df[year_field]).astype(np.int)))
-        logging.debug('\nPlot Years: \n{0}'.format(year_sub_array.tolist()))
+            daily_df = daily_df[daily_df[year_field] <= year_end]
+            
+        year_sub_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
+        logging.debug('    Plot Years: {0}'.format(
+            ', '.join(list(util.ranges(year_sub_array.tolist())))))
+        ##logging.debug('    Plot Years: {0}'.format(
+        ##    ','.join(map(str, year_sub_array.tolist()))))
 
         ## Initial range of timeseries to show
         ## For now default to last ~8 year
@@ -235,26 +253,26 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             x_range = (
                 np.datetime64(dt.datetime(
                     max(crop_year_end-9, crop_year_start),1,1), 's'),
-                np.datetime64(dt.datetime(crop_year_end+1,1,1), 's'))
+                np.datetime64(dt.datetime(crop_year_end+1,1,1), 's'))           
 
         ## Build separate arrays for each field of non-crop specific data
-        dt_array = np.array(data_df[date_field])
-        doy_array = np.array(data_df[doy_field]).astype(np.int)
-        pmeto_array = np.array(data_df[pmeto_field])
-        precip_array = np.array(data_df[precip_field])
+        dt_array = daily_df.index.date
+        doy_array = daily_df[doy_field].values.astype(np.int)
+        pmeto_array = daily_df[pmeto_field].values
+        precip_array = daily_df[precip_field].values
 
         ## Remove leap days
         leap_array = (doy_array == 366)
         doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
 
         ## Build separate arrays for each set of crop specific fields
-        etact_array = np.array(data_df[etact_field])
-        etpot_array = np.array(data_df[etpot_field])
-        etbas_array = np.array(data_df[etbas_field])
-        irrig_array = np.array(data_df[irrig_field])
-        season_array = np.array(data_df[season_field])
-        runoff_array = np.array(data_df[runoff_field])
-        dperc_array = np.array(data_df[dperc_field])
+        etact_array = daily_df[etact_field].values
+        etpot_array = daily_df[etpot_field].values
+        etbas_array = daily_df[etbas_field].values
+        irrig_array = daily_df[irrig_field].values
+        season_array = daily_df[season_field].values
+        runoff_array = daily_df[runoff_field].values
+        dperc_array = daily_df[dperc_field].values
         kc_array = etact_array / pmeto_array
         kcb_array = etbas_array / pmeto_array
 
@@ -336,7 +354,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         ##del etact_sub_array, niwr_sub_array
 
         ## Cleanup
-        del file_path, data_df
+        del file_path, daily_df
         del dt_array, year_array, year_sub_array, doy_array
         del pmeto_array
         del precip_array

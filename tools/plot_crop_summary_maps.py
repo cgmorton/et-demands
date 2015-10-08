@@ -1,8 +1,8 @@
 #--------------------------------
 # Name:         plot_crop_summary_maps.py
-# Purpose:      Plot crop summary maps
+# Purpose:      Plot crop summary maps from daily data
 # Author:       Charles Morton
-# Created       2015-10-06
+# Created       2015-10-07
 # Python:       2.7
 #--------------------------------
 
@@ -11,6 +11,7 @@ import calendar
 from collections import defaultdict
 import datetime as dt
 import gc
+from itertools import groupby
 import logging
 import math
 import os
@@ -50,7 +51,7 @@ matplotlib.rc('font', family='sans-serif')
 def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
          figure_size=(12,12), figure_dpi=150, start_date=None, end_date=None,
          crop_str='', simplify_tol=None, area_threshold=0):
-    """Plot full daily data by crop
+    """Plot crop summary maps using daily output files
 
     Args:
         ini_path (str): file path of the project INI file
@@ -64,15 +65,6 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         simplify_tol (float): simplify tolerance [in the units of ET Cells]
         area_threshold (float): CDL area threshold [acres]
     """
-
-    ## Input/output names
-    ##input_folder = 'daily_stats'
-    ##output_folder = 'daily_plots'
-
-    ## Only process a subset of the crops
-    crop_keep_list = list(util.parse_int_set(crop_str))
-    ## These crops will not be processed (if set)
-    crop_skip_list = [44, 45, 46]
 
     ## ET Cells field names
     cell_id_field = 'CELL_ID'
@@ -124,7 +116,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
 
     ########################################################################
 
-    logging.info('\nPlot mean daily data by crop')        
+    logging.info('\nGenerate crop summary maps from daily data')        
     logging.info('  INI: {}'.format(ini_path))
 
     ## Check that the INI file can be read
@@ -132,46 +124,25 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
     config = util.read_ini(ini_path, crop_et_sec)
     
     ## Get the project workspace and daily ET folder from the INI file
-    try:
-        et_cells_path = config.get(crop_et_sec, 'et_cells_path')
-    except:
-        logging.error(
-            'ERROR: The et_cells_path '+
-            'parameter is not set in the INI file')
-        sys.exit()
-        
-    try:
-        project_ws = config.get(crop_et_sec, 'project_folder')
-    except:
-        logging.error(
-            'ERROR: The project_folder '+
-            'parameter is not set in the INI file')
-        sys.exit()
-        
-    try:
-        daily_stats_ws = os.path.join(
-            project_ws, config.get(crop_et_sec, 'daily_output_folder'))
-    except:
-        logging.error(
-            'ERROR: The daily_output_folder '+
-            'parameter is not set in the INI file')
-        sys.exit()
-        
-    ##try:
-    ##    gs_stats_ws = os.path.join(
-    ##        project_ws, config.get(crop_et_sec, 'gs_output_folder'))
-    ##except:
-    ##    logging.info(
-    ##        '  The gs_output_folder parameter is not set in the INI file\n'+
-    ##        '  Growing season stats will be computed from the dailies\n')
-    ##    gs_stats_ws = None
+    def get_config_param(config, param_name, section):
+        try:
+            param_value = config.get(section, param_name)
+        except:
+            logging.error(('ERROR: The {} parameter is not set'+
+                           ' in the INI file').format(param))
+            sys.exit()
+        return param_value
+    cells_path = get_config_param(config, 'cells_path', crop_et_sec)
+    project_ws = get_config_param(config, 'project_folder', crop_et_sec)
+    daily_stats_ws = os.path.join(
+        project_ws, get_config_param(config, 'daily_output_folder', crop_et_sec))
         
     try:
         output_ws = os.path.join(
             project_ws, config.get(crop_et_sec, 'summary_maps_folder'))
     except:
-        if 'stats' in input_ws:
-            output_ws = input_ws.replace('stats', 'maps')
+        if 'stats' in daily_stats_ws:
+            output_ws = daily_stats_ws.replace('stats', 'maps')
         else:
             output_ws = os.path.join(project_ws, 'summary_maps_folder')
 
@@ -180,16 +151,10 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         logging.error(('\nERROR: The daily ET stats folder {0} '+
                        'could be found\n').format(daily_stats_ws))
         sys.exit()
-    if not os.path.isfile(et_cells_path):
-        logging.error(('\nERROR: The et_cells shapefile {0} '+
-                       'could be found\n').format(et_cells_path))
+    if not os.path.isfile(cells_path):
+        logging.error(('\nERROR: The cells shapefile {0} '+
+                       'could be found\n').format(cells_path))
         sys.exit()
-    ##if gs_stats_ws and not os.path.isdir(gs_stats_ws):
-    ##    logging.info(
-    ##        ('  The growing seasons stats folder {0} could be found\n'+
-    ##         '  Growing season stats will be computed '+
-    ##         'from the dailies\n').format(gs_stats_ws))
-    ##    gs_stats_ws = None
     if not os.path.isdir(output_ws):
         os.mkdir(output_ws)
 
@@ -208,7 +173,45 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
 
+    ## Allow user to subset crops from INI
+    try: 
+        crop_skip_list = sorted(list(util.parse_int_set(
+            config.get(crop_et_sec, 'crop_skip_list'))))
+    except: 
+        crop_skip_list = []
+        ##crop_skip_list = [44, 45, 46]
+    try: 
+        crop_test_list = sorted(list(util.parse_int_set(
+            config.get(crop_et_sec, 'crop_test_list'))))
+    except: 
+        crop_test_list = []
+
+    ## Allow user to subset cells from INI
+    try: 
+        cell_skip_list = config.get(crop_et_sec, 'cell_skip_list').split(',')
+        cell_skip_list = sorted([c.strip() for c in cell_skip_list])
+    except: 
+        cell_skip_list = []
+    try: 
+        cell_test_list = config.get(crop_et_sec, 'cell_test_list').split(',')
+        cell_test_list = sorted([c.strip() for c in cell_test_list])
+    except: 
+        cell_test_list = []
         
+    ## Overwrite INI crop list with user defined values
+    ## Could also append to the INI crop list
+    if crop_str:
+        try: crop_test_list = list(util.parse_int_set(crop_str))
+        ##try: crop_test_list = sorted(list(set(
+        ##    crop_test_list + list(util.parse_int_set(crop_str)))
+        except: pass
+    logging.debug('\n  crop_test_list = {0}'.format(crop_test_list))
+    logging.debug('  crop_skip_list = {0}'.format(crop_skip_list))
+    logging.debug('  cell_test_list = {0}'.format(cell_test_list))
+    logging.debug('  cell_test_list = {0}'.format(cell_test_list))
+
+    
+    
     ## Build list of all daily ET files
     daily_path_dict = defaultdict(dict)
     for f_name in os.listdir(daily_stats_ws):
@@ -221,7 +224,11 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
             continue
         elif crop_skip_list and crop_num in crop_skip_list:
             continue
-        elif crop_keep_list and crop_num not in crop_keep_list:
+        elif crop_test_list and crop_num not in crop_test_list:
+            continue
+        elif cell_skip_list and cell_id in cell_skip_list:
+            continue
+        elif cell_test_list and cell_id not in cell_test_list:
             continue
         else:
             daily_path_dict[crop_num][cell_id] = os.path.join(daily_stats_ws, f_name)   
@@ -237,8 +244,9 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
     cell_geom_dict = defaultdict(list)
     cell_data_dict = dict()
     cell_extent = []
-    with fiona.open(et_cells_path, "r") as cell_f:
+    with fiona.open(cells_path, "r") as cell_f:
         cell_extent = cell_f.bounds[:]
+        ## Fiona is printing a debug statement here "Index: N"
         for item in cell_f:
             cell_id = item['properties'][cell_id_field]
             cell_data_dict[cell_id] = item['properties']
@@ -360,6 +368,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
             with open(input_path, 'r') as file_f:
                 crop_name = file_f.readline().split('-',1)[1].strip()
                 crop_name = crop_name.replace('--', ' - ')
+                crop_name = crop_name.replace(' (', ' - ').replace(')', '')
                 logging.debug('  Crop:      {0}'.format(crop_name))
             logging.debug('    {0}'.format(os.path.basename(input_path)))
             
@@ -367,12 +376,14 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
             daily_df = pd.read_table(input_path, header=0, comment='#', sep=sep)  
             logging.debug('    Fields: {0}'.format(', '.join(daily_df.columns.values)))
             daily_df[date_field] = pd.to_datetime(daily_df[date_field])
-            daily_df.set_index('Date', inplace=True)
+            daily_df.set_index(date_field, inplace=True)
             
             ## Build list of unique years
             year_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
             logging.debug('    All Years: {0}'.format(
-                ','.join(map(str, year_array.tolist()))))
+                ', '.join(list(util.ranges(year_array.tolist())))))
+            ##logging.debug('    All Years: {0}'.format(
+            ##    ','.join(map(str, year_array.tolist()))))
             
             ## Don't include the first year in the stats
             crop_year_start = min(daily_df[year_field])
@@ -398,7 +409,9 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
                 
             year_sub_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
             logging.debug('    Plot Years: {0}'.format(
-                ','.join(map(str, year_sub_array.tolist()))))
+                ', '.join(list(util.ranges(year_sub_array.tolist())))))
+            ##logging.debug('    Plot Years: {0}'.format(
+            ##    ','.join(map(str, year_sub_array.tolist()))))
             
             ## Seasonal/Annual ET
             crop_seasonal_et_df = daily_df[daily_df[season_field] > 0].resample(
@@ -651,7 +664,10 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
         except AttributeError:
             ## Min and max values are identical
             value_str = '{}'.format(int(round(data_dict[id],0)))
-            color = '#CCCCCC'
+            color = (1.0, 1.0, 0.745, 1.0)
+            ##color = '#CCCCCC'
+            ## Display "yellow" color at middle of RdYlBu_r
+            ##print cm.ScalarMappable(norm=colors.Normalize(vmin=-1, vmax=1), cmap=cm.RdYlBu_r).to_rgba(0)
         except:
             print 'Unknown error'
             print id, data_dict[id], '{}'.format(int(round(data_dict[id],0)))
@@ -695,21 +711,21 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
         
     ## Plot with shapely/fiona/matplotlib
     ## https://gist.github.com/urschrei/6442846
-    ##et_cells_mp = MultiPolygon(
-    ##    [shape(pol['geometry']) for pol in fiona.open(et_cells_path)])
+    ##cells_mp = MultiPolygon(
+    ##    [shape(pol['geometry']) for pol in fiona.open(cells_path)])
     ##    ##if pol['properties']['AREA_CODE'] == 'LBO'])
     ##fig = plt.figure(1, figsize=(10, 10))
     ##ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
     ####ax = fig.add_subplot(111)
-    ##minx, miny, maxx, maxy = et_cells_mp.bounds
+    ##minx, miny, maxx, maxy = cells_mp.bounds
     ##w, h = maxx - minx, maxy - miny
     ##ax.set_xlim(minx - 0.05 * w, maxx + 0.05 * w)
     ##ax.set_ylim(miny - 0.05 * h, maxy + 0.05 * h)
     ##ax.set_aspect(1)
     ##patches = []
     ##cm = plt.get_cmap('RdBu')
-    ##num_colours = len(et_cells_mp)
-    ##for idx, p in enumerate(et_cells_mp):
+    ##num_colours = len(cells_mp)
+    ##for idx, p in enumerate(cells_mp):
     ##    colour = cm(1. * idx / num_colours)
     ##    patches.append(PolygonPatch(p, fc='#6699cc', ec='#555555', alpha=1., zorder=1))
     ####    patches.append(PolygonPatch(p, fc=colour, ec='#555555', alpha=1., zorder=1))
@@ -722,8 +738,8 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
         
     #### CartoPy
     ####http://scitools.org.uk/cartopy/docs/latest/matplotlib/intro.html
-    ##print(et_cells_path)
-    ####et_cells_shp = shpreader.Reader(et_cells_path)
+    ##print(cells_path)
+    ####cells_shp = shpreader.Reader(cells_path)
     ##fig = plt.figure(figsize=(10,10))
     ##ax = fig.add_axes([0.05, 0.05, 0.9, 0.9], projection=ccrs.LambertConformal())
     ####ax = plt.axes([0, 0, 1, 1],
@@ -731,7 +747,7 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     ####ax.set_extent([-125, -66.5, 20, 50], ccrs.Geodetic())
     ####ax.background_patch.set_visible(False)
     ####ax.outline_patch.set_visible(False)
-    ##for cell_geom in shpreader.Reader(et_cells_path).geometries():
+    ##for cell_geom in shpreader.Reader(cells_path).geometries():
     ##    facecolor = [0.9375, 0.9375, 0.859375]
     ##    edgecolor = 'black'
     ##    ax.add_geometries([cell_geom], ccrs.PlateCarree(),
@@ -742,7 +758,7 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     
     #### Using pyshp to convert the shapefile to geojson
     ####http://geospatialpython.com/2013/07/shapefile-to-geojson.html
-    ##reader = shapefile.Reader(et_cells_path)
+    ##reader = shapefile.Reader(cells_path)
     ##fields = reader.fields[1:]
     ##field_names = [field[0] for field in fields]
     ##buffer = []
@@ -760,7 +776,7 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     ##http://geospatialpython.com/2013/07/shapefile-to-geojson.html
     ##fig = plt.figure(figsize=(10,10))
     ##ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
-    ##reader = shapefile.Reader(et_cells_path)
+    ##reader = shapefile.Reader(cells_path)
     ##fields = reader.fields[1:]
     ##field_names = [field[0] for field in fields]
     ##for item in reader.shapeRecords():
@@ -802,23 +818,23 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     ##map.drawmapboundary(fill_color='aqua')
     ##map.fillcontinents(color='#ddaa66',lake_color='aqua')
     ##map.drawcoastlines()
-    ##et_cells_sr = Proj(init='epsg:2227', preserve_units=True) 
+    ##cells_sr = Proj(init='epsg:2227', preserve_units=True) 
     ##map_sr = Proj(init='EPSG:4326', preserve_units=True)
-    ####transform(et_cells_sr, map_sr, x, y)
+    ####transform(cells_sr, map_sr, x, y)
     #### Can't read shapefile directly because it is projected
-    ##map.readshapefile(os.path.splitext(et_cells_path)[0], 'et_cells')
+    ##map.readshapefile(os.path.splitext(cells_path)[0], 'cells')
     #### Read using fiona and project coordinates
-    ##with fiona.open(et_cells_path, "r") as et_cells_f:
-    ##    for item in et_cells_f:
+    ##with fiona.open(cells_path, "r") as cells_f:
+    ##    for item in cells_f:
     ##        item_geom = item['geometry']
     ##        for point in item_geom:
     ##            x,y = point['geometry']['coordinates']
-    ##            point['geometry']['coordinates'] = transform(et_cells_sr, map_sr, x, y)
+    ##            point['geometry']['coordinates'] = transform(cells_sr, map_sr, x, y)
     ##        ##print shape(item['geometry'])
     ##        print item['properties']
     ##        break
     ##plt.show()
-
+    
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Plot Crop Summary Maps',
@@ -891,8 +907,7 @@ if __name__ == '__main__':
         ini_path = util.get_path(os.getcwd(), 'Select the target INI file')
     
     logging.info('\n{0}'.format('#'*80))
-    logging.info('{0:<20s} {1}'.format(
-        'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
     logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
 

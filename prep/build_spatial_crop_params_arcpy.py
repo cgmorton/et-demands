@@ -2,7 +2,7 @@
 # Name:         build_spatial_crop_params_arcpy.py
 # Purpose:      Build spatial parameter files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2015-10-06
+# Created       2015-10-07
 # Python:       2.7
 #--------------------------------
 
@@ -22,8 +22,8 @@ import numpy as np
 import util
 
 def main(ini_path, zone_type='huc8', area_threshold=10, 
-         dairy_cuttings=5, beef_cuttings=4, remove_empty_flag=True,
-         overwrite_flag=False, cleanup_flag=False):
+         dairy_cuttings=5, beef_cuttings=4, crop_str='', 
+         remove_empty_flag=True, overwrite_flag=False, cleanup_flag=False):
     """Build a feature class for each crop and set default crop parameters
 
     Apply the values in the CropParams.txt as defaults to every cell
@@ -34,6 +34,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         area_threshold (float): CDL area threshold [acres]
         dairy_cuttings (int): Initial number of dairy hay cuttings
         beef_cuttings (int): Initial number of beef hay cuttings
+        crop_str (str): comma separate list or range of crops to compare
         overwrite_flag (bool): If True, overwrite existing output rasters
         cleanup_flag (bool): If True, remove temporary files
         
@@ -43,24 +44,24 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     logging.info('\nCalculating ET-Demands Spatial Crop Parameters')
     
     remove_empty_flag = True
-    crop_skip_list = [44,45,46,55,56,57]
 
     ## Input paths
     ## DEADBEEF - For now, get cropET folder from INI file
     ## This function may eventually be moved into the main cropET code
     config = util.read_ini(ini_path, section='CROP_ET')
-    project_ws = config.get('CROP_ET', 'project_folder')
-    gis_ws = config.get('CROP_ET', 'gis_folder')
-    et_cells_path = config.get('CROP_ET', 'et_cells_path')
-    ##try: et_cells_path = config.get('CROP_ET', 'et_cells_path')
-    ##except: et_cells_path = os.path.join(gis_ws, 'ETCells.shp')
-    stations_path = config.get('CROP_ET', 'stations_path')
-    crop_et_ws = config.get('CROP_ET', 'crop_et_folder')
+    crop_et_sec = 'CROP_ET'
+    project_ws = config.get(crop_et_sec, 'project_folder')
+    gis_ws = config.get(crop_et_sec, 'gis_folder')
+    cells_path = config.get(crop_et_sec, 'cells_path')
+    ##try: cells_path = config.get(crop_et_sec, 'cells_path')
+    ##except: cells_path = os.path.join(gis_ws, 'ETCells.shp')
+    stations_path = config.get(crop_et_sec, 'stations_path')
+    crop_et_ws = config.get(crop_et_sec, 'crop_et_folder')
     bin_ws = os.path.join(crop_et_ws, 'bin')
     
-    try: template_ws = config.get('CROP_ET', 'template_folder')
+    try: template_ws = config.get(crop_et_sec, 'template_folder')
     except: template_ws = os.path.join(os.path.dirname(crop_et_ws), 'static')
-    try: calibration_ws = config.get('CROP_ET', 'spatial_cal_folder')
+    try: calibration_ws = config.get(crop_et_sec, 'spatial_cal_folder')
     except: calibration_ws = os.path.join(project_ws, 'calibration')
 
     ## Sub folder names
@@ -117,31 +118,34 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         logging.error('\nERROR: The crop parameters file {} '+
                       'does not exist\n'.format(crop_params_path))
         sys.exit()
-    elif not arcpy.Exists(et_cells_path):
+    elif not arcpy.Exists(cells_path):
         logging.error(('\nERROR: The ET Cell shapefile {} '+
-                       'does not exist\n').format(et_cells_path))
+                       'does not exist\n').format(cells_path))
         sys.exit()
     elif not os.path.isfile(stations_path) or not arcpy.Exists(stations_path):
         logging.error(('ERROR: The NLDAS station shapefile '+
                        'does not exist\n  %s').format(stations_path))
         sys.exit()
     logging.debug('Crop Params Path:   {0}'.format(crop_params_path))
-    logging.debug('ET Cells Path:      {0}'.format(et_cells_path))
+    logging.debug('ET Cells Path:      {0}'.format(cells_path))
     logging.debug('Stations Path:      {0}'.format(stations_path))
     
-    ## Build output geodatabase if necessary
-    if calibration_ws.endswith('.gdb'):
-        logging.debug('GDB Path:           {0}'.format(calibration_ws))
-        ext = ''
-        if arcpy.Exists(calibration_ws) and overwrite_flag:
-            try: arcpy.Delete_management(calibration_ws)
-            except: pass
-        if calibration_ws is not None and not arcpy.Exists(calibration_ws):
-            arcpy.CreateFileGDB_management(
-                os.path.dirname(calibration_ws),
-                os.path.basename(calibration_ws))
-    else:
-        ext = '.shp'
+    
+    ## For now, only allow calibration parameters in separate shapefiles
+    ext = '.shp'
+    #### Build output geodatabase if necessary
+    ##if calibration_ws.endswith('.gdb'):
+    ##    logging.debug('GDB Path:           {0}'.format(calibration_ws))
+    ##    ext = ''
+    ##    if arcpy.Exists(calibration_ws) and overwrite_flag:
+    ##        try: arcpy.Delete_management(calibration_ws)
+    ##        except: pass
+    ##    if calibration_ws is not None and not arcpy.Exists(calibration_ws):
+    ##        arcpy.CreateFileGDB_management(
+    ##            os.path.dirname(calibration_ws),
+    ##            os.path.basename(calibration_ws))
+    ##else:
+    ##    ext = '.shp'
 
     ## Field Name, Property, Field Type
     ## Property is the string of the CropParameter class property value
@@ -157,8 +161,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         ##['Crop_FW', 'crop_fw', 'LONG'],
         ##['WinterCov', 'winter_surface_cover_class', 'SHORT'],
         ##['CropKcMax', 'kc_max', 'FLOAT'],
-        ##['MAD_Init', 'mad_initial', 'LONG'],
-        ##['MAD_Mid', 'mad_midseason', 'LONG'],
+        ['MAD_Init', 'mad_initial', 'LONG'],
+        ['MAD_Mid', 'mad_midseason', 'LONG'],
         ##['RootDepIni', 'rooting_depth_initial', 'FLOAT'],
         ##['RootDepMax', 'rooting_depth_max', 'FLOAT'],
         ##['EndRootGrw', 'end_of_root_growth_fraction_time', 'FLOAT'],
@@ -218,6 +222,44 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     ##        ##['CN_Fine_Soil', 'cn_fine_soil', 'LONG']
     ##    ]
 
+    ## Allow user to subset crops and cells from INI
+    try: 
+        crop_skip_list = sorted(list(util.parse_int_set(
+            config.get(crop_et_sec, 'crop_skip_list'))))
+    except: 
+        crop_skip_list = []
+    try: 
+        crop_test_list = sorted(list(util.parse_int_set(
+            config.get(crop_et_sec, 'crop_test_list'))))
+    except: 
+        crop_test_list = []
+    try: 
+        cell_skip_list = config.get(crop_et_sec, 'cell_skip_list').split(',')
+        cell_skip_list = sorted([c.strip() for c in cell_skip_list])
+    except: 
+        cell_skip_list = []
+    try: 
+        cell_test_list = config.get(crop_et_sec, 'cell_test_list').split(',')
+        cell_test_list = sorted([c.strip() for c in cell_test_list])
+    except: 
+        cell_test_list = []
+        
+    ## Overwrite INI crop list with user defined values
+    ## Could also append to the INI crop list
+    if crop_str:
+        try: crop_test_list = sorted(list(util.parse_int_set(crop_str)))
+        ##try: crop_test_list = sorted(list(set(
+        ##    crop_test_list + list(util.parse_int_set(crop_str)))
+        except: pass
+    ## Don't build crop parameter files for non-crops
+    crop_skip_list = sorted(list(set(crop_skip_list + [44,45,46,55,56,57])))
+    
+    ##crop_test_list = sorted(list(set(crop_test_list + [46])))
+    logging.debug('\ncrop_test_list = {0}'.format(crop_test_list))
+    logging.debug('crop_skip_list = {0}'.format(crop_skip_list))
+    logging.debug('cell_test_list = {0}'.format(cell_test_list))
+    logging.debug('cell_test_list = {0}'.format(cell_test_list))
+    
             
     ## Read crop parameters using ET Demands functions/methods 
     logging.info('\nReading Default Crop Parameters')
@@ -234,31 +276,37 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     ## Get list of crops specified in ET cells
     ## Currently this may only be crops with CDL acreage
     crop_field_list = [
-        field.name for field in arcpy.ListFields(et_cells_path)
+        field.name for field in arcpy.ListFields(cells_path)
         if re.match('CROP_\d{2}', field.name)]
-    logging.debug('ET Cell crop fields: '+', '.join(crop_field_list))
+    logging.debug('Cell crop fields: {}'.format(', '.join(crop_field_list)))
     crop_number_list = [int(f_name.split('_')[1]) for f_name in crop_field_list]
     crop_number_list = [
         crop_num for crop_num in crop_number_list
-        if crop_num not in crop_skip_list]
-    logging.info('ET Cell crop numbers: '+', '.join(map(str, crop_number_list)))
+        if not ((crop_test_list and crop_num not in crop_test_list) or 
+                (crop_skip_list and crop_num in crop_skip_list))]
+    logging.info('Cell crop numbers: {}'.format(
+        ', '.join(list(util.ranges(crop_number_list)))))
     
     ## Get crop acreages for each cell
     crop_acreage_dict = defaultdict(dict)
     field_list = [cell_id_field] + crop_field_list
-    with arcpy.da.SearchCursor(et_cells_path, field_list) as cursor:
+    with arcpy.da.SearchCursor(cells_path, field_list) as cursor:
         for row in cursor:
             for i, crop_num in enumerate(crop_number_list):
                 crop_acreage_dict[crop_num][row[0]] = row[i+1]
                 
     
     ## Make an empty template crop feature class
+    logging.info('')
     crop_template_path = os.path.join(calibration_ws, 'crop_00_template'+ext)
     if overwrite_flag and arcpy.Exists(crop_template_path):
+        logging.debug('Overwriting template crop feature class')
         arcpy.Delete_management(crop_template_path)
-    if not arcpy.Exists(crop_template_path):
-        logging.info('\nBuilding template crop feature class')
-        arcpy.CopyFeatures_management(et_cells_path, crop_template_path)
+    if arcpy.Exists(crop_template_path):
+        logging.info('Template crop feature class already exists, skipping')
+    else:
+        logging.info('Building template crop feature class')
+        arcpy.CopyFeatures_management(cells_path, crop_template_path)
         
         ## Remove unneeded et cell fields
         for field in arcpy.ListFields(crop_template_path):
@@ -282,22 +330,22 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
             if param_field not in field_list:
                 arcpy.AddField_management(
                     crop_template_path, param_field, param_type)
-        if dairy_cutting_field not in field_list:
-            logging.debug('  Add field: {0}'.format(dairy_cutting_field))
-            arcpy.AddField_management(crop_template_path, dairy_cutting_field, 'Short')
-            arcpy.CalculateField_management(
-                crop_template_path, dairy_cutting_field, dairy_cuttings, 'PYTHON')
-        if beef_cutting_field not in field_list:
-            logging.debug('  Add field: {0}'.format(beef_cutting_field))
-            arcpy.AddField_management(crop_template_path, beef_cutting_field, 'Short')
-            arcpy.CalculateField_management(
-                crop_template_path, beef_cutting_field, beef_cuttings, 'PYTHON')
+        ##if dairy_cutting_field not in field_list:
+        ##    logging.debug('  Add field: {0}'.format(dairy_cutting_field))
+        ##    arcpy.AddField_management(crop_template_path, dairy_cutting_field, 'Short')
+        ##    arcpy.CalculateField_management(
+        ##        crop_template_path, dairy_cutting_field, dairy_cuttings, 'PYTHON')
+        ##if beef_cutting_field not in field_list:
+        ##    logging.debug('  Add field: {0}'.format(beef_cutting_field))
+        ##    arcpy.AddField_management(crop_template_path, beef_cutting_field, 'Short')
+        ##    arcpy.CalculateField_management(
+        ##        crop_template_path, beef_cutting_field, beef_cuttings, 'PYTHON')
     
     ## Add an empty/zero crop field for the field mappings below
-    ##if len(arcpy.ListFields(et_cells_path, 'CROP_EMPTY')) == 0:
-    ##    arcpy.AddField_management(et_cells_path, 'CROP_EMPTY', 'Float')
+    ##if len(arcpy.ListFields(cells_path, 'CROP_EMPTY')) == 0:
+    ##    arcpy.AddField_management(cells_path, 'CROP_EMPTY', 'Float')
     ##    arcpy.CalculateField_management(
-    ##        et_cells_path, 'CROP_EMPTY', '0', 'PYTHON_9.3')
+    ##        cells_path, 'CROP_EMPTY', '0', 'PYTHON_9.3')
     
     
     ## Process each crop
@@ -318,10 +366,22 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
             logging.info('  All crop acreaeges below threshold, skipping crop')
             continue
     
-        ## Copy ET cells for each crop if needed
+        ## Remove existing shapefiles if necessary
         if overwrite_flag and arcpy.Exists(crop_path):
+            logging.debug('  Overwriting: {}'.format(os.path.basename(crop_path)))
             arcpy.Delete_management(crop_path)
-        if not arcpy.Exists(crop_path):
+            
+        ## Don't check skip list until after existing files are removed
+        ##if ((crop_test_list and crop_num not in crop_test_list) or 
+        ##    (crop_skip_list and crop_num in crop_skip_list)):
+        ##    logging.debug('  Skipping')
+        ##    continue         
+          
+        ## Copy ET cells for each crop if needed
+        if arcpy.Exists(crop_path):
+            logging.debug('  Shapefile already exists, skipping')
+            continue
+        else:
             ##logging.debug('    {0}'.format(crop_path))
             arcpy.Copy_management(crop_template_path, crop_path)
             ## Remove extra fields
@@ -329,11 +389,19 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
             ##    if field.name not in keep_field_list:
             ##        ##logging.debug('    {0}'.format(field.name))
             ##        arcpy.DeleteField_management(crop_path, field.name)
-    
-        ## Get list of existing fields
-        field_list = [
-            field.name for field in arcpy.ListFields(crop_path)
-            if re.match('CROP_\d{2}', field.name)]
+            
+        ## Add alfalfa cutting field
+        if crop_num in [1,2,3,4]:
+            if len(arcpy.ListFields(crop_path, dairy_cutting_field)) == 0:
+                logging.debug('  Add field: {0}'.format(dairy_cutting_field))
+                arcpy.AddField_management(crop_path, dairy_cutting_field, 'Short')
+                arcpy.CalculateField_management(
+                    crop_path, dairy_cutting_field, dairy_cuttings, 'PYTHON')
+            if len(arcpy.ListFields(crop_path, beef_cutting_field)) == 0:
+                logging.debug('  Add field: {0}'.format(beef_cutting_field))
+                arcpy.AddField_management(crop_path, beef_cutting_field, 'Short')
+                arcpy.CalculateField_management(
+                    crop_path, beef_cutting_field, beef_cuttings, 'PYTHON')
         
         ## Write default crop parameters to file
         field_list = [p[0] for p in param_list] + [cell_id_field, crop_acres_field]
@@ -353,7 +421,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     
     ## Cleanup      
     ## Remove the empty/zero crop field
-    ##arcpy.DeleteField_management(et_cells_path, 'CROP_EMPTY')
+    ##arcpy.DeleteField_management(cells_path, 'CROP_EMPTY')
     ## Remove template feature class
     ##arcpy.Delete_management(crop_template_path)
 
@@ -383,6 +451,9 @@ def arg_parse():
         '--empty', default=False, action='store_true',
         help='Remove empty features')
     parser.add_argument(
+        '-c', '--crops', default='', type=str, 
+        help='Comma separate list or range of crops to compare')
+    parser.add_argument(
         '-o', '--overwrite', default=False, action='store_true',
         help='Overwrite existing file')
     parser.add_argument(
@@ -406,5 +477,5 @@ if __name__ == '__main__':
 
     main(ini_path=args.ini, zone_type=args.zone, area_threshold=args.area, 
          dairy_cuttings=args.dairy, beef_cuttings=args.beef, 
-         remove_empty_flag=args.empty,
-         overwrite_flag=args.overwrite, clean_flag=args.clean)
+         remove_empty_flag=args.empty, crop_str=args.crops,
+         overwrite_flag=args.overwrite, cleanup_flag=args.clean)

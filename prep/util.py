@@ -1,6 +1,7 @@
 ##import argparse
 import ConfigParser
 import glob
+from itertools import groupby
 import logging
 import os
 
@@ -65,6 +66,16 @@ def read_ini(ini_path, section='CROP_ET'):
                       'is not an input file, or does not exist\n')
         sys.exit()
     if section not in config.sections():
-        logging.error('\nERROR: The input file must have a section: [CROP_ET]\n')
+        logging.error(('\nERROR: The input file must have '+
+                       'a section: [{}]\n').format(section))
         sys.exit()
     return config
+
+def ranges(i):
+    for a, b in groupby(enumerate(i), lambda (x, y): y - x):
+        b = list(b)
+        if b[0][1] == b[-1][1]:
+            yield str(b[0][1])
+        else:
+            yield '{0}-{1}'.format(b[0][1], b[-1][1])
+        ##yield b[0][1], b[-1][1]
