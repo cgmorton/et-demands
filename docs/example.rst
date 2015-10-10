@@ -157,11 +157,11 @@ Zonal Stats
 -----------
 Compute the mean elevation, soil properties, and crop acreages for each feature/polygon.  The current implementation of this script uses the ArcGIS ArcPy module, but this will eventually be modified to GDAL.  The "huc" parameter is used to tell the script the structure of the study area shapefile.  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
 
-    > python ..\et-demands\prep\et_demands_zonal_stats_arcpy.py --year 2010 -o --huc 8
+    > python ..\et-demands\prep\et_demands_zonal_stats_arcpy.py --year 2010 -o --zone huc8
 
 Static Text Files
 -----------------
 Build the static text files from the templates in "et-demands\static".  The "acres" parameter can be used to only include crops that have at least N acres.  The "huc" parameter is used to tell the script the structure of the study area shapefile.  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
 
-    > python ..\et-demands\prep\build_static_files.py --station gis\stations\nldas_4km_dd_pts_cat_basins.shp --huc 8 --acres 10 -o
+    > python ..\et-demands\prep\build_static_files.py --station gis\stations\nldas_4km_dd_pts_cat_basins.shp --zone huc8 --area 10 -o
 
