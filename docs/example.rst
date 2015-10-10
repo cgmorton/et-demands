@@ -82,7 +82,7 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
 
 Data Prep
 ---------
-The basic data preparation workflow is to download ancillary data for the the CONUS into the "common\gis" folder, and then clip/subset the data for the study area into the "example\gis" folder.
+The basic data preparation workflow is to download ancillary data for the the CONUS into the "common\gis" folder, and then clip/subset the data for the study area into the "example\\gis" folder.
 
 Cropland Data Layer (CDL)
 -------------------------
