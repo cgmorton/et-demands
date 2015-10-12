@@ -67,6 +67,7 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
     |   \---tools
     |
     \---example
+        |       example.ini
         +---annual_stats
         +---daily_baseline
         +---daily_plots
@@ -103,11 +104,11 @@ To use the example study area, make a "gis\huc8" subfolder and then copy all of 
 
 The study area shapefile then needs to be projected to the CDL spatial reference, and converted to a raster that all of the other prep scripts will reference.  The following will buffer the study area extent by 300m.  The "cdl" parameter is needed to get the CDL spatial reference and grid size. ::
 
-    > python ..\et-demands\prep\build_study_area_raster.py -shp gis\huc8\wbdhu8_albers.shp --cdl ..\common\cdl --year 2010 --buffer 300 --stats -o
+    > python ..\et-demands\prep\build_study_area_raster.py --zones gis\huc8\wbdhu8_albers.shp --cdl ..\common\cdl --year 2010 --buffer 300 --stats -o
 
 Weather Stations
 ----------------
-In order to generate the ET-Demands static input files, the user must provide a weather station point shapefile with at least one feature.  The shapefile must have columns/fields of the station ID, the corresponding zone ID, and the station latitude, longitude, and elevation (in feet).  Currently these fields must be named NLDAS_ID, HUC8, LAT, LON, and ELEV_FT respectively.  There is some support in the scripts for using HUC10s and eventually counties will also be natively supported.  These fields are hard coded into the scripts, but they may eventually be set and modified using an INI file.
+In order to generate the ET-Demands static input files, the user must provide a weather station point shapefile with at least one feature.  The shapefile must have columns/fields of the station ID, the corresponding zone ID, and the station latitude, longitude, and elevation (in feet).  Currently these fields must be named NLDAS_ID, [HUC8, HUC10, or COUNTYNAME], LAT, LON, and ELEV_FT respectively.  These fields are hard coded into the scripts, but they may eventually be set and modified using an INI file.
 
 To use the example study area, make a "gis\stations" subfolder and then copy all of the files in the example station shapefile from the github repository example folder.  The example station is the centroid of a single 4km cell from the `University of Idaho Gridded Surface Meteorological Data <http://metdata.northwestknowledge.net/>`_ that is located in the study area. ::
 
@@ -157,11 +158,11 @@ Zonal Stats
 -----------
 Compute the mean elevation, soil properties, and crop acreages for each feature/polygon.  The current implementation of this script uses the ArcGIS ArcPy module, but this will eventually be modified to GDAL.  The "huc" parameter is used to tell the script the structure of the study area shapefile.  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
 
-    > python ..\et-demands\prep\et_demands_zonal_stats_arcpy.py --year 2010 -o --zone huc8
+    > python ..\et-demands\prep\et_demands_zonal_stats_arcpy.py --year 2010 -o --zones gis\huc8\wbdhu8_albers.shp --type huc8
 
 Static Text Files
 -----------------
-Build the static text files from the templates in "et-demands\static".  The "acres" parameter can be used to only include crops that have at least N acres.  The "huc" parameter is used to tell the script the structure of the study area shapefile.  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
+Build the static text files from the templates in "et-demands\static".  The "acres" parameter can be used to only include crops that have at least N acres.  The "type" parameter is used to set the station zone field name (i.e 'huc8'->'HUC8', 'huc10'->'HUC10', or 'county'->'COUNTYNAME']).  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
 
-    > python ..\et-demands\prep\build_static_files.py --station gis\stations\nldas_4km_dd_pts_cat_basins.shp --zone huc8 --area 10 -o
+    > python ..\et-demands\prep\build_static_files.py --ini example.ini --type huc8 --area 10 -o
 
