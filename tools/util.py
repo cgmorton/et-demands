@@ -1,19 +1,21 @@
+#--------------------------------
+# Name:         util.py
+# Purpose:      Utilitiy functions for ET-Demands tools
+# Author:       Charles Morton
+# Created       2015-12-08
+# Python:       2.7
+#--------------------------------
+
 import argparse
 import ConfigParser
-import datetime
+import datetime as dt
 from itertools import groupby
 import logging
 import os
-import Tkinter, tkFileDialog
+import Tkinter
+import tkFileDialog
+import sys
 
-##def get_directory(workspace, title_str):
-##    """"""
-##    import Tkinter, tkFileDialog
-##    root = Tkinter.Tk()
-##    user_ws = tkFileDialog.askdirectory(
-##        initialdir=workspace, parent=root, title=title_str, mustexist=True)
-##    root.destroy()
-##    return user_ws
 
 def get_path(workspace, title_str, file_types=[('INI files', '.ini')]):
     """"""
@@ -24,12 +26,22 @@ def get_path(workspace, title_str, file_types=[('INI files', '.ini')]):
     root.destroy()
     return path
 
+# def get_directory(workspace, title_str):
+#     """"""
+#      Tkinter, tkFileDialog
+#      = Tkinter.Tk()
+#      = tkFileDialog.askdirectory(
+#        initialdir=workspace, parent=root, title=title_str, mustexist=True)
+#     .destroy()
+#      user_ws
+
 def is_valid_file(parser, arg):
     """"""
     if not os.path.isfile(arg):
         parser.error('The file {} does not exist!'.format(arg))
     else:
         return arg
+
 def is_valid_directory(parser, arg):
     """"""
     if not os.path.isdir(arg):
@@ -37,28 +49,30 @@ def is_valid_directory(parser, arg):
     else:
         return arg
 
+
 def valid_date(input_date):
     """Check that a date string is ISO format (YYYY-MM-DD)
 
     This function is used to check the format of dates entered as command
       line arguments.
-    DEADBEEF - It would probably make more sense to have this function 
+    DEADBEEF - It would probably make more sense to have this function
       parse the date using dateutil parser (http://labix.org/python-dateutil)
       and return the ISO format string
 
     Args:
         input_date: string
     Returns:
-        string 
+        string
     Raises:
         ArgParse ArgumentTypeError
     """
     try:
-        input_dt = datetime.datetime.strptime(input_date, "%Y-%m-%d")
+        input_dt = dt.datetime.strptime(input_date, "%Y-%m-%d")
         return input_date
     except ValueError:
         msg = "Not a valid date: '{0}'.".format(input_date)
         raise argparse.ArgumentTypeError(msg)
+
 
 def parse_int_set(nputstr=""):
     """Return list of numbers given a string of ranges
@@ -89,9 +103,10 @@ def parse_int_set(nputstr=""):
                 # not an int and not a range...
                 invalid.add(i)
     # Report invalid tokens before returning valid selection
-    ##print "Invalid set: " + str(invalid)
+    # print "Invalid set: " + str(invalid)
     return selection
-    
+
+
 def read_ini(ini_path, section='CROP_ET'):
     """Open the INI file and check for obvious errors"""
     logging.info('  INI: {}'.format(os.path.basename(ini_path)))
@@ -99,24 +114,33 @@ def read_ini(ini_path, section='CROP_ET'):
     try:
         ini = config.readfp(open(ini_path))
     except:
-        logging.error('\nERROR: Config file could not be read, '+
+        logging.error('\nERROR: Config file could not be read, ' +
                       'is not an input file, or does not exist\n')
         sys.exit()
     if section not in config.sections():
-        logging.error(('\nERROR: The input file must have '+
+        logging.error(('\nERROR: The input file must have ' +
                        'a section: [{}]\n').format(section))
         sys.exit()
     return config
-    
+
+
 def ranges(i):
+    """"""
     for a, b in groupby(enumerate(i), lambda (x, y): y - x):
         b = list(b)
         if b[0][1] == b[-1][1]:
             yield str(b[0][1])
         else:
             yield '{0}-{1}'.format(b[0][1], b[-1][1])
-        ##yield b[0][1], b[-1][1]
-        
+        # yield b[0][1], b[-1][1]
+
+
 def doy_2_date(test_year, test_doy):
-    return datetime.datetime.strptime('{0:04d}_{1:03d}'.format(
+    """"""
+    return dt.datetime.strptime('{0:04d}_{1:03d}'.format(
         int(test_year), int(test_doy)), '%Y_%j').strftime('%Y-%m-%d')
+
+
+def list_re_or(input_list):
+    """"""
+    return '(' + '|'.join(map(str, input_list)) + ')'

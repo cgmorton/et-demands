@@ -1,9 +1,11 @@
-##import argparse
+#import argparse
 import ConfigParser
 import glob
 from itertools import groupby
 import logging
 import os
+import sys
+
 
 def remove_file(file_path):
     """Remove a feature/raster and all of its anciallary files"""
@@ -12,17 +14,23 @@ def remove_file(file_path):
         logging.debug('  Remove: {}'.format(os.path.join(file_ws, file_name)))
         os.remove(os.path.join(file_ws, file_name))
 
+
 def is_valid_file(parser, arg):
+    """"""
     if not os.path.isfile(arg):
         parser.error('The file {} does not exist!'.format(arg))
     else:
         return arg
+
+
 def is_valid_directory(parser, arg):
+    """"""
     if not os.path.isdir(arg):
         parser.error('The directory {} does not exist!'.format(arg))
     else:
         return arg
-        
+
+
 def parse_int_set(nputstr=""):
     """Return list of numbers given a string of ranges
 
@@ -52,8 +60,9 @@ def parse_int_set(nputstr=""):
                 # not an int and not a range...
                 invalid.add(i)
     # Report invalid tokens before returning valid selection
-    ##print "Invalid set: " + str(invalid)
+    # print "Invalid set: " + str(invalid)
     return selection
+
 
 def read_ini(ini_path, section='CROP_ET'):
     """Open the INI file and check for obvious errors"""
@@ -62,20 +71,22 @@ def read_ini(ini_path, section='CROP_ET'):
     try:
         ini = config.readfp(open(ini_path))
     except:
-        logging.error('\nERROR: Config file could not be read, '+
+        logging.error('\nERROR: Config file could not be read, ' +
                       'is not an input file, or does not exist\n')
         sys.exit()
     if section not in config.sections():
-        logging.error(('\nERROR: The input file must have '+
+        logging.error(('\nERROR: The input file must have ' +
                        'a section: [{}]\n').format(section))
         sys.exit()
     return config
 
+
 def ranges(i):
+    """"""
     for a, b in groupby(enumerate(i), lambda (x, y): y - x):
         b = list(b)
         if b[0][1] == b[-1][1]:
             yield str(b[0][1])
         else:
             yield '{0}-{1}'.format(b[0][1], b[-1][1])
-        ##yield b[0][1], b[-1][1]
+        # yield b[0][1], b[-1][1]
