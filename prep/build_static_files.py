@@ -1,5 +1,5 @@
 #--------------------------------
-# Name:         et_demands_static_files.py
+# Name:         build_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
 # Created       2015-12-08
