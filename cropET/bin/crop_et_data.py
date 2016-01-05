@@ -8,7 +8,6 @@ import sys
 
 import numpy as np
 
-##import et_cell
 import crop_coefficients
 import crop_parameters
 import util
@@ -78,33 +77,51 @@ class CropETData():
                 crop_et_sec, 'monthly_stats_flag')
         except:
             logging.debug('    monthly_stats_flag = False')
-            self.daily_output_flag = False
+            self.monthly_output_flag = False
         try:
             self.annual_output_flag = config.getboolean(
                 crop_et_sec, 'annual_stats_flag')
         except:
             logging.debug('    annual_stats_flag = False')
-            self.daily_output_flag = False
+            self.annual_output_flag = False
         try:
             self.gs_output_flag = config.getboolean(
                 crop_et_sec, 'growing_season_stats_flag')
         except:
             logging.debug('    growing_season_stats_flag = False')
-            self.daily_output_flag = False
+            self.gs_output_flag = False
 
         ## For testing, allow the user to process a subset of the crops
         try: 
-            self.crop_skip_list = config.get(crop_et_sec, 'crop_skip_list').split(',')
-            self.crop_skip_list = [int(c.strip()) for c in self.crop_skip_list]
+            self.crop_skip_list = list(util.parse_int_set(
+                config.get(crop_et_sec, 'crop_skip_list')))
         except: 
             logging.debug('    crop_skip_list = []')
             self.crop_skip_list = []
         try: 
-            self.crop_test_list = config.get(crop_et_sec, 'crop_test_list').split(',')
-            self.crop_test_list = [int(c.strip()) for c in self.crop_test_list]
+            self.crop_test_list = list(util.parse_int_set(
+                config.get(crop_et_sec, 'crop_test_list')))
         except: 
             logging.debug('    crop_test_list = False')
             self.crop_test_list = []
+        ## Bare soils must be in crop list for computing winter cover
+        if self.crop_test_list:
+            self.crop_test_list = sorted(list(set(self.crop_test_list + [44,45,46])))
+
+        ## For testing, allow the user to process a subset of the cells
+        try: 
+            self.cell_skip_list = config.get(crop_et_sec, 'cell_skip_list').split(',')
+            self.cell_skip_list = [c.strip() for c in self.cell_skip_list]
+        except: 
+            logging.debug('    cell_skip_list = []')
+            self.cell_skip_list = []
+        try: 
+            self.cell_test_list = config.get(crop_et_sec, 'cell_test_list').split(',')
+            self.cell_test_list = [c.strip() for c in self.cell_test_list]
+        except: 
+            logging.debug('    cell_test_list = False')
+            self.cell_test_list = []
+            
             
         ## Input/output folders
         static_ws = os.path.join(
@@ -166,11 +183,11 @@ class CropETData():
         try: self.cutting_flag = config.getboolean(crop_et_sec, 'cutting_flag')
         except: self.cutting_flag = True
         try: self.niwr_flag = config.getboolean(crop_et_sec, 'niwr_flag')
-        except: self.cutting_flag = True
+        except: self.niwr_flag = True
         try: self.kc_flag = config.getboolean(crop_et_sec, 'kc_flag')
-        except: self.cutting_flag = True
+        except: self.kc_flag = True
         try: self.co2_flag = config.getboolean(crop_et_sec, 'co2_flag')
-        except: self.cutting_flag = False
+        except: self.co2_flag = False
 
         ## Static cell/crop files
         def check_static_file(static_name, static_var):
@@ -412,13 +429,24 @@ class CropETData():
             logging.info('  CO2 correction')
             try: self.co2_grass_crops = sorted(list(util.parse_int_set(
                 config.get(crop_et_sec, 'co2_grass_list'))))
-            except: self.co2_grass_crops = []
+            except: 
+                self.co2_grass_crops = []
+                #### DEADBEEF - Make these the defaults?
+                ##self.co2_grass_crops = (
+                ##    range(1,6+1) + range(9,18+1) + range(21,67+1) + 
+                ##    [69,71,72,73,75,79,80,81,83,84,85])
             try: self.co2_trees_crops = sorted(list(util.parse_int_set(
                 config.get(crop_et_sec, 'co2_trees_list'))))
-            except: self.co2_trees_crops = []
+            except: 
+                self.co2_trees_crops = []
+                #### DEADBEEF - Make these the defaults?
+                ##self.co2_trees_crops = [19, 20, 70, 74, 82]
             try: self.co2_c4_crops = sorted(list(util.parse_int_set(
                 config.get(crop_et_sec, 'co2_c4_list'))))
-            except: self.co2_c4_crops = []
+            except: 
+                self.co2_c4_crops = []
+                #### DEADBEEF - Make these the defaults?
+                ##self.co2_c4_crops = [7, 8, 68, 76-78]
             logging.info('    Grass (C3): {}'.format(self.co2_grass_crops))
             logging.info('    Trees (C3): {}'.format(self.co2_trees_crops))
             logging.info('    C4: {}'.format(self.co2_c4_crops))
@@ -470,7 +498,7 @@ class CropETData():
         self.crop_coeffs = crop_coefficients.read_crop_coefs(self.crop_coefs_path)
 
     def set_crop_co2(self):
-        """Set crop CO2 type using"""
+        """Set crop CO2 type using the values in the INI"""
         for crop_num, crop_param in self.crop_params.iteritems():
             if not self.co2_flag:
                 crop_param.co2_type = None

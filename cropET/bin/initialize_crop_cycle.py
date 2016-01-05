@@ -57,6 +57,7 @@ class InitializeCropCycle:
         self.mad_ini = 0.
         self.mad_mid = 0.
         self.n_cgdd = 0.
+        self.n_pl_ec = 0.
         self.niwr = 0.
         self.ppt_inf = 0.
         self.ppt_inf_prev = 0.
@@ -74,15 +75,16 @@ class InitializeCropCycle:
         self.zr_max = 0.
         self.z = 0.
         
-        ##
+        ## CGM - I don't remember why these are grouped separately
+        ## Maybe because they are "flags"
         self.doy_start_cycle = 0
+        self.cutting = 0
         self.cycle = 1
         self.real_start = False
         self.irr_flag = False
         self.in_season = False             #' false if outside season, true if inside
         self.dormant_setup_flag = False
         self.crop_setup_flag = True        #' flag to setup crop parameter information
-        self.cutting = False
         
         ## TP - Looks like its value comes from compute_crop_et(),
         ## but needed for setup_dormant() below...
@@ -114,9 +116,8 @@ class InitializeCropCycle:
         ## TP - Not initialized in VB code, probably should be initialized to 0
         ##self.T2Days = 0
         
-        ## CGM - It doesn't seem like these need to be initialized
+        ## CGM - It doesn't seem like these need to be initialized?
         ##self.e = 0.
-        ##self.n_pl_ec = 0.
         ##self.tei = 0
         ##self.Kcmult = 1
         ##self.irr_manual = 0
@@ -129,83 +130,14 @@ class InitializeCropCycle:
         ##self.kt_prop = 1
         ##self.ze = 0.
 
-    def setup_crop(self, crop):
-        """Initialize some variables for beginning of crop seasons
-        
-        Called in crop_cycle if not in season and crop setup flag is true
-        Called in kcb_daily for startup/greenup type 1, 2, and 3 when startup conditions are met
-        """
-        #' zr_dormant was never assigned a value - what's its purpose - dlk 10/26/2011 ???????????????????
-        zr_dormant = 0.0
-    
-        #' setup_crop is called from crop_cycle if is_season is false and crop_setup_flag is true
-        #' thus only setup 1st time for crop (not each year)
-        #' also called from kcb_daily each time GU/Plant date is reached, thus at growing season start
-        self.height_min = crop.height_initial
-        self.height_max = crop.height_max
-        self.zr_min = crop.rooting_depth_initial
-        self.zr_max = crop.rooting_depth_max
-        self.height = self.height_min
-        self.tew = self.tew2 #' find total evaporable water
-        if self.tew3 > self.tew:  
-            self.tew = self.tew3
-        self.fw_irr = self.fw_std #' fw changed to fw_irr 8/10/06
-        self.irr_auto = 0
-        self.irr_sim = 0
-    
-        # Reinitialize zr, but actCount for additions of DP into reserve (zrmax - zr) for rainfed
-    
-        # Convert current moisture content below Zr at end of season to AW for new crop
-        # (into starting moisture content of layer 3).  This is required if zr_min <> zr_dormant
-        # Calc total water currently in layer 3
-
-        # AW3 is mm/m and daw3 is mm in layer 3 (in case Zr<zr_max)
-        daw3 = self.aw3 * (self.zr_max - zr_dormant) 
-    
-        # Layer 3 is soil depth between current rootzone (or dormant rootdepth) and max root for crop
-        # AW3 is set to 0 first time throught for crop.
-
-        # Potential water in root zone below zr_dormant
-        taw3 = self.aw * (self.zr_max - zr_dormant) 
-    
-        # Make sure that AW3 has been collecting DP from zr_dormant layer during winter
-        if daw3 < 0.:
-            daw3 = 0.
-        if taw3 < 0.:
-            taw3 = 0.
-        if self.zr_min > zr_dormant:
-            #' adjust depletion for extra starting root zone at plant or GU
-            #' assume fully mixed layer 3
-            self.depl_root = (
-                self.depl_root + (taw3 - daw3) *
-                (self.zr_min - zr_dormant) / (self.zr_max - zr_dormant))
-        elif self.zr_max > self.zr_min:
-            # Was, until 5/9/07:
-            # Assume moisture right above zr_dormant is same as below
-            #depl_root = depl_root - (taw3 - daw3) * (zr_dormant - zr_min) / (zr_max - zr_min) 
-            # Following added 5/9/07
-            # Enlarge depth of water
-            daw3 = (
-                daw3 + (zr_dormant - self.zr_min) / zr_dormant *
-                (self.aw * zr_dormant - self.depl_root))
-            # Adjust depl_root in proportion to zr_min / zdormant and increase daw3 and AW3
-            self.depl_root *= self.zr_min / zr_dormant
-            # The denom is layer 3 depth at start of season
-            self.aw3 = daw3 / (self.zr_max - self.zr_min) 
-            if self.aw3 < 0.:
-                self.aw3 = 0.
-            if self.aw3 > self.aw:
-                self.aw3 = self.aw
-        if self.depl_root < 0.:
-            self.depl_root = 0.
-        # Initialize rooting depth at beginning of time  <----DO??? Need recalc on Reserve?
-        self.zr = self.zr_min
-        self.crop_setup_flag = False
-
     def crop_load(self, et_cell, crop):
         """Assign characteristics for crop from crop Arrays
 
         Called by crop_cycle.crop_cycle() just before time loop
+        
+        Args:
+            et_cell ():
+            crop ():
         """
         self.height_min = crop.height_initial
         self.height_max = crop.height_max
@@ -286,11 +218,11 @@ class InitializeCropCycle:
                     dtype=np.int8)) > 0)[0][0]) + 1
             except:
                 logging.error(
-                    ('  initialize_crop_cycle():\n'+
-                     '  Crop: {0:2d}, CellID: {1}\n'+
-                     '  Error computing longterm_pl for \n'+
+                    ('  initialize_crop_cycle():\n  Crop: {0:2d}, CellID: {1}\n'+
+                     '  Error computing longterm_pl, CGDD (LT) didn\'t go above threshold ({2})\n'+
                      '  Setting longerm_pl = 0').format(
-                        crop.class_number))
+                        crop.class_number, et_cell.cell_id,
+                        crop.t30_for_pl_or_gu_or_cgdd))
                 self.longterm_pl = 0
         ## Flag_for_means_to_estimate_pl_or_gu Case 2
         elif crop.flag_for_means_to_estimate_pl_or_gu == 2:
@@ -302,9 +234,8 @@ class InitializeCropCycle:
             except IndexError:
                 self.longterm_pl = 0
                 logging.error(
-                    ('  initialize_crop_cycle(): \n'+
-                     '  Crop: {0:2d}, CellID: {1}\n'+
-                     '  Error computing longterm_pl, T30 didn\'t go above threshold ({2})\n'+
+                    ('  initialize_crop_cycle(): \n  Crop: {0:2d}, CellID: {1}\n'+
+                     '  Error computing longterm_pl, T30 (LT) didn\'t go above threshold ({2})\n'+
                      '  Setting longerm_pl = 0').format(
                         crop.class_number, et_cell.cell_id, 
                         crop.t30_for_pl_or_gu_or_cgdd))
@@ -319,8 +250,83 @@ class InitializeCropCycle:
                      '  Unknown error computing longterm_pl\n'+
                      '  Setting longerm_pl = 0').format(
                         crop.class_number, et_cell.cell_id))
+                        
         ##
         self.setup_crop(crop)
+
+        
+    def setup_crop(self, crop):
+        """Initialize some variables for beginning of crop seasons
+        
+        Called in crop_cycle if not in season and crop setup flag is true
+        Called in kcb_daily for startup/greenup type 1, 2, and 3 when startup conditions are met
+        """
+        #' zr_dormant was never assigned a value - what's its purpose - dlk 10/26/2011 ???????????????????
+        zr_dormant = 0.0
+    
+        #' setup_crop is called from crop_cycle if is_season is false and crop_setup_flag is true
+        #' thus only setup 1st time for crop (not each year)
+        #' also called from kcb_daily each time GU/Plant date is reached, thus at growing season start
+        self.height_min = crop.height_initial
+        self.height_max = crop.height_max
+        self.zr_min = crop.rooting_depth_initial
+        self.zr_max = crop.rooting_depth_max
+        self.height = self.height_min
+        self.tew = self.tew2 #' find total evaporable water
+        if self.tew3 > self.tew:  
+            self.tew = self.tew3
+        self.fw_irr = self.fw_std #' fw changed to fw_irr 8/10/06
+        self.irr_auto = 0
+        self.irr_sim = 0
+    
+        # Reinitialize zr, but actCount for additions of DP into reserve (zrmax - zr) for rainfed
+    
+        # Convert current moisture content below Zr at end of season to AW for new crop
+        # (into starting moisture content of layer 3).  This is required if zr_min <> zr_dormant
+        # Calc total water currently in layer 3
+
+        # AW3 is mm/m and daw3 is mm in layer 3 (in case Zr<zr_max)
+        daw3 = self.aw3 * (self.zr_max - zr_dormant) 
+    
+        # Layer 3 is soil depth between current rootzone (or dormant rootdepth) and max root for crop
+        # AW3 is set to 0 first time throught for crop.
+
+        # Potential water in root zone below zr_dormant
+        taw3 = self.aw * (self.zr_max - zr_dormant) 
+    
+        # Make sure that AW3 has been collecting DP from zr_dormant layer during winter
+        if daw3 < 0.:
+            daw3 = 0.
+        if taw3 < 0.:
+            taw3 = 0.
+        if self.zr_min > zr_dormant:
+            #' adjust depletion for extra starting root zone at plant or GU
+            #' assume fully mixed layer 3
+            self.depl_root = (
+                self.depl_root + (taw3 - daw3) *
+                (self.zr_min - zr_dormant) / (self.zr_max - zr_dormant))
+        elif self.zr_max > self.zr_min:
+            # Was, until 5/9/07:
+            # Assume moisture right above zr_dormant is same as below
+            #depl_root = depl_root - (taw3 - daw3) * (zr_dormant - zr_min) / (zr_max - zr_min) 
+            # Following added 5/9/07
+            # Enlarge depth of water
+            daw3 = (
+                daw3 + (zr_dormant - self.zr_min) / zr_dormant *
+                (self.aw * zr_dormant - self.depl_root))
+            # Adjust depl_root in proportion to zr_min / zdormant and increase daw3 and AW3
+            self.depl_root *= self.zr_min / zr_dormant
+            # The denom is layer 3 depth at start of season
+            self.aw3 = daw3 / (self.zr_max - self.zr_min) 
+            if self.aw3 < 0.:
+                self.aw3 = 0.
+            if self.aw3 > self.aw:
+                self.aw3 = self.aw
+        if self.depl_root < 0.:
+            self.depl_root = 0.
+        # Initialize rooting depth at beginning of time  <----DO??? Need recalc on Reserve?
+        self.zr = self.zr_min
+        self.crop_setup_flag = False
 
     def setup_dormant(self,  et_cell, crop):
         """Start of dormant season
@@ -445,6 +451,9 @@ class InitializeCropCycle:
         self.irr_sim = 0
         self.dormant_setup_flag = False
         
+        ## Clear cutting flag (just in case)
+        self.cutting = 0
+        
     def setup_dataframe(self, et_cell):
         """Initialize output dataframe"""
         self.crop_pd = et_cell.refet_pd[['doy', 'etref']].copy()
@@ -459,65 +468,19 @@ class InitializeCropCycle:
         self.crop_pd['dperc'] = np.nan
         self.crop_pd['niwr'] = np.nan
         self.crop_pd['season'] = 0
-        self.crop_pd['cutting'] = 0
-        
-    def set_spatial_crop_params(self, calibration_ws):
-        logging.info('  Setting spatially varying crop parameters')
-        
-        ## Get list of crop parameter shapefiles
-        crop_shp_dict = dict([
-            (int(item.split('_')[1]), os.path.join(calibration_ws, item))
-            for item in os.listdir(calibration_ws)
-            if item.lower().endswith('shp')])
-        
-        ## Dictionary to convert shapefile field names to crop parameters
-        crop_field_dict = {
-            'Name':'name',
-            'ClassNum':'class_number',
-            'IsAnnual':'is_annual',
-            'IrrigFlag':'irrigation_flag',
-            'IrrigDays':'days_after_planting_irrigation',
-            'Crop_FW':'crop_fw', 
-            'WinterCov':'winter_surface_cover_class',
-            'CropKcMax':'kc_max',
-            'MAD_Init':'mad_initial',
-            'MAD_Mid':'mad_midseason',
-            'RootDepIni':'rooting_depth_initial',
-            'RootDepMax':'rooting_depth_max',
-            'EndRootGrw':'end_of_root_growth_fraction_time',
-            'HeightInit':'height_initial',
-            'HeightMax':'height_max',
-            'CurveNum':'curve_number',
-            'CurveName':'curve_name',
-            'CurveType':'curve_type',
-            'PL_GU_Flag':'flag_for_means_to_estimate_pl_or_gu',
-            'T30_CGDD':'t30_for_pl_or_gu_or_cgdd',
-            'PL_GU_Date':'date_of_pl_or_gu',
-            'CGDD_Tbase':'tbase',
-            'CGDD_EFC':'cgdd_for_efc',
-            'CGDD_Term':'cgdd_for_termination',
-            'Time_EFC':'time_for_efc',
-            'Time_Harv':'time_for_harvest',
-            'KillFrostC':'killing_frost_temperature',
-            'InvokeStrs':'invoke_stress',
-            'CN_Coarse':'cn_coarse_soil',
-            'CN_Medium':'cn_medium_soil',
-            'CN_Fine':'cn_fine_soil'}
+        self.crop_pd['cutting'] = 0   
     
-        ## Process each crop parameter shapefile
-        for crop_num, crop_shp in sorted(crop_shp_dict.items()):
-            print crop_num, crop_shp
-            crop_f = DBF(crop_shp.replace('.shp', '.dbf'))
-            for record in crop_f:
-                for k,v in record.items():
-                    print k,v
-                raw_input('ENTER')
-            ##crop_f.close()
-        ##crop_param_dict = defaultdict(dict)
-        ##print crop_shp_dict
+    def setup_co2(self, et_cell, crop):
+        """Get the CO2 correction factor dataframe for the target cell/crop
         
-        for cell_id, cell in sorted(self.et_cells_dict.items()):
-            for param in x:
-                self.et_cells_dict[cell_id].crop_params.param = value
-    
-        raw_input('ENTER')
+        Args:
+            et_cell ():
+            crop ():
+        """
+        if crop.co2_type == 'GRASS':
+            self.co2 = et_cell.weather_pd['co2_grass']
+        elif crop.co2_type == 'TREES':
+            self.co2 = et_cell.weather_pd['co2_trees']
+        elif crop.co2_type == 'C4':
+            self.co2 = et_cell.weather_pd['co2_c4']
+        return True

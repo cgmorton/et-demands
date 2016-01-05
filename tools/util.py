@@ -1,28 +1,65 @@
-##import argparse
+import argparse
 import ConfigParser
-import glob
+import datetime
 from itertools import groupby
 import logging
 import os
+import Tkinter, tkFileDialog
 
-def remove_file(file_path):
-    """Remove a feature/raster and all of its anciallary files"""
-    file_ws = os.path.dirname(file_path)
-    for file_name in glob.glob(os.path.splitext(file_path)[0]+".*"):
-        logging.debug('  Remove: {}'.format(os.path.join(file_ws, file_name)))
-        os.remove(os.path.join(file_ws, file_name))
+##def get_directory(workspace, title_str):
+##    """"""
+##    import Tkinter, tkFileDialog
+##    root = Tkinter.Tk()
+##    user_ws = tkFileDialog.askdirectory(
+##        initialdir=workspace, parent=root, title=title_str, mustexist=True)
+##    root.destroy()
+##    return user_ws
+
+def get_path(workspace, title_str, file_types=[('INI files', '.ini')]):
+    """"""
+    root = Tkinter.Tk()
+    path = tkFileDialog.askopenfilename(
+        initialdir=workspace, parent=root, filetypes=file_types,
+        title=title_str)
+    root.destroy()
+    return path
 
 def is_valid_file(parser, arg):
+    """"""
     if not os.path.isfile(arg):
         parser.error('The file {} does not exist!'.format(arg))
     else:
         return arg
 def is_valid_directory(parser, arg):
+    """"""
     if not os.path.isdir(arg):
         parser.error('The directory {} does not exist!'.format(arg))
     else:
         return arg
-        
+
+def valid_date(input_date):
+    """Check that a date string is ISO format (YYYY-MM-DD)
+
+    This function is used to check the format of dates entered as command
+      line arguments.
+    DEADBEEF - It would probably make more sense to have this function 
+      parse the date using dateutil parser (http://labix.org/python-dateutil)
+      and return the ISO format string
+
+    Args:
+        input_date: string
+    Returns:
+        string 
+    Raises:
+        ArgParse ArgumentTypeError
+    """
+    try:
+        input_dt = datetime.datetime.strptime(input_date, "%Y-%m-%d")
+        return input_date
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(input_date)
+        raise argparse.ArgumentTypeError(msg)
+
 def parse_int_set(nputstr=""):
     """Return list of numbers given a string of ranges
 
@@ -30,7 +67,7 @@ def parse_int_set(nputstr=""):
     """
     selection = set()
     invalid = set()
-    # tokens are comma seperated values
+    # tokens are comma separated values
     tokens = [x.strip() for x in nputstr.split(',')]
     for i in tokens:
         try:
@@ -54,7 +91,7 @@ def parse_int_set(nputstr=""):
     # Report invalid tokens before returning valid selection
     ##print "Invalid set: " + str(invalid)
     return selection
-
+    
 def read_ini(ini_path, section='CROP_ET'):
     """Open the INI file and check for obvious errors"""
     logging.info('  INI: {}'.format(os.path.basename(ini_path)))
@@ -70,7 +107,7 @@ def read_ini(ini_path, section='CROP_ET'):
                        'a section: [{}]\n').format(section))
         sys.exit()
     return config
-
+    
 def ranges(i):
     for a, b in groupby(enumerate(i), lambda (x, y): y - x):
         b = list(b)
@@ -79,3 +116,7 @@ def ranges(i):
         else:
             yield '{0}-{1}'.format(b[0][1], b[-1][1])
         ##yield b[0][1], b[-1][1]
+        
+def doy_2_date(test_year, test_doy):
+    return datetime.datetime.strptime('{0:04d}_{1:03d}'.format(
+        int(test_year), int(test_doy)), '%Y_%j').strftime('%Y-%m-%d')

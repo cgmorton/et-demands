@@ -133,7 +133,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     if (not foo.in_season and
         (crop.class_number < 55 or crop.class_number > 57)):    
         logging.debug(
-            'compute_crop_et(): Kc_bas %.6f  Kc_bas_wscc %.6f  wscc %.6f' % (
+            'compute_crop_et(): kc_bas %.6f  kc_bas_wscc %.6f  wscc %.6f' % (
                 foo.kc_bas, foo.kc_bas_wscc[wscc], wscc))
         foo.kc_bas = foo.kc_bas_wscc[wscc] 
 
@@ -164,7 +164,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
                 foo.fc = 0.001
     if debug_flag:
         logging.debug(
-            'compute_crop_et(): kc_max %.6f  kc_min %.6f  Kc_bas %.6f  in_season %d' % (
+            'compute_crop_et(): kc_max %.6f  kc_min %.6f  kc_bas %.6f  in_season %d' % (
             kc_max, foo.kc_min, foo.kc_bas, foo.in_season))
 
 
@@ -458,10 +458,10 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             ('compute_crop_et(): kc_mult %.6f  ke %.6f  ke_irr %.6f  ke_ppt %.6f') %
             (kc_mult, ke, ke_irr, ke_ppt))
         logging.debug(
-            ('compute_crop_et(): Kc_bas %.6f  Kc_pot %.6f  Kc_act %.6f') %
+            ('compute_crop_et(): kc_bas %.6f  kc_pot %.6f  kc_act %.6f') %
             (foo.kc_bas, foo.kc_pot, foo.kc_act))    
         logging.debug(
-            ('compute_crop_et(): ETcbas %.6f  ETcpot %.6f  ETcact %.6f') %
+            ('compute_crop_et(): etc_bas %.6f  etc_pot %.6f  etc_act %.6f') %
             (foo.etc_bas, foo.etc_pot, foo.etc_act))
     
     e = ke * foo_day.etref
