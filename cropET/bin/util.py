@@ -1,33 +1,31 @@
-import datetime
+import datetime as dt
 import logging
-import math
 import os
 
 import numpy as np
+
 
 def es_from_t(t):
     """ Tetens (1930) equation for sat. vap pressure, kPa, (T in C)
 
     Args:
         t (float): temperature [C]
-        
+
     Returns:
         A float of the saturated vapor pressure [kPa]
     """
-    return 0.6108 * np.exp((17.27 * t) / (t + 237.3)) 
-
+    return 0.6108 * np.exp((17.27 * t) / (t + 237.3))
 
 def es_ice_from_t(t):
     """ Murray (1967) equation for sat. vap pressure over ice, kPa, (T in C)
 
     Args:
         t (float): temperature [C]
-        
+
     Returns:
         A float of the saturated vapor pressure over ice [kPa]
     """
-    return 0.6108 * np.exp((21.87 * t) / (t + 265.5)) 
-
+    return 0.6108 * np.exp((21.87 * t) / (t + 265.5))
 
 def is_winter(et_cell, foo_day):
     """Determine if the input day is in a winter month
@@ -35,16 +33,16 @@ def is_winter(et_cell, foo_day):
     Args:
         et_cell (): ?
         foo_day (): ?
-        
+
     Returns:
         A boolean that is True if the input day is in a winter month
     """
     if et_cell.stn_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
-    ##if et_cell.cell_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
-        ## Northern hemisphere
+    # if et_cell.cell_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
+        # Northern hemisphere
         return True
     else:
-        ## Southern hemisphere
+        # Southern hemisphere
         return False
 
 def pair_from_elev(elevation):
@@ -69,7 +67,7 @@ def ea_from_q(p, q):
         NumPy array of vapor pressures [kPa]
     """
     return p * q / (0.622 + 0.378 * q)
-    
+
 def q_from_ea(ea, p):
     """Calculates specific humidity from vapor pressure and pressure
 
@@ -98,19 +96,19 @@ def valid_date(input_date):
 
     This function is used to check the format of dates entered as command
       line arguments.
-    DEADBEEF - It would probably make more sense to have this function 
+    DEADBEEF - It would probably make more sense to have this function
       parse the date using dateutil parser (http://labix.org/python-dateutil)
       and return the ISO format string
 
     Args:
         input_date: string
     Returns:
-        string 
+        string
     Raises:
         ArgParse ArgumentTypeError
     """
     try:
-        input_dt = datetime.datetime.strptime(input_date, "%Y-%m-%d")
+        input_dt = dt.datetime.strptime(input_date, "%Y-%m-%d")
         return input_date
     except ValueError:
         msg = "Not a valid date: '{0}'.".format(input_date)
@@ -170,5 +168,5 @@ def parse_int_set(nputstr=""):
                 # not an int and not a range...
                 invalid.add(i)
     # Report invalid tokens before returning valid selection
-    ##print "Invalid set: " + str(invalid)
+    # print "Invalid set: " + str(invalid)
     return selection

@@ -5,21 +5,22 @@ import sys
 
 import numpy as np
 
+
 class CropParameters:
     def __init__(self, crop_params_path):
         """
-        
+
         Args:
             crop_params_path (str): file path of the crop parameters text file
-        
+
         Returns:
             None
         """
-        
-        ## If there is a comma in the string, it will also have quotes
+
+        # If there is a comma in the string, it will also have quotes
         self.name = str(crop_params_path[0]).replace('"', '').strip()
         self.class_number = abs(int(crop_params_path[1]))
-        ## DEADBEEF - Is this even used?
+        # DEADBEEF - Is this even used?
         if int(crop_params_path[1]) < 0:
             self.is_annual = True
         else:
@@ -53,53 +54,53 @@ class CropParameters:
         self.cn_medium_soil = float(crop_params_path[30])
         self.cn_fine_soil = float(crop_params_path[31])
 
-        ## Winter crop
-        if (self.class_number in [13, 14] or 
+        # Winter crop
+        if (self.class_number in [13, 14] or
             'WINTER' in self.curve_name.upper()):
             self.gdd_trigger_doy = 274
             self.winter_crop = True
         else:
             self.gdd_trigger_doy = 1
             self.winter_crop = False
-            
-        ## DEADBEEF
-        ## In older versions of VB code, "WINTER CANOLA" GDD trigger day isn't changed
-        ##   but it is still processed as a "winter" crop in the rest of the code
-        ##if (self.class_number in [13, 14] and
-        ##    self.curve_name.upper().strip() == 'WINTER WHEAT'):
-        ##    self.gdd_trigger_doy = 274
-        ##    self.winter_crop = True
-        ##elif (vb_flag and self.class_number in [40] and
-        ##      'WINTER' in self.curve_name.upper().strip()):
-        ##      ##'WINTER' in self.curve_name.upper().strip() == 'WINTER CANOLA'):
-        ##    self.gdd_trigger_doy = 274
-        ##    self.winter_crop = False
-        ##else:
-        ##    self.gdd_trigger_doy = 1
-        ##    self.winter_crop = False
-            
-        ## Pre-compute parameters instead of re-computing them daily                
-        #### Flag_for_means_to_estimate_pl_or_gu Case 3
+
+        # DEADBEEF
+        # In older versions of VB code, "WINTER CANOLA" GDD trigger day isn't changed
+        #   but it is still processed as a "winter" crop in the rest of the code
+        # if (self.class_number in [13, 14] and
+        #     .curve_name.upper().strip() == 'WINTER WHEAT'):
+        #     .gdd_trigger_doy = 274
+        #     .winter_crop = True
+        # elif (vb_flag and self.class_number in [40] and
+        #      'WINTER' in self.curve_name.upper().strip()):
+        #      # 'WINTER' in self.curve_name.upper().strip() == 'WINTER CANOLA'):
+        #     .gdd_trigger_doy = 274
+        #     .winter_crop = False
+        # else:
+        #     .gdd_trigger_doy = 1
+        #     .winter_crop = False
+
+        # Pre-compute parameters instead of re-computing them daily
+        # # Flag_for_means_to_estimate_pl_or_gu Case 3
         if self.flag_for_means_to_estimate_pl_or_gu == 3:
-            ## Compute planting or green-up date from fractional month
-            ## Putting in a date_of_pl_or_gu of "1" will return Jan. 15th
-            ## Putting in a date_of_pl_or_gu of "10" will return Oct. 15th
-            ## Putting in a date_of_pl_or_gu of "4.8333" will return Apr. 25th
+            # Compute planting or green-up date from fractional month
+            # Putting in a date_of_pl_or_gu of "1" will return Jan. 15th
+            # Putting in a date_of_pl_or_gu of "10" will return Oct. 15th
+            # Putting in a date_of_pl_or_gu of "4.8333" will return Apr. 25th
             self.month_of_pl_or_gu = int(self.date_of_pl_or_gu)
             self.day_of_pl_or_gu = int(round(
                 (self.date_of_pl_or_gu - self.month_of_pl_or_gu) * 30.4))
-            if self.day_of_pl_or_gu < 0.5:  
+            if self.day_of_pl_or_gu < 0.5:
                 self.day_of_pl_or_gu = 15
             if self.month_of_pl_or_gu == 0:
-                ## vb code (DateSerial) apparently resolves Mo=0 to 12
+                # vb code (DateSerial) apparently resolves Mo=0 to 12
                 self.date_of_pl_or_gu = 12
                 logging.info('  Changing date_of_pl_or_gu from 0 to 12')
-            ##self.doy_of_pl_or_gu = datetime.datetime(
-            ##    foo_day.year, self.month_of_pl_or_gu, 
-            ##    self.day_of_pl_or_gu).timetuple().tm_yday
-                    
-        ## Cuttings
-        ## Special case for ALFALFA   1 added 4/18/08
+            # self.doy_of_pl_or_gu = datetime.datetime(
+            #     _day.year, self.month_of_pl_or_gu,
+            #     .day_of_pl_or_gu).timetuple().tm_yday
+
+        # Cuttings
+        # Special case for ALFALFA   1 added 4/18/08
         if (self.class_number in [1,2,3] or
             (self.class_number >= 4 and
              self.curve_name.upper() == "ALFALFA 1ST CYCLE")):
@@ -114,26 +115,26 @@ class CropParameters:
     def set_winter_soil(self, crops=[]):
         """ """
         pass
-        #' setup curve number for antecedent II condition for winter covers
-        #wscc = self.winter_surface_cover_class
-        #self.cn_coarse_soil_winter = int(crop_params_path[29])
-        #self.cn_medium_soil_winter = int(crop_params_path[30])
-        #self.cn_fine_soil_winter   = int(crop_params_path[31])
-        
+        # # setup curve number for antecedent II condition for winter covers
+        # wscc = self.winter_surface_cover_class
+        # self.cn_coarse_soil_winter = int(crop_params_path[29])
+        # self.cn_medium_soil_winter = int(crop_params_path[30])
+        # self.cn_fine_soil_winter   = int(crop_params_path[31])
+
 def read_crop_parameters(fn):
     """Read in the crop parameter text file"""
 
-    ## For now, hardcode reading the first 32 lines after the 3 header rows
+    # For now, hardcode reading the first 32 lines after the 3 header rows
     crop_param_data = np.loadtxt(fn, delimiter="\t", dtype='str', skiprows=3)
     crop_param_data = crop_param_data[:32,:]
 
-    ## Replace empty values with 0
+    # Replace empty values with 0
     crop_param_data[crop_param_data == ''] = '0'
-    ##crop_param_data = np.where(crop_param_data == '', '0', crop_param_data)
+    # crop_param_data = np.where(crop_param_data == '', '0', crop_param_data)
 
     crops_dict = {}
     for crop_i, crop_num in enumerate(crop_param_data[1,2:]):
-        if crop_num <> '0':
+        if crop_num != '0':
             crop_num = abs(int(crop_num))
         else:
             break
