@@ -139,12 +139,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
 
-    # Limit x_panning to a specified date range
-    # Doesn't currently work
-    # x_bounds = (
-    #     .datetime64(dt.datetime(year_start,1,1), 's'),
-    #     .datetime64(dt.datetime(year_end+1,1,1), 's'))
-
     # # Windows only a
     # if figure_dynamic_size:
     #     :
@@ -245,9 +239,16 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # Initial range of timeseries to show
         # For now default to last ~8 year
         if sub_x_range_flag:
-            x_range = (
+            x_range = Range1d(
                 np.datetime64(dt.datetime(
                     max(crop_year_end-9, crop_year_start), 1, 1), 's'),
+                np.datetime64(dt.datetime(crop_year_end+1, 1, 1), 's'),
+                bounds=(
+                    np.datetime64(dt.datetime(crop_year_start, 1, 1), 's'),
+                    np.datetime64(dt.datetime(crop_year_end+1, 1, 1), 's')))
+        else:
+            x_range = Range1d(
+                np.datetime64(dt.datetime(crop_year_start, 1, 1), 's'),
                 np.datetime64(dt.datetime(crop_year_end+1, 1, 1), 's'))
 
         # Build separate arrays for each field of non-crop specific data
@@ -317,7 +318,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f2.grid.grid_line_alpha = 0.3
         f2.yaxis.axis_label = 'Kc and Kcb (dimensionless)'
         f2.yaxis.axis_label_text_font_size = figure_ylabel_size
-        # f2.xaxis.bounds = x_bounds
 
         f3 = figure(
             x_axis_type="datetime", x_range=f1.x_range,
@@ -331,7 +331,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # f3.xaxis.axis_label = 'Date'
         f3.yaxis.axis_label = 'PPT and Irrigation [mm]'
         f3.yaxis.axis_label_text_font_size = figure_ylabel_size
-        # f3.xaxis.bounds = x_bounds
 
         if figure_show_flag:
             # Open in a browser
