@@ -1,6 +1,8 @@
 # CropET
 Crop ET Demands Model
 
++ ET-Demands [Manual and Documentation](http://et-demands.readthedocs.io/en/latest/)
+
 #### Running the tools/scripts
 Currently, the scripts should be run from the windows command prompt (or Linux terminal) so that the input file can be passed as an argument directly to the script.  It is possible to execute some scripts by double clicking, but this is still in development.
 
