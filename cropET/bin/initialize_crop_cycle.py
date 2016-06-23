@@ -1,5 +1,4 @@
 import logging
-import sys
 
 import numpy as np
 
@@ -157,7 +156,7 @@ class InitializeCropCycle:
         self.kc_bas_mid = 0.
         # Bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
         if crop.curve_number > 0:
-            self.kc_bas_mid = et_cell.crop_coeffs[crop.curve_number].max_value(self.kc_bas_mid)
+            self.kc_bas_mid = np.max(et_cell.crop_coeffs[crop.curve_number].data)
 
         # Available water in soil
         self.aw = et_cell.stn_whc / 12 * 1000.   # in/ft to mm/m

@@ -1,57 +1,36 @@
 #!/usr/bin/env python
-
 import numpy as np
 
 
 class CropCoeff:
+    """Crop coefficient container
+
+    Attributes:
+        curve_no (): Crop curve number (1-60)
+        curve_type_no (): Crop curve type (1-4)
+        curve_type (): Crop curve type number
+            (NCGDD, %PL-EC, %PL-EC+daysafter, %PL-Term)
+        name (str): Crop name
+        percents (numpy array): crop coefficient percents
+        data (numpy array): Crop coefficient curve values
+
+    """
+
     def __init__(self):
-        """ """
         self.name = None
         self.gdd_type_name = ''
 
-    # CGM 9/1/2015 - Not sure the point of this implementation of the init function
-    # def __init__(self, fn=''):
-    #     """ """
-    #     self.fn = fn
-    #     if fn:
-    #         self.read(fn)
-
     def __str__(self):
-        """ """
         return '<%s, type %s>' % (self.name, self.curve_type)
 
-    def lookup(self, val=None):
-        """ Lookup value from table
-        """
-        nval = 0.0
-        for i in range(self.lentry):
-            if val < self.data[i]:
-                nval = self.data[i]
-        return nval
+    def init_from_column(self, dc):
+        """Parse the column of data from the static crop coefficients file
 
-    def max_value(self, val=None):
-        """ Maximum value from table
-
-        Find maximum Kcb in array for this crop (used later in height calc)
-        Kcbmid is the maximum Kcb found in the Kcb table read into program
-        Following code was repaired to properly parse crop curve arrays on 7/31/2012.  dlk
-
-        """
-        # from Sub CropLoad(), line ~1032
-        # For kCount = 0 To maxLinesInCropCurveTable  # <----- no. entries for crop coefficient curve
-        #     If Kcbmid < cropco_val(cCurveNo, kCount) Then Kcbmid = cropco_val(cCurveNo, kCount)
-        # Next kCount
-        for i in range(self.lentry):
-            if val < self.data[i]:
-                val = self.data[i]
-        return val
-
-    def init_from_column(self, percents, dc):
-        """ Parse the column of data
+        This functionality could be moved into the init function above
 
         Args:
-            pc - string of the percent column
-            dc - string of the data column
+            percents (numpy array): percents column from static file
+            dc (numpy array): crop data column from static file
         """
 
         # Info
@@ -65,11 +44,13 @@ class CropCoeff:
         self.name = dc[4]
 
         # Data table
-        self.percents = percents.astype(float)
-        v = dc[6:41]
-        #v = np.where(v == '', 'nan', v)
-        v = np.where(v == '', '0', v)
-        self.data = v.astype(float)
+        # Percents values are not being used anywhere in the code
+        # self.percents = percents.astype(float)
+        values = dc[6:41]
+        mask = values == ''
+        values = np.where(mask, '0', values)
+        self.data = values.astype(float)
+        self.lentry = np.where(~mask)[0][-1]
 
         # # CGM 9/1/2015 - These aren't used anywhere else in the code
         # t2n = { '1':'simple', '2':'corn'}
@@ -85,32 +66,17 @@ class CropCoeff:
         # self.comment1 = dc[46]
         # self.comment2 = dc[47]
 
-        # From CropCycle() in vb code
-        i = np.where(self.data > 0.0)
-        self.lentry = len(np.where(self.data > 0.0)[0]) - 1
-
-        #self.curve_no = curve_no
-        #self.curve_type = curve_type
-        #self.percents = percents
-        #self.vals = vals
-
-    # def read(self):
-    #     """ Read from crop coefficient file
-    #         Eventually each crop stored in own text file...maybe.
-    #     """
-    #     print 'not implemented'
-
-    # def write(self, fn=''):
-    #     """ Write individual crop coefficient file
-    #     """
-    #     print 'not implemented'
-
 
 def read_crop_coefs(fn):
-    """ Load the crop coefficients
+    """Load the crop coefficients from the static file
 
-    Crop coefficients are constant for all cells
+    Assume crop coefficients are constant for all cells
 
+    Args:
+        fn (str): file path
+
+    Returns:
+        A dict mapping crop curve numbers to the crop coefficients
     """
 
     a = np.loadtxt(fn, delimiter="\t", dtype='str')
@@ -118,16 +84,18 @@ def read_crop_coefs(fn):
 
     coeffs_dict = {}
     for i, num in enumerate(curve_type):
-        if curve_type[i] == '3':
-            percents = a[6:41, 1]
-        else:
-            percents = a[6:37, 0]
+        # Percents values are not being used anywhere in the code
+        # if curve_type[i] == '3':
+        #     percents = a[6:41, 1]
+        # else:
+        #     percents = a[6:37, 0]
 
         data_col = a[:41, 2+i]
         if not data_col[2]:
             continue
         coeff_obj = CropCoeff()
-        coeff_obj.init_from_column(percents, data_col)
+        coeff_obj.init_from_column(data_col)
+        # coeff_obj.init_from_column(percents, data_col)
 
         coeffs_dict[int(coeff_obj.curve_no)] = coeff_obj
     return coeffs_dict
