@@ -114,15 +114,16 @@ def read_crop_coefs(fn):
     """
 
     a = np.loadtxt(fn, delimiter="\t", dtype='str')
-    curve_type = a[2, 2:]
+    curve_type = a[3, 2:]
 
     coeffs_dict = {}
     for i, num in enumerate(curve_type):
         if curve_type[i] == '3':
-            percents = a[6:36, 0]
-        else:
             percents = a[6:41, 1]
-        data_col = a[:, 2+i]
+        else:
+            percents = a[6:37, 0]
+
+        data_col = a[:41, 2+i]
         if not data_col[2]:
             continue
         coeff_obj = CropCoeff()
