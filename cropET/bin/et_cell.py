@@ -13,7 +13,6 @@ import time
 # from dbfread import DBF
 import numpy as np
 import pandas as pd
-import shapefile
 
 import crop_et_data
 import util
@@ -182,6 +181,8 @@ class ETCellData():
 
     def set_spatial_crop_params(self, calibration_ws):
         """"""
+        import shapefile
+
         logging.info('Setting spatially varying crop parameters')
         cell_id_field = 'CELL_ID'
         crop_dbf_re = re.compile('crop_\d{2}_\w+.dbf$', re.I)
