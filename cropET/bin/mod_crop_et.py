@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import argparse
 import datetime
 import logging
@@ -18,7 +17,7 @@ import util
 
 
 def main(ini_path, log_level=logging.WARNING,
-         debug_flag=False, vb_flag=False,  mp_procs=1):
+         debug_flag=False, vb_flag=False, mp_procs=1):
     """ Main function for running the Crop ET model
 
     Args:
@@ -147,6 +146,7 @@ def cell_mp(tup):
         vb_flag (bool): If True, mimic calculations in VB version of code
     """
     return cell_sp(*tup)
+
 def cell_sp(data, cell, vb_flag, mp_procs=1):
     """Compute crop cycle for each cell"""
     if mp_procs == 1:
@@ -158,17 +158,20 @@ def cell_sp(data, cell, vb_flag, mp_procs=1):
     crop_cycle.crop_cycle(data, cell, debug_flag=False, vb_flag=vb_flag,
                           mp_procs=mp_procs)
 
+
 def is_valid_file(parser, arg):
     if not os.path.isfile(arg):
         parser.error('The file {} does not exist!'.format(arg))
     else:
         return arg
 
+
 def is_valid_directory(parser, arg):
     if not os.path.isdir(arg):
         parser.error('The directory {} does not exist!'.format(arg))
     else:
         return arg
+
 
 def parse_args():
     """"""

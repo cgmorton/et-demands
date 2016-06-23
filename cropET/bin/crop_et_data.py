@@ -1,12 +1,9 @@
 #!/usr/bin/env python
-
 import ConfigParser
 import datetime as dt
 import logging
 import os
 import sys
-
-import numpy as np
 
 import crop_coefficients
 import crop_parameters
@@ -480,7 +477,7 @@ class CropETData():
             logging.info('  CO2 correction')
             try:
                 self.co2_grass_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_grass_list'))))
+                    config.get(crop_et_sec, 'co2_grass_list'))))
             except:
                 self.co2_grass_crops = []
                 # # DEADBEEF - Make these the defaults?
@@ -489,14 +486,14 @@ class CropETData():
                 #     69,71,72,73,75,79,80,81,83,84,85])
             try:
                 self.co2_trees_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_trees_list'))))
+                    config.get(crop_et_sec, 'co2_trees_list'))))
             except:
                 self.co2_trees_crops = []
                 # # DEADBEEF - Make these the defaults?
                 # self.co2_trees_crops = [19, 20, 70, 74, 82]
             try:
                 self.co2_c4_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_c4_list'))))
+                    config.get(crop_et_sec, 'co2_c4_list'))))
             except:
                 self.co2_c4_crops = []
                 # # DEADBEEF - Make these the defaults?

@@ -49,7 +49,7 @@ Plots of the ET, ETo, Kc, growing season, irrigation, precipitation, and NIWR ca
 The ET-Demands tools have only been tested using Python 2.7 but they may work with Python 3.X.
 
 The easiest way to install the following modules is to use [Anaconda](https://www.continuum.io/downloads).
-+ [Numpy](http://www.numpy.org)
++ [NumPy](http://www.numpy.org)
 + [Pandas](http://pandas.pydata.org)
 
 #### Prep tools
@@ -66,7 +66,7 @@ A combination of GDAL and ArcPy are currently used in the data prep scripts.  Ev
 #### Summary maps
 The following modules are only needed if making summary maps (tools/plot_crop_summary_maps.py)
 
-+ [matplotlib](http://matplotlib.org)
-+ [fiona](https://github.com/Toblerity/Fiona)
-+ [descartes](https://bitbucket.org/sgillies/descartes)
-+ [shapely](https://github.com/Toblerity/Shapely)
++ [Matplotlib](http://matplotlib.org)
++ [Fiona](https://github.com/Toblerity/Fiona)
++ [Descartes](https://bitbucket.org/sgillies/descartes)
++ [Shapely](https://github.com/Toblerity/Shapely)

@@ -16,6 +16,7 @@ def es_from_t(t):
     """
     return 0.6108 * np.exp((17.27 * t) / (t + 237.3))
 
+
 def es_ice_from_t(t):
     """ Murray (1967) equation for sat. vap pressure over ice, kPa, (T in C)
 
@@ -26,6 +27,7 @@ def es_ice_from_t(t):
         A float of the saturated vapor pressure over ice [kPa]
     """
     return 0.6108 * np.exp((21.87 * t) / (t + 265.5))
+
 
 def is_winter(et_cell, foo_day):
     """Determine if the input day is in a winter month
@@ -45,6 +47,7 @@ def is_winter(et_cell, foo_day):
         # Southern hemisphere
         return False
 
+
 def pair_from_elev(elevation):
     """Calculates air pressure as a function of elevation
 
@@ -55,6 +58,7 @@ def pair_from_elev(elevation):
         NumPy array of air pressures [kPa]
     """
     return 101.3 * np.power((293.0 - 0.0065 * elevation) / 293.0, 5.26)
+
 
 def ea_from_q(p, q):
     """Calculates vapor pressure from pressure and specific humidity
@@ -68,6 +72,7 @@ def ea_from_q(p, q):
     """
     return p * q / (0.622 + 0.378 * q)
 
+
 def q_from_ea(ea, p):
     """Calculates specific humidity from vapor pressure and pressure
 
@@ -80,6 +85,7 @@ def q_from_ea(ea, p):
     """
     return 0.622 * ea / (p - 0.378 * ea)
 
+
 def tdew_from_ea(ea):
     """Calculates vapor pressure at a given temperature
 
@@ -90,6 +96,7 @@ def tdew_from_ea(ea):
         NumPy array of vapor pressures [kPa]
     """
     return (237.3 * np.log(ea / 0.6108)) / (17.27 - np.log(ea / 0.6108))
+
 
 def valid_date(input_date):
     """Check that a date string is ISO format (YYYY-MM-DD)
@@ -114,9 +121,11 @@ def valid_date(input_date):
         msg = "Not a valid date: '{0}'.".format(input_date)
         raise argparse.ArgumentTypeError(msg)
 
+
 def wind_adjust_func(uz_array, zw):
     """Adjust wind speed to 2m"""
     return uz_array * 4.87 / np.log(67.8 * zw - 5.42)
+
 
 def file_logger(logger=logging.getLogger(''), log_level=logging.DEBUG,
                 output_ws=os.getcwd()):
@@ -129,6 +138,7 @@ def file_logger(logger=logging.getLogger(''), log_level=logging.DEBUG,
     logger.addHandler(log_file)
     return logger
 
+
 def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
     """Create console logger"""
     import sys
@@ -138,6 +148,7 @@ def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
     log_console.setFormatter(logging.Formatter('%(message)s'))
     logger.addHandler(log_console)
     return logger
+
 
 def parse_int_set(nputstr=""):
     """Return list of numbers given a string of ranges

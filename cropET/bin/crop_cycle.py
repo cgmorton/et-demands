@@ -1,23 +1,17 @@
 #!/usr/bin/env python
 import datetime
-import fileinput
 import logging
-import math
 import multiprocessing as mp
 import os
-import re
-import sys
 
 import numpy as np
 import pandas as pd
 
 import calculate_height
-import crop_et_data
 import compute_crop_et
 import compute_crop_gdd
 from initialize_crop_cycle import InitializeCropCycle
 import kcb_daily
-import util
 
 
 class DayData:
@@ -25,6 +19,7 @@ class DayData:
         """ """
         # Used in compute_crop_gdd(), needs to be persistent during day loop
         self.etref_array = np.zeros(30)
+
 
 def crop_cycle_mp(data, et_cell, vb_flag=False, mp_procs=1):
     """Compute crop ET for all crops using multiprocessing
@@ -52,6 +47,7 @@ def crop_cycle_mp(data, et_cell, vb_flag=False, mp_procs=1):
         pool.join()
         del pool, results
 
+
 def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
     """Compute crop ET for all crops
 
@@ -72,6 +68,7 @@ def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
             continue
         crop_day_loop(data, et_cell, crop, debug_flag, vb_flag, mp_procs)
 
+
 def crop_day_loop_mp(tup):
     """Pool multiprocessing friendly crop_day_loop function
 
@@ -90,6 +87,7 @@ def crop_day_loop_mp(tup):
 
     """
     return crop_day_loop(*tup)
+
 
 def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
                   mp_procs=1):
@@ -237,6 +235,7 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
         data.annual_output_flag or data.gs_output_flag):
         write_crop_output(data, et_cell, crop, foo)
     return True
+
 
 def write_crop_output(data, et_cell, crop, foo):
     """Write ET-Demands output files for each cell/crop

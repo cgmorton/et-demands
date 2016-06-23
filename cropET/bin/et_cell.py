@@ -1,20 +1,13 @@
 #!/usr/bin/env python
-
-from collections import defaultdict
 import datetime
 import logging
-import math
 import os
-import pprint
 import re
 import sys
-import time
 
-# from dbfread import DBF
 import numpy as np
 import pandas as pd
 
-import crop_et_data
 import util
 
 
