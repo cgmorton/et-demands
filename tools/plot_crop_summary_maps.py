@@ -2,7 +2,7 @@
 # Name:         plot_crop_summary_maps.py
 # Purpose:      Plot crop summary maps from daily data
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-06-24
 # Python:       2.7
 #--------------------------------
 
@@ -937,7 +937,7 @@ if __name__ == '__main__':
     log_f = '{0:<20s} {1}'
     logging.info(log_f.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info(log_f.format('Current Directory:', args.workspace))
+    logging.info(log_f.format('Current Directory:', os.getcwd()))
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
     main(ini_path, show_flag=args.show, save_flag=args.no_save,
