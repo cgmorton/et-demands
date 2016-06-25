@@ -295,8 +295,10 @@ def write_crop_output(data, et_cell, crop, foo):
             niwr_field: np.sum, precip_field: np.sum, irrig_field: np.sum,
             runoff_field: np.sum, dperc_field: np.sum, season_field: np.sum,
             cutting_field: np.sum}
-        monthly_output_pd = daily_output_pd.resample(
-            'MS', how=monthly_resample_func)
+        monthly_output_pd = daily_output_pd.resample('MS').apply(
+            monthly_resample_func)
+        # monthly_output_pd = daily_output_pd.resample(
+        #     'MS', how=monthly_resample_func)
     if data.annual_output_flag:
         resample_func = {
             pmeto_field: np.sum, etact_field: np.sum, etpot_field: np.sum,
@@ -304,13 +306,16 @@ def write_crop_output(data, et_cell, crop, foo):
             niwr_field: np.sum, precip_field: np.sum, irrig_field: np.sum,
             runoff_field: np.sum, dperc_field: np.sum, season_field: np.sum,
             cutting_field: np.sum}
-        annual_output_pd = daily_output_pd.resample(
-            'AS', how=resample_func)
+        annual_output_pd = daily_output_pd.resample('AS').apply(resample_func)
+        # annual_output_pd = daily_output_pd.resample(
+        #     'AS', how=resample_func)
     # Get growing season start and end DOY for each year
     # Compute growing season length for each year
     if data.gs_output_flag:
-        gs_output_pd = daily_output_pd.resample(
-            'AS', how={year_field: np.mean})
+        gs_output_pd = daily_output_pd.resample('AS').apply(
+            {year_field: np.mean})
+        # gs_output_pd = daily_output_pd.resample(
+        #     'AS', how={year_field: np.mean})
         gs_output_pd[gs_start_doy_field] = np.nan
         gs_output_pd[gs_end_doy_field] = np.nan
         gs_output_pd[gs_start_date_field] = None

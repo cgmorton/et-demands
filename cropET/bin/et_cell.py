@@ -591,8 +591,10 @@ class ETCell():
 
         # T30 stuff, done after temperature adjustments above
         self.climate_pd['tmean'] = self.climate_pd[["tmax", "tmin"]].mean(axis=1)
-        self.climate_pd['t30'] = pd.rolling_mean(
-            self.climate_pd['tmean'], window=30, min_periods=1)
+        self.climate_pd['t30'] = self.climate_pd['tmean'].rolling(
+            window=30, min_periods=1).mean()
+        # self.climate_pd['t30'] = pd.rolling_mean(
+        #     self.climate_pd['tmean'], window=30, min_periods=1)
 
         # Build cumulative T30 over period of record
         main_t30_lt = np.array(self.climate_pd[['t30', 'doy']].groupby('doy').mean()['t30'])
