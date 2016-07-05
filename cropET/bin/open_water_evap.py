@@ -42,6 +42,7 @@ def open_water_evap(cell, foo_day):
 
         # LE in megawatts/m2
         ce = 0.0015
+        # DEADBEEF - wind variable is not defined
         le = 2.45 * density * ce * wind * (q_water - q_air)
 
         # Kg/m2/d = mm/d

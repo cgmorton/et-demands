@@ -309,6 +309,7 @@ def write_crop_output(data, et_cell, crop, foo):
         annual_output_pd = daily_output_pd.resample('AS').apply(resample_func)
         # annual_output_pd = daily_output_pd.resample(
         #     'AS', how=resample_func)
+
     # Get growing season start and end DOY for each year
     # Compute growing season length for each year
     if data.gs_output_flag:
@@ -485,6 +486,18 @@ def write_crop_output(data, et_cell, crop, foo):
         with open(gs_output_path, 'w') as gs_output_f:
             gs_output_f.write(
                 '# {0:2d} - {1}\n'.format(crop.class_number, crop.name))
+            gs_start_doy = int(round(gs_output_pd[gs_start_doy_field].mean()))
+            gs_end_doy = int(round(gs_output_pd[gs_end_doy_field].mean()))
+            gs_start_dt = datetime.datetime.strptime(
+                '2001_{:03d}'.format(gs_start_doy), '%Y_%j')
+            gs_end_dt = datetime.datetime.strptime(
+                '2001_{:03d}'.format(gs_end_doy), '%Y_%j')
+            gs_output_f.write(
+                '# Mean Start Date: {dt.month}/{dt.day}  ({doy})\n'.format(
+                    dt=gs_start_dt, doy=gs_start_doy))
+            gs_output_f.write(
+                '# Mean End Date:   {dt.month}/{dt.day}  ({doy})\n'.format(
+                    dt=gs_end_dt, doy=gs_end_doy))
             gs_output_pd.to_csv(
                 gs_output_f, sep=',', columns=gs_output_columns,
                 date_format='%Y', index=False)
