@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import copy
 import datetime
 import logging
 import os
@@ -30,7 +31,7 @@ class ETCellData():
         logging.info('\nSetting static cell properties')
         a = np.loadtxt(fn, delimiter=delimiter, dtype='str')
         # Klamath file has one header, other has two lines
-        if a[0,0] == 'ET Cell ID':
+        if a[0, 0] == 'ET Cell ID':
             a = a[1:]
         else:
             a = a[2:]
@@ -49,8 +50,8 @@ class ETCellData():
         """
         logging.info('Setting static cell crops')
         a = np.loadtxt(fn, delimiter=delimiter, dtype='str')
-        crop_numbers = a[1,4:].astype(int)
-        crop_names = a[2,4:]
+        crop_numbers = a[1, 4:].astype(int)
+        crop_names = a[2, 4:]
         a = a[3:]
         for i, row in enumerate(a):
             cell_id = row[0]
@@ -66,7 +67,7 @@ class ETCellData():
 
             # List of active crop numbers (i.e. flag is True) in the cell
             cell.crop_num_list = sorted(
-                [k for k,v in cell.crop_flags.items() if v])
+                [k for k, v in cell.crop_flags.items() if v])
             self.crop_num_list.extend(cell.crop_num_list)
 
         # Update list of active crop numbers in all cells
@@ -106,21 +107,19 @@ class ETCellData():
             cell = self.et_cells_dict[cell_id]
             cell.init_cuttings_from_row(row)
 
-    def filter_cell_crops(self, crop_skip_list=[], crop_test_list=[],
-                          cell_skip_list=[], cell_test_list=[]):
-        """Remove ET cells without active crops
+    def filter_crops(self, crop_skip_list=[], crop_test_list=[]):
+        """Remove ET cells based on crop lists
 
         Args:
-            fn (str): file path  of the ET cell crops text file
             crop_skip_list (list): crop numbers to skip
             crop_test_list (list): crop numbers to test
-            cell_skip_list (list): cell IDs to skip
-            cell_test_list (list): cell IDs to test
         """
         if crop_skip_list or crop_test_list:
             logging.info('\nFiltering ET Cell list based on crop lists')
-            logging.info('  Crop skip list: {}'.format(','.join(map(str, crop_skip_list))))
-            logging.info('  Crop test list: {}'.format(','.join(map(str, crop_test_list))))
+            logging.info('  Crop skip list: {}'.format(
+                ','.join(map(str, crop_skip_list))))
+            logging.info('  Crop test list: {}'.format(
+                ','.join(map(str, crop_test_list))))
 
             # Filter main crop number list based on skip and test lists
             self.crop_num_list = [
@@ -129,30 +128,45 @@ class ETCellData():
                     (crop_test_list and crop_num in crop_test_list))]
 
             # Get max length of CELL_ID for formatting of log string
-            cell_id_len = max([len(cell_id) for cell_id in self.et_cells_dict.keys()])
+            cell_id_len = max([
+                len(cell_id) for cell_id in self.et_cells_dict.keys()])
 
             for cell_id, cell in sorted(self.et_cells_dict.items()):
                 # Remove cells without any active crops
                 if not set(self.crop_num_list) & set(cell.crop_num_list):
                 # if not any(c in self.crop_num_list for c in cell.crop_num_list):
-                    logging.info('  CellID: {1:{0}s} skipping'.format(cell_id_len, cell_id))
+                    logging.info('  CellID: {1:{0}s} skipping'.format(
+                        cell_id_len, cell_id))
                     del self.et_cells_dict[cell_id]
                 else:
                     logging.debug(('  CellID: {}').format(cell_id))
+
+    def filter_cells(self, cell_skip_list=[], cell_test_list=[]):
+        """Remove ET cells based on cell lists
+
+        Args:
+            cell_skip_list (list): cell IDs to skip
+            cell_test_list (list): cell IDs to test
+        """
         if cell_skip_list or cell_test_list:
             logging.info('\nFiltering ET Cell list based on cell lists')
-            logging.info('  Cell skip list: {}'.format(','.join(map(str, cell_skip_list))))
-            logging.info('  Cell test list: {}'.format(','.join(map(str, cell_test_list))))
+            logging.info('  Cell skip list: {}'.format(
+                ','.join(map(str, cell_skip_list))))
+            logging.info('  Cell test list: {}'.format(
+                ','.join(map(str, cell_test_list))))
 
             # Get max length of CELL_ID for formatting of log string
-            cell_id_len = max([len(cell_id) for cell_id in self.et_cells_dict.keys()])
+            cell_id_len = max([
+                len(cell_id) for cell_id in self.et_cells_dict.keys()])
 
             for cell_id, cell in sorted(self.et_cells_dict.items()):
                 if cell_skip_list and cell_id in cell_skip_list:
-                    logging.info('  CellID: {1:{0}s} skipping'.format(cell_id_len, cell_id))
+                    logging.info('  CellID: {1:{0}s} skipping'.format(
+                        cell_id_len, cell_id))
                     del self.et_cells_dict[cell_id]
                 elif cell_test_list and cell_id not in cell_test_list:
-                    logging.info('  CellID: {1:{0}s} skipping'.format(cell_id_len, cell_id))
+                    logging.info('  CellID: {1:{0}s} skipping'.format(
+                        cell_id_len, cell_id))
                     del self.et_cells_dict[cell_id]
                 else:
                     logging.debug(('  CellID: {}').format(cell_id))
@@ -163,14 +177,14 @@ class ETCellData():
         # print crop_params
         for cell_id in sorted(self.et_cells_dict.keys()):
             cell = self.et_cells_dict[cell_id]
-            cell.crop_params = crop_params.copy()
+            cell.crop_params = copy.deepcopy(crop_params)
 
     def set_static_crop_coeffs(self, crop_coeffs):
         """"""
         logging.info('Setting static crop coefficients')
         for cell_id in sorted(self.et_cells_dict.keys()):
             cell = self.et_cells_dict[cell_id]
-            cell.crop_coeffs = crop_coeffs.copy()
+            cell.crop_coeffs = copy.deepcopy(crop_coeffs)
 
     def set_spatial_crop_params(self, calibration_ws):
         """"""
@@ -189,8 +203,10 @@ class ETCellData():
         # Filter the file list based on the "active" crops
         for crop_num in crop_dbf_dict.keys():
             if crop_num not in self.crop_num_list:
-                try: del crop_dbf_dict[crop_num]
-                except: pass
+                try:
+                    del crop_dbf_dict[crop_num]
+                except:
+                    pass
 
         # DEADBEEF - This really shouldn't be hard coded here
         # Dictionary to convert shapefile field names to crop parameters
@@ -254,10 +270,14 @@ class ETCellData():
                 for field_name, row_value in zip(crop_fields, record):
                     # DEADBEEF - I really want to skip non-crop parameter fields
                     #   but also tell the user if a crop parameter field is missing
-                    try: param_name = param_field_dict[field_name]
-                    except: param_name = None
-                    try: cutting_name = cutting_field_dict[field_name]
-                    except: cutting_name = None
+                    try:
+                        param_name = param_field_dict[field_name]
+                    except:
+                        param_name = None
+                    try:
+                        cutting_name = cutting_field_dict[field_name]
+                    except:
+                        cutting_name = None
                     if param_name is not None:
                         try:
                             setattr(
@@ -282,9 +302,11 @@ class ETCellData():
                                  cell_id, crop_num, field_name, cutting_name))
         return True
 
+
 class ETCell():
     def __init__(self):
         """ """
+        pass
 
     def __str__(self):
         """ """
@@ -382,7 +404,7 @@ class ETCell():
         # Get list of 0 based line numbers to skip
         # Ignore header but assume header was set as a 1's based index
         skiprows = [i for i in range(refet['header_lines'])
-                    if i+1 != refet['names_line']]
+                    if i + 1 != refet['names_line']]
         try:
             self.refet_pd = pd.read_table(
                 refet_path, engine='python', header=refet['names_line']-1,
@@ -406,10 +428,10 @@ class ETCell():
                 logging.error(
                     ('\n  ERROR: Field "{0}" was not found in {1}\n' +
                      '    Check the {2}_field value in the INI file').format(
-                    field_name, os.path.basename(refet_path), field_key))
+                        field_name, os.path.basename(refet_path), field_key))
                 sys.exit()
             # Rename the dataframe fields
-            self.refet_pd = self.refet_pd.rename(columns = {field_name:field_key})
+            self.refet_pd = self.refet_pd.rename(columns={field_name: field_key})
         # Check/modify units
         for field_key, field_units in refet['units'].items():
             if field_units is None:
@@ -479,7 +501,7 @@ class ETCell():
                 sys.exit()
             # Rename the dataframe fields
             self.weather_pd = self.weather_pd.rename(
-                columns = {field_name:field_key})
+                columns = {field_name: field_key})
         # Check/modify units
         for field_key, field_units in weather['units'].items():
             if field_units is None:
@@ -597,7 +619,8 @@ class ETCell():
         #     self.climate_pd['tmean'], window=30, min_periods=1)
 
         # Build cumulative T30 over period of record
-        main_t30_lt = np.array(self.climate_pd[['t30', 'doy']].groupby('doy').mean()['t30'])
+        main_t30_lt = np.array(
+            self.climate_pd[['t30', 'doy']].groupby('doy').mean()['t30'])
 
         # Compute GDD for each day
         self.climate_pd['cgdd'] = self.climate_pd['tmean']
@@ -618,7 +641,8 @@ class ETCell():
         # self.climate_pd['cgdd'] = self.climate_pd[['year', 'doy', 'gdd']].groupby('year').gdd.cumsum()
 
         # Compute mean cumulative GDD for each DOY
-        main_cgdd_0_lt = np.array(self.climate_pd[['cgdd', 'doy']].groupby('doy').mean()['cgdd'])
+        main_cgdd_0_lt = np.array(
+            self.climate_pd[['cgdd', 'doy']].groupby('doy').mean()['cgdd'])
 
         # Revert from indexing by I to indexing by DOY (for now)
         # Copy DOY 1 value into DOY 0
@@ -632,6 +656,7 @@ class ETCell():
 
         # Calculate an estimated depth of snow on ground using simple melt rate function))
         if np.any(self.climate_pd['snow']):
+            snow_accum = 0
             for i, doy in self.weather_pd['doy'].iteritems():
                 # Calculate an estimated depth of snow on ground using simple melt rate function
                 snow = self.climate_pd['snow'][i]
