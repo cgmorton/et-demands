@@ -63,7 +63,7 @@ def crop_cycle(data, et_cell, debug_flag=False, vb_flag=False, mp_procs=1):
     for crop_num, crop in sorted(et_cell.crop_params.items()):
         if et_cell.crop_flags[crop_num] == 0:
             if debug_flag:
-                logging.debug('Crop %2d %s' % (crop_num, crop))
+                logging.debug('Crop %2d %s' % (crop_num, crop.name))
                 logging.debug('  NOT USED')
             continue
         crop_day_loop(data, et_cell, crop, debug_flag, vb_flag, mp_procs)
@@ -104,21 +104,24 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
     Returns
         Bool
     """
+    func_str = 'crop_day_loop()'
+
     if mp_procs == 1:
-        logging.warning('Crop %2d %s' % ( crop.class_number, crop))
+        logging.warning('Crop {} - {}'.format(crop.class_number, crop.name))
     # else:
     #     print('Crop %2d %s' % (crop.class_number, crop))
     if debug_flag:
         logging.debug(
-            'crop_day_loop():  Curve %d %s  Class %s  Flag %s' %
-            (crop.curve_number, crop.curve_name,
-             crop.class_number, et_cell.crop_flags[ crop.class_number]))
-        logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy ))
+            '{}:  Curve {} {}  Class {}  Flag {}'.format(
+                func_str, crop.curve_number, crop.curve_name,
+                crop.class_number, et_cell.crop_flags[crop.class_number]))
+        logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy))
 
     # 'foo' is holder of all these global variables for now
     foo = InitializeCropCycle()
 
-    # First time through for crop, load basic crop parameters and process climate data
+    # First time through for crop, load basic crop parameters and
+    #   process climate data
     foo.crop_load(et_cell, crop)
 
     # Get the CO2 correction factors for each crop
@@ -135,22 +138,24 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
     for step_dt, step_doy in foo.crop_pd[['doy']].iterrows():
         if debug_flag:
             logging.debug(
-                '\ncrop_day_loop(): DOY %d  Date %s' %
-                (step_doy, step_dt.date()))
+                '\n{}: DOY {}  Date {}'.format(
+                    func_str, int(step_doy), step_dt.date()))
             # Log RefET values at time step
             logging.debug(
-                'crop_day_loop(): PPT %.6f  Wind %.6f  Tdew %.6f ETref %.6f' %
-                (et_cell.weather_pd.at[step_dt,'ppt'],
-                 et_cell.weather_pd.at[step_dt,'wind'],
-                 et_cell.weather_pd.at[step_dt,'tdew'],
-                 et_cell.refet_pd.at[step_dt,'etref']))
+                ('{}: PPT {:.6f}  Wind {:.6f}  ' +
+                 'Tdew {:.6f} ETref {:.6f}').format(
+                    func_str, et_cell.weather_pd.at[step_dt, 'ppt'],
+                    et_cell.weather_pd.at[step_dt, 'wind'],
+                    et_cell.weather_pd.at[step_dt, 'tdew'],
+                    et_cell.refet_pd.at[step_dt, 'etref']))
             # Log climate values at time step
             logging.debug(
-                'crop_day_loop(): tmax %.6f  tmin %.6f  tmean %.6f  t30 %.6f' %
-                (et_cell.climate_pd.at[step_dt,'tmax'],
-                 et_cell.climate_pd.at[step_dt,'tmin'],
-                 et_cell.climate_pd.at[step_dt,'tmean'],
-                 et_cell.climate_pd.at[step_dt,'t30']))
+                ('{}: tmax {:.6f}  tmin {:.6f}  ' +
+                 'tmean {:.6f}  t30 {:.6f}').format(
+                    func_str, et_cell.climate_pd.at[step_dt, 'tmax'],
+                    et_cell.climate_pd.at[step_dt, 'tmin'],
+                    et_cell.climate_pd.at[step_dt, 'tmean'],
+                    et_cell.climate_pd.at[step_dt, 't30']))
 
         # At very start for crop, set up for next season
         if not foo.in_season and foo.crop_setup_flag:
@@ -161,8 +166,9 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
             foo.setup_dormant(et_cell, crop)
         if debug_flag:
             logging.debug(
-                'crop_day_loop(): in_season[%r]  crop_setup[%r]  dormant_setup[%r]' %
-                (foo.in_season, foo.crop_setup_flag, foo.dormant_setup_flag))
+                '{}: in_season[{}]  crop_setup[{}]  dormant_setup[{}]'.format(
+                    func_str, foo.in_season, foo.crop_setup_flag,
+                    foo.dormant_setup_flag))
 
         # Track variables for each day
         # For now, cast all values to native Python types
@@ -193,7 +199,8 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
         # Compute crop growing degree days
         compute_crop_gdd.compute_crop_gdd(crop, foo, foo_day, debug_flag)
 
-        # Calculate height of vegetation.  Call was moved up to this point 12/26/07 for use in adj. Kcb and kc_max
+        # Calculate height of vegetation
+        # Call was moved up to this point 12/26/07 for use in adj. Kcb and kc_max
         calculate_height.calculate_height(crop, foo, debug_flag)
 
         # Interpolate Kcb and make climate adjustment (for ETo basis)
@@ -221,18 +228,21 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
         # Write final output file variables to DEBUG file
         if debug_flag:
             logging.debug(
-                ('crop_day_loop(): ETref  %.6f  Precip %.6f  T30 %.6f') %
-                (foo_day.etref, foo_day.precip, foo_day.t30))
+                ('{}: ETref  {:.6f}  Precip {:.6f}  T30 {:.6f}').format(
+                    func_str, foo_day.etref, foo_day.precip, foo_day.t30))
             logging.debug(
-                ('crop_day_loop(): ETact  %.6f  ETpot %.6f   ETbas %.6f') %
-                (foo.etc_act, foo.etc_pot, foo.etc_bas))
+                ('{}: ETact  {:.6f}  ETpot {:.6f}   ETbas {:.6f}').format(
+                    func_str, foo.etc_act, foo.etc_pot, foo.etc_bas))
             logging.debug(
-                ('crop_day_loop(): Irrig  %.6f  Runoff %.6f  DPerc %.6f  NIWR %.6f') %
-                (foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
+                ('{}: Irrig  {:.6f}  Runoff {:.6f}  ' +
+                 'DPerc {:.6f}  NIWR {:.6f}').format(
+                    func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
     # Write output files
-    if (data.daily_output_flag or data.monthly_output_flag or
-        data.annual_output_flag or data.gs_output_flag):
+    if (data.daily_output_flag or
+            data.monthly_output_flag or
+            data.annual_output_flag or
+            data.gs_output_flag):
         write_crop_output(data, et_cell, crop, foo)
     return True
 
@@ -270,8 +280,10 @@ def write_crop_output(data, et_cell, crop, foo):
     gs_length_field = 'GS_Length'
 
     # Merge the crop and weather data frames to form the daily output
-    if (data.daily_output_flag or data.monthly_output_flag or
-        data.annual_output_flag or data.gs_output_flag):
+    if (data.daily_output_flag or
+            data.monthly_output_flag or
+            data.annual_output_flag or
+            data.gs_output_flag):
         daily_output_pd = pd.merge(
             foo.crop_pd, et_cell.weather_pd[['ppt']],
             # foo.crop_pd, et_cell.weather_pd[['ppt', 't30']],
@@ -283,7 +295,7 @@ def write_crop_output(data, et_cell, crop, foo):
             'doy': doy_field, 'ppt': precip_field, 'etref': pmeto_field,
             'et_act': etact_field, 'et_pot': etpot_field,
             'et_bas': etbas_field, 'kc_act': kc_field, 'kc_bas': kcb_field,
-            'niwr':  niwr_field, 'irrigation': irrig_field,
+            'niwr': niwr_field, 'irrigation': irrig_field,
             'runoff': runoff_field, 'dperc': dperc_field,
             'season': season_field, 'cutting': cutting_field})
             # 't30':'T30',
@@ -460,9 +472,10 @@ def write_crop_output(data, et_cell, crop, foo):
     if data.gs_output_flag:
         def doy_2_date(test_year, test_doy):
             try:
-                return datetime.datetime.strptime(
-                    '{0}_{1}'.format(int(test_year),
-                    int(test_doy)), '%Y_%j').date().isoformat()
+                test_dt = datetime.datetime.strptime(
+                    '{0}_{1}'.format(int(test_year), int(test_doy)),
+                    '%Y_%j')
+                return test_dt.date().isoformat()
             except:
                 return 'None'
         gs_output_pd[gs_start_date_field] = gs_output_pd[
