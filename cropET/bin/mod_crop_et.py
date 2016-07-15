@@ -17,7 +17,7 @@ import util
 
 
 def main(ini_path, log_level=logging.WARNING,
-         debug_flag=False, vb_flag=False, mp_procs=1):
+         debug_flag=False, cal_flag=False, vb_flag=False, mp_procs=1):
     """ Main function for running the Crop ET model
 
     Args:
@@ -42,6 +42,8 @@ def main(ini_path, log_level=logging.WARNING,
         mp_procs = 1
     if mp_procs > 1:
         logging.warning('  Multiprocessing mode, {0} cores'.format(mp_procs))
+    if cal_flag:
+        logging.warning('  Displaying additional calibration information')
 
     # All general data will be handled in this class
     data = crop_et_data.CropETData()
@@ -54,6 +56,11 @@ def main(ini_path, log_level=logging.WARNING,
     if debug_flag:
         logger = util.file_logger(
             logger, log_level=logging.DEBUG, output_ws=data.project_ws)
+
+    # Growing season summary CSV files must be written
+    if cal_flag:
+        logging.warning('  Setting growing_season_stats_flag = True')
+        data.gs_output_flag = True
 
     # Read in common crop specific parameters and coefficients
     # File paths are read in from INI
@@ -68,6 +75,12 @@ def main(ini_path, log_level=logging.WARNING,
     cells.set_cell_properties(data.cell_properties_path)
     cells.set_cell_crops(data.cell_crops_path)
     cells.set_cell_cuttings(data.cell_cuttings_path)
+
+    # Allow user to run only annual/perennial crops
+    if data.annual_skip_flag:
+        cells.filter_annual_crops(data.crop_params)
+    if data.perennial_skip_flag:
+        cells.filter_perennial_crops(data.crop_params)
 
     # Filter cells if all crops are "off"
     # This could also be done in set_cell_crops() (when they are read in)
@@ -135,6 +148,37 @@ def main(ini_path, log_level=logging.WARNING,
     logging.info('\n{} seconds'.format(clock()-clock_start))
 
 
+    # Print summary stats to the screen
+    # This should be moved to a separate function or module
+    #   or maybe into a separate tool
+    if cal_flag and data.gs_output_flag:
+        logging.warning('\nMean Annual growing season start/end dates')
+
+        for cell_id, cell in sorted(cells.et_cells_dict.items()):
+            logging.warning('CellID: {}'.format(cell_id))
+            for crop_num, crop in sorted(cell.crop_params.items()):
+                if cell.crop_flags[crop_num] == 0:
+                    continue
+                # logging.warning('Crop %2d %s' % (crop_num, crop))
+
+                gs_output_path = os.path.join(
+                    data.gs_output_ws, '{0}_gs_crop_{1:02d}.csv'.format(
+                        cell_id, int(crop.class_number)))
+
+                gs_df = pd.read_table(gs_output_path, header=0, comment='#', sep=',')
+
+                gs_start_doy = int(round(gs_df['Start_DOY'].mean()))
+                gs_end_doy = int(round(gs_df['End_DOY'].mean()))
+                gs_start_dt = datetime.datetime.strptime(
+                    '2001_{:03d}'.format(gs_start_doy), '%Y_%j')
+                gs_end_dt = datetime.datetime.strptime(
+                    '2001_{:03d}'.format(gs_end_doy), '%Y_%j')
+                logging.warning(
+                    ('  Crop {crop:2d}:' +
+                     '  {start_dt.month}/{start_dt.day} - {end_dt.month}/{end_dt.day}').format(
+                        crop=crop_num, start_dt=gs_start_dt, end_dt=gs_end_dt))
+
+
 def cell_mp(tup):
     """Pool multiprocessing friendly function
 
@@ -196,7 +240,11 @@ def parse_args():
         '-mp', '--multiprocessing', default=1, type=int,
         metavar='N', nargs='?', const=mp.cpu_count(),
         help='Number of processers to use')
+    parser.add_argument(
+        '--cal', action='store_true', default=False,
+        help="Display mean annual start/end dates to screen")
     args = parser.parse_args()
+
     # Convert INI path to an absolute path if necessary
     if args.ini and os.path.isfile(os.path.abspath(args.ini)):
         args.ini = os.path.abspath(args.ini)
@@ -207,4 +255,4 @@ if __name__ == '__main__':
     args = parse_args()
 
     main(ini_path=args.ini, log_level=args.log_level, debug_flag=args.debug,
-         vb_flag=args.vb, mp_procs=args.multiprocessing)
+         cal_flag=args.cal, vb_flag=args.vb, mp_procs=args.multiprocessing)

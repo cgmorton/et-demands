@@ -89,6 +89,20 @@ class CropETData():
             logging.debug('    growing_season_stats_flag = False')
             self.gs_output_flag = False
 
+        # Allow user to only run annual or perennial crops
+        try:
+            self.annual_skip_flag = config.getboolean(
+                crop_et_sec, 'annual_skip_flag')
+        except:
+            logging.info('    annual_skip_flag = True')
+            self.annual_skip_flag = False
+        try:
+            self.perennial_skip_flag = config.getboolean(
+                crop_et_sec, 'perennial_skip_flag')
+        except:
+            logging.info('    perennial_skip_flag = True')
+            self.perennial_skip_flag = False
+
         # For testing, allow the user to process a subset of the crops
         try:
             self.crop_skip_list = list(util.parse_int_set(
