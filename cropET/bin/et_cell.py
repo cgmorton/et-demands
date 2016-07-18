@@ -108,53 +108,80 @@ class ETCellData():
             cell.init_cuttings_from_row(row)
 
     def filter_annual_crops(self, crop_params):
-        """Remove annual crops"""
+        """Remove annual crops
+
+        This function and filter_perennial_crops() could easily be combined
+
+        Args:
+            crop_params (dict): static crop parameters
+        """
         logging.info('\nRemoving annual crops')
         self.crop_num_list = sorted([
             crop_num for crop_num, crop_param in crop_params.items()
             if not crop_param.is_annual])
-        logging.info('  Remaining crops: {}'.format(
+        logging.info('  Perennial crops: {}'.format(
             ', '.join(map(str, self.crop_num_list))))
 
-        for cell_id, cell in sorted(self.et_cells_dict.items()):
-            # Get max length of CELL_ID for formatting of log string
-            cell_id_len = max([
-                len(cell_id) for cell_id in self.et_cells_dict.keys()])
+        # Get max length of CELL_ID for formatting of log string
+        cell_id_len = max([
+            len(cell_id) for cell_id in self.et_cells_dict.keys()])
 
-            for cell_id, cell in sorted(self.et_cells_dict.items()):
+        for cell_id, cell in sorted(self.et_cells_dict.items()):
+            cell.crop_num_list = sorted(list(
+                set(self.crop_num_list) & set(cell.crop_num_list)))
+            if not cell.crop_num_list:
                 # Remove cells without any active crops
-                if not set(self.crop_num_list) & set(cell.crop_num_list):
-                # if not any(c in self.crop_num_list for c in cell.crop_num_list):
-                    logging.info('  CellID: {1:{0}s} skipping'.format(
-                        cell_id_len, cell_id))
-                    del self.et_cells_dict[cell_id]
-                else:
-                    logging.debug(('  CellID: {}').format(cell_id))
+                logging.info('  CellID: {1:{0}s} skipping'.format(
+                    cell_id_len, cell_id))
+                del self.et_cells_dict[cell_id]
+            else:
+                logging.info(('  CellID: {}').format(cell_id))
+                # Turn off crop flags for filtered crops
+                crop_flags = {
+                    k: k in cell.crop_num_list for k in cell.crop_flags.keys()}
+                self.et_cells_dict[cell_id].crop_flags = crop_flags
+                # Update crop number list
+                self.et_cells_dict[cell_id].crop_num_list = cell.crop_num_list
+                logging.info('    Crops: {}'.format(
+                    ', '.join(map(str, cell.crop_num_list))))
 
     def filter_perennial_crops(self, crop_params):
-        """Remove perennial crops"""
+        """Remove perennial crops
+
+        This function and filter_annual_crops() could easily be combined
+
+        Args:
+            crop_params (dict): static crop parameters
+        """
         logging.info('\nRemoving perennial crops')
         self.crop_num_list = sorted([
             crop_num for crop_num, crop_param in crop_params.items()
             if crop_param.is_annual])
-        logging.info('  Remaining crops: {}'.format(
+        logging.info('  Annual crops: {}'.format(
             ', '.join(map(str, self.crop_num_list))))
 
+        # Get max length of CELL_ID for formatting of log string
+        cell_id_len = max([
+            len(cell_id) for cell_id in self.et_cells_dict.keys()])
+
         for cell_id, cell in sorted(self.et_cells_dict.items()):
-
-            # Get max length of CELL_ID for formatting of log string
-            cell_id_len = max([
-                len(cell_id) for cell_id in self.et_cells_dict.keys()])
-
-            for cell_id, cell in sorted(self.et_cells_dict.items()):
+            cell.crop_num_list = sorted(list(
+                set(self.crop_num_list) & set(cell.crop_num_list)))
+            if not cell.crop_num_list:
                 # Remove cells without any active crops
-                if not set(self.crop_num_list) & set(cell.crop_num_list):
-                # if not any(c in self.crop_num_list for c in cell.crop_num_list):
-                    logging.info('  CellID: {1:{0}s} skipping'.format(
-                        cell_id_len, cell_id))
-                    del self.et_cells_dict[cell_id]
-                else:
-                    logging.debug(('  CellID: {}').format(cell_id))
+                logging.info('  CellID: {1:{0}s} skipping'.format(
+                    cell_id_len, cell_id))
+                del self.et_cells_dict[cell_id]
+            else:
+                logging.info(('  CellID: {}').format(cell_id))
+                # Turn off crop flags for filtered crops
+                crop_flags = {
+                    k: k in cell.crop_num_list for k in cell.crop_flags.keys()}
+                self.et_cells_dict[cell_id].crop_flags = crop_flags
+                # Update crop number list
+                self.et_cells_dict[cell_id].crop_num_list = cell.crop_num_list
+                logging.info('    Crops: {}'.format(
+                    ', '.join(map(str, cell.crop_num_list))))
 
     def filter_crops(self, crop_skip_list=[], crop_test_list=[]):
         """Remove ET cells based on crop skip and test lists
