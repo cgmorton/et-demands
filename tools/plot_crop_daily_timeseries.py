@@ -15,7 +15,8 @@ import os
 import re
 import sys
 
-from bokeh.plotting import figure, output_file, save, show, vplot
+from bokeh.plotting import figure, output_file, save, show
+from bokeh.layouts import column
 from bokeh.models import Range1d
 import numpy as np
 import pandas as pd
@@ -293,7 +294,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f1 = figure(
             x_axis_type='datetime', x_range=x_range,
             width=figure_size[0], height=figure_size[1],
-            tools=TOOLS, toolbar_location="right")
+            tools=TOOLS, toolbar_location="right",
+            active_scroll="xwheel_zoom")
             # title='Evapotranspiration', x_axis_type='datetime',
         f1.line(dt_array, etact_array, color='blue', legend='ETact')
         f1.line(dt_array, etbas_array, color='green', legend='ETbas')
@@ -309,7 +311,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f2 = figure(
             x_axis_type="datetime", x_range=f1.x_range,
             width=figure_size[0], height=figure_size[1],
-            tools=TOOLS, toolbar_location="right")
+            tools=TOOLS, toolbar_location="right",
+            active_scroll="xwheel_zoom")
         f2.line(dt_array, kc_array, color='blue', legend='Kc')
         f2.line(dt_array, kcb_array, color='green', legend='Kcb')
         f2.line(dt_array, season_array, color='black', legend='Season',
@@ -322,7 +325,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f3 = figure(
             x_axis_type="datetime", x_range=f1.x_range,
             width=figure_size[0], height=figure_size[1],
-            tools=TOOLS, toolbar_location="right")
+            tools=TOOLS, toolbar_location="right",
+            active_scroll="xwheel_zoom")
         f3.line(dt_array, precip_array, color='blue', legend='PPT')
         f3.line(dt_array, irrig_array, color='black', legend='Irrigation',
                 line_dash="dotted")
@@ -334,9 +338,11 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
 
         if figure_show_flag:
             # Open in a browser
-            show(vplot(f1, f2, f3))
+            show(column([f1, f2, f3], sizing_mode='stretch_both'))
+            # show(vplot(f1, f2, f3))
         if figure_save_flag:
-            save(vplot(f1, f2, f3))
+            save(column([f1, f2, f3], sizing_mode='stretch_both'))
+            # save(vplot(f1, f2, f3))
         del f1, f2, f3, f
 
         # Cleanup

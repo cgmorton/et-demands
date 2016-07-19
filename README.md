@@ -61,7 +61,7 @@ A combination of GDAL and ArcPy are currently used in the data prep scripts.  Ev
 + [PyShp](https://github.com/GeospatialPython/pyshp)
 
 #### Time series figures
-+ [Bokeh](http://bokeh.pydata.org/en/latest/) is only needed if generating daily time series figures (tools/plot_crop_daily_timeseries.py)
++ [Bokeh](http://bokeh.pydata.org/en/latest/) is only needed if generating daily time series figures (tools/plot_crop_daily_timeseries.py).  Must be version 0.12.0 to support new responsive plot features.
 
 #### Summary maps
 The following modules are only needed if making summary maps (tools/plot_crop_summary_maps.py)
