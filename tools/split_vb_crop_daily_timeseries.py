@@ -2,7 +2,7 @@
 # Name:         split_vb_crop_daily_timeseries.py
 # Purpose:      Split daily data timeseries into separate files for each crop
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-19
 # Python:       2.7
 #--------------------------------
 
@@ -67,7 +67,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
 
     # Number of header lines in data file
     header_lines = 5
-    delimiter = '\t'
+    # delimiter = '\t'
     # delimiter = ','
     # delimiter = r'\s*'
 
@@ -101,7 +101,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         logging.info('  End Year:    {0}'.format(year_end))
     except:
         year_end = None
-    if year_start and year_end and year_end <= year_start:
+    if year_start and year_end and year_end < year_start:
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
 
@@ -149,7 +149,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         # Remove white space and empty strings
         f_crop_list = header_list[header_lines - 2]
         f_crop_list = [
-                item.strip() for item in f_crop_list.split('Crop:')[1:]]
+            item.strip() for item in f_crop_list.split('Crop:')[1:]]
         f_crop_list = [item for item in f_crop_list if item]
         num_crops = len(f_crop_list)
         logging.debug('    Number of Crops: {0}'.format(num_crops))
@@ -171,10 +171,10 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         # Read data from file into record array (structured array)
         try:
             data = np.genfromtxt(
-                file_path, skip_header=(header_lines-1), names=True)
+                file_path, skip_header=(header_lines - 1), names=True)
         except ValueError:
             data = np.genfromtxt(
-                file_path, skip_header=(header_lines-1), names=True,
+                file_path, skip_header=(header_lines - 1), names=True,
                 delimiter=',')
         logging.debug('\nFields: \n{0}'.format(data.dtype.names))
 
@@ -204,8 +204,8 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             for year, month, day in zip(year_array, month_array, day_array)])
 
         # Remove leap days
-        leap_array = (doy_array == 366)
-        doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
+        # leap_array = (doy_array == 366)
+        # doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
 
         # Process each crop
         # f_crop_i is based on order of crops in the file
@@ -222,7 +222,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
                 crop_name_dict[crop_num] = crop_name
             if crop_num not in crop_index_dict.keys():
                 if crop_index_dict.keys():
-                    crop_i = max(crop_index_dict.values())+1
+                    crop_i = max(crop_index_dict.values()) + 1
                 else:
                     crop_i = 0
                 crop_index_dict[crop_num] = crop_i
@@ -403,7 +403,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(message)s')
-    logging.info('\n{0}'.format('#'*80))
+    logging.info('\n{0}'.format('#' * 80))
     log_f = '{0:<20s} {1}'
     logging.info(log_f.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
