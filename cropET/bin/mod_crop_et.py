@@ -70,24 +70,15 @@ def main(ini_path, log_level=logging.WARNING,
         data.set_crop_co2()
 
     # Read in cell properties, crops and cuttings
-    # Could  these be called directly from the CropETData class
+    # Could these be called directly from the CropETData class
     cells = et_cell.ETCellData()
-    cells.set_cell_properties(data.cell_properties_path)
-    cells.set_cell_crops(data.cell_crops_path)
-    cells.set_cell_cuttings(data.cell_cuttings_path)
-
-    # Allow user to run only annual/perennial crops
-    if data.annual_skip_flag:
-        cells.filter_annual_crops(data.crop_params)
-    if data.perennial_skip_flag:
-        cells.filter_perennial_crops(data.crop_params)
-
-    # Filter cells if all crops are "off"
-    # This could also be done in set_cell_crops() (when they are read in)
-    if data.crop_skip_list or data.crop_test_list:
-        cells.filter_crops(data.crop_skip_list, data.crop_test_list)
-    if data.cell_skip_list or data.cell_test_list:
-        cells.filter_cells(data.cell_skip_list, data.cell_test_list)
+    cells.set_properties(data.cell_properties_path)
+    cells.set_crops(data.cell_crops_path)
+    cells.set_cuttings(data.cell_cuttings_path)
+    cells.set_crop_numbers()
+    cells.filter_crops(data)
+    cells.filter_cells(data)
+    cells.set_crop_numbers()
 
     # First apply the static crop parameters to all cells
     # Could the "cell" just inherit the "data" values instead

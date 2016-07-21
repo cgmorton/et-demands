@@ -43,8 +43,9 @@ class CropETData():
         refet_sec = 'REFET'
         if set(config.sections()) != set([crop_et_sec, weather_sec, refet_sec]):
             logging.error(
-                '\nERROR: The input file must have the following sections:\n' +
-                '  [{}], [{}], and [{}]'.format(crop_et_sec, weather_sec, refet_sec))
+                ('\nERROR: The input file must have the following sections:\n' +
+                 '  [{}], [{}], and [{}]').format(
+                    crop_et_sec, weather_sec, refet_sec))
             sys.exit()
 
         # The project and CropET folders need to be full/absolute paths
@@ -52,11 +53,11 @@ class CropETData():
         crop_et_ws = config.get(crop_et_sec, 'crop_et_folder')
         if not os.path.isdir(self.project_ws):
             logging.critical(
-                'ERROR: The project folder does not exist\n  %s' % self.project_ws)
+                'ERROR: The project folder does not exist\n  {}'.format(self.project_ws))
             sys.exit()
         elif not os.path.isdir(crop_et_ws):
             logging.critical(
-                'ERROR: The project folder does not exist\n  %s' % crop_et_ws)
+                'ERROR: The project folder does not exist\n  {}'.format(crop_et_ws))
             sys.exit()
 
         # Basin
@@ -235,8 +236,10 @@ class CropETData():
             'CropCoefs.txt', 'crop_coefs_name')
 
         # Spatially varying calibration
-        try: self.spatial_cal_flag = config.getboolean(crop_et_sec, 'spatial_cal_flag')
-        except: self.spatial_cal_flag = False
+        try:
+            self.spatial_cal_flag = config.getboolean(crop_et_sec, 'spatial_cal_flag')
+        except:
+            self.spatial_cal_flag = False
         try:
             self.spatial_cal_ws = config.get(crop_et_sec, 'spatial_cal_folder')
         except:
@@ -408,7 +411,8 @@ class CropETData():
 
         # Snow and snow depth are optional
         try:
-            self.weather['fields']['snow'] = config.get(weather_sec, 'snow_field')
+            self.weather['fields']['snow'] = config.get(
+                weather_sec, 'snow_field')
         except:
             self.weather['fields']['snow'] = None
         try:
