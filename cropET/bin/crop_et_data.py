@@ -95,13 +95,13 @@ class CropETData():
             self.annual_skip_flag = config.getboolean(
                 crop_et_sec, 'annual_skip_flag')
         except:
-            logging.info('    annual_skip_flag = True')
+            logging.info('    annual_skip_flag = False')
             self.annual_skip_flag = False
         try:
             self.perennial_skip_flag = config.getboolean(
                 crop_et_sec, 'perennial_skip_flag')
         except:
-            logging.info('    perennial_skip_flag = True')
+            logging.info('    perennial_skip_flag = False')
             self.perennial_skip_flag = False
 
         # For testing, allow the user to process a subset of the crops

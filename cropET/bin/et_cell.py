@@ -126,17 +126,17 @@ class ETCellData():
             annual_crops = set(
                 crop_num
                 for crop_num, crop_param in data.crop_params.items()
-                if crop_param.is_annual)
+                if not crop_param.is_annual)
             crop_numbers &= annual_crops
-            logging.info('  Active annual crops: {}'.format(
+            logging.info('  Active perennial crops: {}'.format(
                 ', '.join(map(str, sorted(crop_numbers)))))
         if data.perennial_skip_flag:
             perennial_crops = set(
                 crop_num
                 for crop_num, crop_param in data.crop_params.items()
-                if not crop_param.is_annual)
+                if crop_param.is_annual)
             crop_numbers &= perennial_crops
-            logging.info('  Active perennial crops: {}'.format(
+            logging.info('  Active annual crops: {}'.format(
                 ', '.join(map(str, sorted(crop_numbers)))))
         if data.crop_skip_list:
             logging.info('  Crop skip list: {}'.format(
@@ -156,6 +156,10 @@ class ETCellData():
         for cell_id, cell in sorted(self.et_cells_dict.items()):
             cell.crop_num_list = sorted(
                 crop_numbers & set(cell.crop_num_list))
+            # Turn off the crop flag
+            cell.crop_flags = {
+                c: f and c in cell.crop_num_list
+                for c, f in cell.crop_flags.iteritems()}
             logging.info('  CellID: {1:{0}s}: {2}'.format(
                 cell_id_len, cell_id,
                 ', '.join(map(str, cell.crop_num_list))))
