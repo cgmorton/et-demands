@@ -64,7 +64,8 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #     _id_field = 'NLDAS_ID'
     #     _name_field = 'NLDAS_ID'
     #     _name_str = 'NLDAS_4km_'
-    nldas_id_field = 'NLDAS_ID'
+
+    station_id_field = 'NLDAS_ID'
 
     et_cells_path = os.path.join(gis_ws, 'ETCells.shp')
     # if gdb_flag:
@@ -91,7 +92,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     cell_elev_field = 'ELEV_FT'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
-    station_id_field = 'STATION_ID'
+    met_id_field = 'STATION_ID'
     awc_field = 'AWC'
     clay_field = 'CLAY'
     sand_field = 'SAND'
@@ -371,7 +372,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # Join the stations to the zones and read in the matches
     # if not arcpy.Exists(et_cells_path):
     #     _field_list = [f.name for f in arcpy.ListFields(zone_path)]
-    #     _field_list.append(nldas_id_field)
+    #     _field_list.append(met_id_field)
     #      zone_field_list.append('OBJECTID_1')
     #     .SpatialJoin_analysis(zone_path, station_path, et_cells_path)
     #      arcpy.SpatialJoin_analysis(station_path, zone_path, et_cells_path)
@@ -410,14 +411,14 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         logging.debug('  {0}'.format(cell_name_field))
         arcpy.AddField_management(
             et_cells_path, cell_name_field, 'TEXT', '', '', 48)
-    if station_id_field not in field_list:
-        logging.debug('  {0}'.format(station_id_field))
+    if met_id_field not in field_list:
+        logging.debug('  {0}'.format(met_id_field))
         arcpy.AddField_management(
-            et_cells_path, station_id_field, 'TEXT', '', '', 24)
-    if zone_id_field not in field_list:
-        logging.debug('  {0}'.format(zone_id_field))
-        arcpy.AddField_management(
-            et_cells_path, zone_id_field, 'TEXT', '', '', 8)
+            et_cells_path, met_id_field, 'TEXT', '', '', 24)
+    # if zone_id_field not in field_list:
+    #     logging.debug('  {0}'.format(zone_id_field))
+    #     arcpy.AddField_management(
+    #         et_cells_path, zone_id_field, 'TEXT', '', '', 8)
 
     # Status flags
     # if active_flag_field not in field_list:
@@ -480,10 +481,10 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     arcpy.CalculateField_management(
         et_cells_path, cell_name_field,
         '"{0}" + str(!{1}!)'.format(zone_name_str, zone_name_field), 'PYTHON')
-    # Set STATION_ID to NLDAS_ID
+    # Set MET_ID (STATION_ID) to NLDAS_ID
     # arcpy.CalculateField_management(
-    #     et_cells_path, station_id_field,
-    #     'str(!{0}!)'.format(nldas_id_field), 'PYTHON')
+    #     et_cells_path, met_id_field,
+    #     'str(!{0}!)'.format(station_id_field), 'PYTHON')
 
     # Remove existing (could use overwrite instead)
     zone_proj_path = os.path.join(table_ws, zone_proj_name)

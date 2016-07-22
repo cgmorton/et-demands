@@ -87,7 +87,7 @@ The basic data preparation workflow is to download ancillary data for the the CO
 
 Cropland Data Layer (CDL)
 -------------------------
-The CDL raster is used to determine which crops will be simulated and the acreage of each crop.  The CDL raster is also used as the "snap raster" or reference raster for all subsequent operations.  If you don't already have a CONUS CDL raster, it can be downloaded from the `USDA FTP <ftp://ftp.nass.usda.gov/download/res>`_, or using the provided CDL download script.  Set the "gis" parameter to the common\GIS subfolder and set the "year" parameter. ::
+The CDL raster is used to determine which crops will be simulated and the acreage of each crop.  The CDL raster is also used as the "snap raster" or reference raster for all subsequent operations.  If you don't already have a CONUS CDL raster, it can be downloaded from the `USDA FTP <ftp://ftp.nass.usda.gov/download/res>`_, or using the provided CDL download script.  Set the "cdl" parameter to the "common\\cdl" subfolder and set the "year" parameter. ::
 
     > python ..\et-demands\prep\download_cdl_raster.py --cdl ..\common\cdl --years 2010
 
@@ -164,5 +164,8 @@ Static Text Files
 -----------------
 Build the static text files from the templates in "et-demands\static".  The "acres" parameter can be used to only include crops that have at least N acres.  The "type" parameter is used to set the station zone field name (i.e 'huc8'->'HUC8', 'huc10'->'HUC10', or 'county'->'COUNTYNAME']).  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
 
-    > python ..\et-demands\prep\build_static_files.py --ini example.ini --zone huc8 --area 10 -o
+    > python ..\et-demands\prep\build_static_files.py --ini example.ini --zone huc8 --acres 10 -o
 
+Linking Zones and Stations
+-----------------
+Currently, the prep scripts do not automatically set the weather station ID value (field STATION_ID) in the ET Cells shapefile. In the example stations file, there is a HUC8 field that associates the station with the zone, but for other zones, the user will need to identify which zone is associated with each station.  This is intentionally not done in the code because the "best" station may not be inside the zone or even the closest station to the zone.
