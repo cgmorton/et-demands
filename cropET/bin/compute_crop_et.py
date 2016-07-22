@@ -421,8 +421,10 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
         # no stress if flag = 0 #'used to be irrigtypeflag=2
         ks = 1
     elif crop.invoke_stress == 1:
-        # Unrecoverable stress.  No greenup after this.
-        if ks < 0.05 and foo.in_season and foo.kc_bas > 0.3:
+        # Don't allow stress events to be triggered on first day of season
+        #   before first irrigation can be applied.
+        if (ks < 0.05 and foo.in_season and foo.kc_bas > 0.3 and
+            foo_day.doy != foo.doy_start_cycle):
             foo.stress_event = True
         if foo.stress_event:
             ks = 0.0
