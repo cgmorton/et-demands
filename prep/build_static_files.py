@@ -120,7 +120,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     cell_cuttings_name = 'MeanCuttings.txt'
     crop_params_name = 'CropParams.txt'
     crop_coefs_name = 'CropCoefs.txt'
-    eto_ratio_name = 'EToRatioMon.txt'
+    eto_ratio_name = 'EToRatiosMon.txt'
     static_list = [crop_params_name, crop_coefs_name, cell_props_name,
                    cell_crops_name, cell_cuttings_name, eto_ratio_name]
 

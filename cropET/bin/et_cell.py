@@ -400,6 +400,7 @@ class ETCell():
         """Wrapper for setting all refet/weather/climate data"""
         # Could the pandas dataframes be inherited instead from data
         self.set_refet_data(data.refet)
+        self.set_refet_ratio_data(data.refet_ratios_path)
         self.set_weather_data(data.weather)
 
         # Process climate arrays
@@ -426,31 +427,31 @@ class ETCell():
                     if i + 1 != refet['names_line']]
         try:
             self.refet_pd = pd.read_table(
-                refet_path, engine='python', header=refet['names_line']-1,
+                refet_path, engine='python', header=refet['names_line'] - 1,
                 skiprows=skiprows, delimiter=refet['delimiter'])
         except IOError:
             logging.error(('  IOError: RefET data file could not be read ' +
                            'and may not exist\n  {}').format(refet_path))
             return False
-            # sys.exit()
         except:
             logging.error(('  Unknown error reading RefET data ' +
                            'file\n {}').format(refet_path))
             return False
-            # sys.exit()
         logging.debug('  Columns: {}'.format(
             ', '.join(list(self.refet_pd.columns.values))))
 
         # Check fields
         for field_key, field_name in refet['fields'].items():
-            if field_name is not None and field_name not in self.refet_pd.columns:
+            if (field_name is not None and
+                field_name not in self.refet_pd.columns):
                 logging.error(
                     ('\n  ERROR: Field "{0}" was not found in {1}\n' +
                      '    Check the {2}_field value in the INI file').format(
                         field_name, os.path.basename(refet_path), field_key))
                 sys.exit()
             # Rename the dataframe fields
-            self.refet_pd = self.refet_pd.rename(columns={field_name: field_key})
+            self.refet_pd = self.refet_pd.rename(
+                columns={field_name: field_key})
         # Check/modify units
         for field_key, field_units in refet['units'].items():
             if field_units is None:
@@ -466,11 +467,74 @@ class ETCell():
             self.refet_pd['date'] = pd.to_datetime(self.refet_pd['date'])
         else:
             self.refet_pd['date'] = self.refet_pd[['year', 'month', 'day']].apply(
-                lambda s : datetime.datetime(*s),axis = 1)
+                lambda s: datetime.datetime(*s), axis=1)
         # self.refet_pd['date'] = pd.to_datetime(self.refet_pd['date'])
         self.refet_pd.set_index('date', inplace=True)
-        self.refet_pd['doy'] = [int(ts.strftime('%j')) for ts in self.refet_pd.index]
+        self.refet_pd['doy'] = [
+            int(ts.strftime('%j')) for ts in self.refet_pd.index]
+        self.refet_pd['month'] = [
+            int(ts.strftime('%m')) for ts in self.refet_pd.index]
         return True
+
+
+    def set_refet_ratio_data(self, refet_ratios_path):
+        """Read ETo/ETr ratios static file"""
+        if refet_ratios_path:
+            logging.info('  Reading ETo/ETr ratios')
+            # Assume field names are fixed
+            # The other easy approach would be assume the first two columns
+            #   are the ID and name
+            id_field = 'Met Node ID'
+            name_field = 'Met Node Name'
+            month_field = 'month'
+            ratio_field = 'ratio'
+            try:
+                refet_ratios_pd = pd.read_table(refet_ratios_path, dtype='str')
+                del refet_ratios_pd[name_field]
+            except IOError:
+                logging.error(
+                    ('  IOError: ETo ratios static file could not be ' +
+                     'read and may not exist\n  {}').format(refet_ratios_path))
+                return False
+            except:
+                logging.error(('  Unknown error reading ETo ratios static ' +
+                               'file\n {}').format(refet_ratios_path))
+                return False
+
+            # Flatten/flip the data so the ratio values are in one column
+            refet_ratios_pd = pd.melt(
+                refet_ratios_pd, id_vars=[id_field],
+                var_name=month_field, value_name=ratio_field)
+            refet_ratios_pd[ratio_field] = refet_ratios_pd[ratio_field].astype(np.float)
+            # Set any missing values to 1.0
+            refet_ratios_pd.fillna(value=1.0, inplace=True)
+
+            # Convert the month abbrevations to numbers
+            refet_ratios_pd[month_field] = [
+                datetime.datetime.strptime(m, '%b').month
+                for m in refet_ratios_pd[month_field]]
+
+            # Filter to current station
+            refet_ratios_pd = refet_ratios_pd[
+               refet_ratios_pd[id_field] == self.refet_id]
+            if refet_ratios_pd.empty:
+                logging.warning('  Empty table, ETo/ETr ratios not applied')
+                return False
+
+            # Set month as the index
+            refet_ratios_pd.set_index(month_field, inplace=True)
+            logging.info(refet_ratios_pd)
+
+            # Scale ETo/ETr values
+            self.refet_pd = self.refet_pd.join(refet_ratios_pd, 'month')
+            self.refet_pd['etref'] *= self.refet_pd[ratio_field]
+            del self.refet_pd[ratio_field]
+            del self.refet_pd[month_field]
+            del self.refet_pd[id_field]
+            return True
+        else:
+            return False
+
 
     def set_weather_data(self, weather):
         """Read the meteorological/climate data file for a single station using Pandas
@@ -491,11 +555,12 @@ class ETCell():
         # Get list of 0 based line numbers to skip
         # Ignore header but assume header was set as a 1's based index
         skiprows = [i for i in range(weather['header_lines'])
-                    if i+1 != weather['names_line']]
+                    if i + 1 != weather['names_line']]
         try:
             self.weather_pd = pd.read_table(
-                weather_path, engine='python', header=weather['names_line']-1,
-                skiprows=skiprows, delimiter=weather['delimiter'])
+                weather_path, engine='python',
+                header=weather['names_line'] - 1, skiprows=skiprows,
+                delimiter=weather['delimiter'])
         except IOError:
             logging.error(('  IOError: Weather data file could not be read ' +
                            'and may not exist\n  {}').format(weather_path))
@@ -520,7 +585,7 @@ class ETCell():
                 sys.exit()
             # Rename the dataframe fields
             self.weather_pd = self.weather_pd.rename(
-                columns = {field_name: field_key})
+                columns={field_name: field_key})
         # Check/modify units
         for field_key, field_units in weather['units'].items():
             if field_units is None:
@@ -547,10 +612,11 @@ class ETCell():
             self.weather_pd['date'] = pd.to_datetime(self.weather_pd['date'])
         else:
             self.weather_pd['date'] = self.weather_pd[['year', 'month', 'day']].apply(
-                lambda s : datetime.datetime(*s),axis = 1)
+                lambda s: datetime.datetime(*s), axis=1)
         # self.weather_pd['date'] = pd.to_datetime(self.weather_pd['date'])
         self.weather_pd.set_index('date', inplace=True)
-        self.weather_pd['doy'] = [int(ts.strftime('%j')) for ts in self.weather_pd.index]
+        self.weather_pd['doy'] = [
+            int(ts.strftime('%j')) for ts in self.weather_pd.index]
 
         # Scale wind height to 2m if necessary
         if weather['wind_height'] != 2:

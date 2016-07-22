@@ -165,7 +165,3 @@ Static Text Files
 Build the static text files from the templates in "et-demands\static".  The "acres" parameter can be used to only include crops that have at least N acres.  The "type" parameter is used to set the station zone field name (i.e 'huc8'->'HUC8', 'huc10'->'HUC10', or 'county'->'COUNTYNAME']).  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
 
     > python ..\et-demands\prep\build_static_files.py --ini example.ini --zone huc8 --acres 10 -o
-
-Linking Zones and Stations
------------------
-Currently, the prep scripts do not automatically set the weather station ID value (field STATION_ID) in the ET Cells shapefile. In the example stations file, there is a HUC8 field that associates the station with the zone, but for other zones, the user will need to identify which zone is associated with each station.  This is intentionally not done in the code because the "best" station may not be inside the zone or even the closest station to the zone.
