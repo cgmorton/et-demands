@@ -2,7 +2,7 @@
 # Name:         download_cdl.py
 # Purpose:      Download national CDL zips
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -31,15 +31,15 @@ def main(cdl_ws, cdl_year='', overwrite_flag=False):
     logging.info('\nDownload and extract CONUS CDL rasters')
     site_url = 'ftp://ftp.nass.usda.gov/download/res'
 
-    cdl_format = '{0}_30m_cdls.img'
+    cdl_format = '{}_30m_cdls.{}'
 
     for cdl_year in list(util.parse_int_set(cdl_year)):
-        logging.info('{0}'.format(cdl_year))
-        zip_name = cdl_format.format(cdl_year)
+        logging.info('Year: {}'.format(cdl_year))
+        zip_name = cdl_format.format(cdl_year, 'zip')
         zip_url = site_url + '/' + zip_name
         zip_path = os.path.join(cdl_ws, zip_name)
 
-        cdl_path = os.path.join(cdl_ws, zip_name.replace('.zip', '.img'))
+        cdl_path = os.path.join(cdl_ws, cdl_format.format(cdl_year, 'img'))
         if not os.path.isdir(cdl_ws):
             os.makedirs(cdl_ws)
 
@@ -47,12 +47,13 @@ def main(cdl_ws, cdl_year='', overwrite_flag=False):
             os.remove(zip_path)
         if not os.path.isfile(zip_path):
             logging.info('  Download CDL files')
-            logging.debug('    {0}'.format(zip_url))
-            logging.debug('    {0}'.format(zip_path))
+            logging.debug('    {}'.format(zip_url))
+            logging.debug('    {}'.format(zip_path))
             try:
                 urllib.urlretrieve(zip_url, zip_path)
-            except IOError:
+            except IOError as e:
                 logging.error('    IOError, skipping')
+                logging.error(e)
 
         if os.path.isfile(cdl_path) and overwrite_flag:
             util.remove_file(cdl_path)
@@ -92,9 +93,11 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{0}'.format('#'*80))
+    logging.info('\n{0}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(cdl_ws=args.cdl, cdl_year=args.years, overwrite_flag=args.overwrite)

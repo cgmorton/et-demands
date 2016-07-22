@@ -2,13 +2,12 @@
 # Name:         build_spatial_crop_params_arcpy.py
 # Purpose:      Build spatial parameter files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
 import argparse
 from collections import defaultdict
-import ConfigParser
 import datetime as dt
 import logging
 import os
@@ -58,10 +57,14 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     crop_et_ws = config.get(crop_et_sec, 'crop_et_folder')
     bin_ws = os.path.join(crop_et_ws, 'bin')
 
-    try: template_ws = config.get(crop_et_sec, 'template_folder')
-    except: template_ws = os.path.join(os.path.dirname(crop_et_ws), 'static')
-    try: calibration_ws = config.get(crop_et_sec, 'spatial_cal_folder')
-    except: calibration_ws = os.path.join(project_ws, 'calibration')
+    try:
+        template_ws = config.get(crop_et_sec, 'template_folder')
+    except:
+        template_ws = os.path.join(os.path.dirname(crop_et_ws), 'static')
+    try:
+        calibration_ws = config.get(crop_et_sec, 'spatial_cal_folder')
+    except:
+        calibration_ws = os.path.join(project_ws, 'calibration')
 
     # Sub folder names
     static_ws = os.path.join(project_ws, 'static')
@@ -254,7 +257,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         except:
             pass
     # Don't build crop parameter files for non-crops
-    crop_skip_list = sorted(list(set(crop_skip_list + [44,45,46,55,56,57])))
+    crop_skip_list = sorted(list(set(
+        crop_skip_list + [44, 45, 46, 55, 56, 57])))
 
     # crop_test_list = sorted(list(set(crop_test_list + [46])))
     logging.debug('\ncrop_test_list = {0}'.format(crop_test_list))
@@ -281,7 +285,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         field.name for field in arcpy.ListFields(cells_path)
         if re.match('CROP_\d{2}', field.name)]
     logging.debug('Cell crop fields: {}'.format(', '.join(crop_field_list)))
-    crop_number_list = [int(f_name.split('_')[1]) for f_name in crop_field_list]
+    crop_number_list = [
+        int(f_name.split('_')[1]) for f_name in crop_field_list]
     crop_number_list = [
         crop_num for crop_num in crop_number_list
         if not ((crop_test_list and crop_num not in crop_test_list) or
@@ -295,7 +300,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     with arcpy.da.SearchCursor(cells_path, field_list) as cursor:
         for row in cursor:
             for i, crop_num in enumerate(crop_number_list):
-                crop_acreage_dict[crop_num][row[0]] = row[i+1]
+                crop_acreage_dict[crop_num][row[0]] = row[i + 1]
 
     # Make an empty template crop feature class
     logging.info('')
@@ -353,8 +358,10 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     # Process each crop
     logging.info('\nBuild crop feature classes')
     for crop_num in crop_number_list:
-        try: crop_param = crop_param_dict[crop_num]
-        except: continue
+        try:
+            crop_param = crop_param_dict[crop_num]
+        except:
+            continue
         logging.info('{0:>2d} {1}'.format(crop_num, crop_param))
         # Replace other characters with spaces, then remove multiple spaces
         crop_name = re.sub('[-"().,/~]', ' ', str(crop_param.name).lower())
@@ -370,7 +377,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
 
         # Remove existing shapefiles if necessary
         if overwrite_flag and arcpy.Exists(crop_path):
-            logging.debug('  Overwriting: {}'.format(os.path.basename(crop_path)))
+            logging.debug('  Overwriting: {}'.format(
+                os.path.basename(crop_path)))
             arcpy.Delete_management(crop_path)
 
         # Don't check skip list until after existing files are removed
@@ -393,15 +401,17 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
             #        arcpy.DeleteField_management(crop_path, field.name)
 
         # Add alfalfa cutting field
-        if crop_num in [1,2,3,4]:
+        if crop_num in [1, 2, 3, 4]:
             if len(arcpy.ListFields(crop_path, dairy_cutting_field)) == 0:
                 logging.debug('  Add field: {0}'.format(dairy_cutting_field))
-                arcpy.AddField_management(crop_path, dairy_cutting_field, 'Short')
+                arcpy.AddField_management(
+                    crop_path, dairy_cutting_field, 'Short')
                 arcpy.CalculateField_management(
                     crop_path, dairy_cutting_field, dairy_cuttings, 'PYTHON')
             if len(arcpy.ListFields(crop_path, beef_cutting_field)) == 0:
                 logging.debug('  Add field: {0}'.format(beef_cutting_field))
-                arcpy.AddField_management(crop_path, beef_cutting_field, 'Short')
+                arcpy.AddField_management(
+                    crop_path, beef_cutting_field, 'Short')
                 arcpy.CalculateField_management(
                     crop_path, beef_cutting_field, beef_cuttings, 'PYTHON')
 
@@ -472,10 +482,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
-    logging.info('{0:<20s} {1}'.format('Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    logging.info('\n{}'.format('#' * 80))
+    logging.info('{0:<20s} {1}'.format(
+        'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(ini_path=args.ini, zone_type=args.zone, area_threshold=args.area,
          dairy_cuttings=args.dairy, beef_cuttings=args.beef,

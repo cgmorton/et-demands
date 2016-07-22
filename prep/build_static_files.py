@@ -2,13 +2,12 @@
 # Name:         build_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
 import argparse
 from collections import defaultdict
-import ConfigParser
 import datetime as dt
 import logging
 import os
@@ -148,8 +147,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                        'does not exist\n').format(et_cells_path))
         sys.exit()
     elif not os.path.isfile(stations_path) or not arcpy.Exists(stations_path):
-        logging.critical(('ERROR: The NLDAS station shapefile ' +
-                          'does not exist\n  %s').format(stations_path))
+        logging.critical(('ERROR: The NLDAS station shapefile does ' +
+                          'not exist\n  %s').format(stations_path))
         sys.exit()
     for static_name in static_list:
         if not os.path.isfile(os.path.join(template_ws, static_name)):
@@ -276,7 +275,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                 station_id = ''
             output_list = [
                 cell_id, cell_data[cell_name_field], station_id, irrigation]
-            crop_list = ['CROP_{:02d}'.format(i) for i in range(1, crops+1)]
+            crop_list = ['CROP_{:02d}'.format(i) for i in range(1, crops + 1)]
             crop_area_list = [
                 cell_data[crop] if crop in cell_data.keys() else 0
                 for crop in crop_list]
@@ -336,11 +335,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(ini_path=args.ini, area_threshold=args.acres, zone_type=args.zone,
          dairy_cuttings=args.dairy, beef_cuttings=args.beef,

@@ -2,7 +2,7 @@
 # Name:         clip_cdl_raster.py
 # Purpose:      Clip CDL rasters in order to build agland rasters
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -13,7 +13,7 @@ import os
 import subprocess
 import sys
 
-from osgeo import gdal, ogr, osr
+from osgeo import gdal
 
 import gdal_common as gdc
 import util
@@ -100,7 +100,7 @@ def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,
         # Clip
         if not os.path.isfile(cdl_output_path):
             subprocess.call(
-                ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES']+
+                ['gdal_translate', '-of', 'HFA', '-co', 'COMPRESSED=YES'] +
                 ['-projwin'] + str(output_ullr).split() +
                 ['-a_ullr'] + str(output_ullr).split() +
                 [cdl_input_path, cdl_output_path])
@@ -204,11 +204,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, cdl_input_ws=args.cdl, cdl_year=args.years,
          overwrite_flag=args.overwrite, pyramids_flag=args.pyramids,

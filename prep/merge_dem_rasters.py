@@ -2,7 +2,7 @@
 # Name:         merge_dem_rasters.py
 # Purpose:      Prepare NED DEM rasters
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 import numpy as np
-from osgeo import gdal, ogr, osr
+from osgeo import gdal
 
 import gdal_common as gdc
 import util
@@ -211,10 +211,12 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
         logging.info('\nBuilding pyramids')
         if os.path.isfile(dem_proj_path):
             logging.debug('  {}'.format(dem_proj_path))
-            subprocess.call(['gdaladdo', '-ro', dem_proj_path] + levels.split())
+            subprocess.call(
+                ['gdaladdo', '-ro', dem_proj_path] + levels.split())
         if os.path.isfile(dem_hs_path):
             logging.debug('  {}'.format(dem_hs_path))
-            subprocess.call(['gdaladdo', '-ro', dem_hs_path] + levels.split())
+            subprocess.call(
+                ['gdaladdo', '-ro', dem_hs_path] + levels.split())
         # subprocess.call(
         #     'gdaladdo', '-ro', '--config', 'USE_RRD', 'YES',
         #     '--config', 'HFA_USE_RRD', 'YES', dem_proj_path] + levels.split()])
@@ -280,11 +282,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, tile_ws=args.tiles,
          dem_cs=args.cellsize, overwrite_flag=args.overwrite,

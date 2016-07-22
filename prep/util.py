@@ -1,4 +1,3 @@
-#import argparse
 import ConfigParser
 import glob
 from itertools import groupby
@@ -10,7 +9,7 @@ import sys
 def remove_file(file_path):
     """Remove a feature/raster and all of its anciallary files"""
     file_ws = os.path.dirname(file_path)
-    for file_name in glob.glob(os.path.splitext(file_path)[0]+".*"):
+    for file_name in glob.glob(os.path.splitext(file_path)[0] + ".*"):
         logging.debug('  Remove: {}'.format(os.path.join(file_ws, file_name)))
         os.remove(os.path.join(file_ws, file_name))
 
@@ -53,8 +52,8 @@ def parse_int_set(nputstr=""):
                     # we have items seperated by a dash
                     # try to build a valid range
                     first = token[0]
-                    last = token[len(token)-1]
-                    for x in range(first, last+1):
+                    last = token[len(token) - 1]
+                    for x in range(first, last + 1):
                         selection.add(x)
             except:
                 # not an int and not a range...
