@@ -66,7 +66,7 @@ def main(gis_ws, tile_ws, dem_cs, mask_flag=False, overwrite_flag=False):
         logging.error(
             ('\nERROR: The zone raster {} does not exist' +
              '\n  Try re-running "build_study_area_raster.py"').format(
-             zone_raster_path))
+                zone_raster_path))
         sys.exit()
     if mask_flag and not os.path.isfile(zone_polygon_path):
         logging.error(

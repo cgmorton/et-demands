@@ -86,11 +86,11 @@ def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False,
     # Process each CDL year separately
     for cdl_year in list(util.parse_int_set(cdl_year)):
         logging.info('\n{0}'.format(cdl_year))
-        cdl_path = os.path.join(cdl_ws, cdl_format.format(cdl_year))
+        # cdl_path = os.path.join(cdl_ws, cdl_format.format(cdl_year))
         output_dem_path = os.path.join(
             dem_ws, 'dem_{}_30m_cdls.img'.format(cdl_year))
-        agland_path = os.path.join(
-            cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
+        # agland_path = os.path.join(
+        #     cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
         agmask_path = os.path.join(
             cdl_ws, 'agmask_{}_30m_cdls.img'.format(cdl_year))
         if not os.path.isfile(agmask_path):

@@ -63,7 +63,7 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
         logging.error(
             ('\nERROR: The zone raster {} does not exist' +
              '\n  Try re-running "build_study_area_raster.py"').format(
-             zone_raster_path))
+                zone_raster_path))
         sys.exit()
     elif output_units not in ['FEET', 'METERS']:
         logging.error('\nERROR: The output units must be FEET or METERS\n')
@@ -146,10 +146,10 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
             # It would also work to add the scripts folder to the path (in Pythong)
             # Or the scripts folder could be added to the system PYTHONPATH?
             args_list = [
-                 'python', '{}\scripts\gdal_merge.py'.format(sys.exec_prefix),
-                 '-o', dem_gcs_path, '-of', 'HFA',
-                 '-co', 'COMPRESSED=YES', '-a_nodata',
-                 str(f32_nodata)] + input_path_list
+                'python', '{}\scripts\gdal_merge.py'.format(sys.exec_prefix),
+                '-o', dem_gcs_path, '-of', 'HFA',
+                '-co', 'COMPRESSED=YES', '-a_nodata',
+                str(f32_nodata)] + input_path_list
             logging.debug(args_list)
             logging.debug('command length: {}'.format(len(' '.join(args_list))))
             subprocess.call(args_list, cwd=tile_ws)
@@ -232,7 +232,7 @@ def m2ft_func(input_raster):
     """Scale the input raster from meters to feet"""
     input_ds = gdal.Open(input_raster, 1)
     input_band = input_ds.GetRasterBand(1)
-    input_nodata = input_band.GetNoDataValue()
+    # input_nodata = input_band.GetNoDataValue()
     input_array = input_band.ReadAsArray(
         0, 0, input_ds.RasterXSize, input_ds.RasterYSize)
     input_array[~np.isnan(input_array)] /= 0.3048

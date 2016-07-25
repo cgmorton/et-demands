@@ -54,7 +54,7 @@ def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,
         logging.error(
             ('\nERROR: The zone raster {} does not exist' +
              '\n  Try re-running "build_study_area_raster.py"').format(
-             zone_raster_path))
+                zone_raster_path))
         sys.exit()
     if not os.path.isdir(cdl_output_ws):
         os.makedirs(cdl_output_ws)
@@ -80,7 +80,7 @@ def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,
         # Reference all output rasters zone raster
         zone_raster_ds = gdal.Open(zone_raster_path)
         output_osr = gdc.raster_ds_osr(zone_raster_ds)
-        output_wkt = gdc.raster_ds_proj(zone_raster_ds)
+        # output_wkt = gdc.raster_ds_proj(zone_raster_ds)
         output_cs = gdc.raster_ds_cellsize(zone_raster_ds)[0]
         output_x, output_y = gdc.raster_ds_origin(zone_raster_ds)
         output_extent = gdc.raster_ds_extent(zone_raster_ds)

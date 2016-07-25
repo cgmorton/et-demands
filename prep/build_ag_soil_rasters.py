@@ -45,7 +45,7 @@ def main(gis_ws, input_soil_ws, cdl_year='', prop_list=['all'],
     logging.info('\nExtracting Agriculatural Soil Values')
 
     input_soil_fmt = '{}_30m_albers.img'
-    cdl_format = '{0}_30m_cdls.img'
+    # cdl_format = '{0}_30m_cdls.img'
     cdl_ws = os.path.join(gis_ws, 'cdl')
     # input_soil_ws = os.path.join(gis_ws, 'statsgo')
     output_soil_ws = os.path.join(gis_ws, 'soils')
@@ -84,10 +84,10 @@ def main(gis_ws, input_soil_ws, cdl_year='', prop_list=['all'],
     # Process each CDL year separately
     for cdl_year in list(util.parse_int_set(cdl_year)):
         logging.info('\n{0}'.format(cdl_year))
-        cdl_path = os.path.join(cdl_ws, cdl_format.format(cdl_year))
+        # cdl_path = os.path.join(cdl_ws, cdl_format.format(cdl_year))
         output_soil_fmt = '{0}_{1}_30m_cdls.img'.format('{}', cdl_year)
-        agland_path = os.path.join(
-            cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
+        # agland_path = os.path.join(
+        #     cdl_ws, 'agland_{}_30m_cdls.img'.format(cdl_year))
         agmask_path = os.path.join(
             cdl_ws, 'agmask_{}_30m_cdls.img'.format(cdl_year))
         if not os.path.isfile(agmask_path):
