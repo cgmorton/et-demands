@@ -617,15 +617,18 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     """Plot a cell values for a single field with descartes and matplotlib
 
     Args:
-        plot_path (str): output file path
-        cell_geom_dict (dict): id, shapely geometry object
-        cell_data_dict (dict): id, map value
+        output_path (str): output file path
+        geom_dict (dict): id, shapely geometry object
+        data_dict (dict): id, map value
         title_str (str): Text at the top of the figure/map
         clabel_str (str): Text to display next to the colorbar
         extent (list): extent of all geometry objects [minx, miny, maxx, maxy]
         cmap (): colormap
+        v_min ():
+        v_max ():
         fig_size (tuple): figure size in inches (width, height)
         fig_dpi (int): Figure dots per square inch
+        label_flag (bool): If True, label figures with id
         save_flag (bool): If True, save the figure
         show_flag (bool): If True, show the figure
         label_size (int): Label text font size

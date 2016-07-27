@@ -225,10 +225,13 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             daily_df = daily_df[daily_df[year_field] < crop_year_end]
 
         # Only keep years between year_start and year_end
+        # Adjust crop years
         if year_start:
             daily_df = daily_df[daily_df[year_field] >= year_start]
+            crop_year_start = max(year_start, crop_year_start)
         if year_end:
             daily_df = daily_df[daily_df[year_field] <= year_end]
+            crop_year_end = min(year_end, crop_year_end)
 
         year_sub_array = np.sort(
             np.unique(np.array(daily_df[year_field]).astype(np.int)))
