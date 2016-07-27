@@ -40,8 +40,7 @@ def main(ini_path, show_flag=False, save_flag=True,
 
     full_value_list = ['et', 'eto', 'niwr', 'ppt', 'rs', 'tmean', 'u']
     sub_value_list = ['et', 'eto', 'niwr', 'ppt', 'tmean']
-    # sub_delta_list = ['et', 'eto', 'niwr', 'ppt', 'tmean']
-    sub_delta_list = []
+    sub_delta_list = ['et', 'eto', 'niwr', 'ppt', 'tmean']
 
     delta_type = {
         'et': 'percent',
@@ -89,7 +88,7 @@ def main(ini_path, show_flag=False, save_flag=True,
     }
 
     # Colormap
-    cmap = {
+    cmap_names = {
         'et': {
             'value': 'blue_red',
             'delta': ['red_white', 'white_blue']},
@@ -115,8 +114,6 @@ def main(ini_path, show_flag=False, save_flag=True,
             'value': 'blue_red',
             'delta': ['red_white', 'white_blue']}
     }
-    color_dict = colordicts_func()
-    colormap_dict = colormaps_func(color_dict)
 
     # Round values/deltas to next multiple of this amount
     base = {
@@ -127,7 +124,7 @@ def main(ini_path, show_flag=False, save_flag=True,
         'q': {'value': 1, 'delta': 1},
         'rs': {'value': 1, 'delta': 1},
         'tmean': {'value': 1, 'delta': 1},
-        'u': {'value': 5, 'delta': 1}
+        'u': {'value': 1, 'delta': 1}
     }
 
     # ET Cells field names
@@ -303,25 +300,6 @@ def main(ini_path, show_flag=False, save_flag=True,
             sub_value_round_max = max(
                 full_value_round_max, sub_value_round_max)
 
-        # Adjust min/max for subplot delta colorbars
-        # This is so transition rate is the same for neg./pos.
-        sub_delta_mod_min = min(
-            sub_delta_round_min, -sub_delta_round_max)
-        sub_delta_mod_max = max(
-            -sub_delta_round_min, sub_delta_round_max)
-        logging.info('    Sub Delta Mod Min: {0:>7.2f} {1:>10}'.format(
-            sub_delta_min, sub_delta_mod_min))
-        logging.info('    Sub Delta Mod Max: {0:>7.2f} {1:>10}'.format(
-            sub_delta_max, sub_delta_mod_max))
-        zero_pct = percent_func(
-            sub_delta_round_min, sub_delta_round_max, 0)
-        min_pct = percent_func(
-            0, -sub_delta_mod_min, -sub_delta_round_min)
-        max_pct = percent_func(
-            0, sub_delta_mod_max, sub_delta_round_max)
-        logging.info('    0%: {0:4.2f}  Min%: {1:4.2f}  Max%: {2:4.2f}'.format(
-            zero_pct, min_pct, max_pct))
-
         # Keyword arguments to plotting functions
         full_kwargs = {
             'table_id_field': table_id_field,
@@ -353,7 +331,7 @@ def main(ini_path, show_flag=False, save_flag=True,
             output_path = os.path.join(output_ws, output_name)
             full_plot(
                 output_path, full_value_df, caption=value_text[var],
-                cmap=colormap_dict[cmap[var]['value']],
+                cmap_name=cmap_names[var]['value'],
                 v_min=full_value_round_min, v_max=full_value_round_max,
                 **full_kwargs)
 
@@ -363,7 +341,7 @@ def main(ini_path, show_flag=False, save_flag=True,
             output_path = os.path.join(output_ws, output_name)
             sub_plot(
                 output_path, sub_value_df, caption=value_text[var],
-                cmap=colormap_dict[cmap[var]['value']],
+                cmap_name=cmap_names[var]['value'],
                 v_min=sub_value_round_min, v_max=sub_value_round_max,
                 **sub_kwargs)
 
@@ -373,12 +351,12 @@ def main(ini_path, show_flag=False, save_flag=True,
             output_path = os.path.join(output_ws, output_name)
             sub_plot(
                 output_path, sub_delta_df, caption=delta_text[var],
-                cmap=colormap_dict[cmap[var]['delta']],
-                v_min=sub_delta_mod_min, v_max=sub_delta_mod_max,
+                cmap_name=cmap_names[var]['delta'],
+                v_min=sub_delta_round_min, v_max=sub_delta_round_max,
                 **sub_kwargs)
 
 
-def full_plot(output_path, data_df, caption, cmap, v_min, v_max,
+def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
               cell_geom_dict, cell_extent,
               table_id_field, scenario_field,
               figure_size, figure_dpi, show_flag, save_flag):
@@ -404,14 +382,14 @@ def full_plot(output_path, data_df, caption, cmap, v_min, v_max,
         data_df[table_id_field], data_df[scenario_field]))
     plot_cells_func(
         axes, cell_geom_dict, cell_data_dict,
-        cmap=cm.jet, v_min=v_min, v_max=v_max)
+        cmap=colormap(cmap_name), v_min=v_min, v_max=v_max)
 
     # Add caption text
     plt.figtext(0.65, 0.07, caption, size=11, ha='left', va='top')
 
     # Add a basic colorbar
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-    plt.imshow(np.array([[v_min, v_max]]), cmap=cmap)
+    plt.imshow(np.array([[v_min, v_max]]), cmap=colormap(cmap_name))
     ax.set_visible(False)
     cax = plt.axes([0.02, 0.04, 0.55, 0.03])
     cbar = plt.colorbar(
@@ -431,7 +409,7 @@ def full_plot(output_path, data_df, caption, cmap, v_min, v_max,
     # gc.collect()
 
 
-def sub_plot(output_path, data_df, caption, cmap, v_min, v_max,
+def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
              cell_geom_dict, cell_extent, period_list, scenario_list,
              table_id_field, period_field, scenario_fields,
              figure_size, figure_dpi, show_flag, save_flag):
@@ -459,7 +437,87 @@ def sub_plot(output_path, data_df, caption, cmap, v_min, v_max,
     for ax, scenario in zip(axes[:, 0], scenario_list):
         ax.set_ylabel(scenario, ha='right', rotation=0, size='12')
 
-    # Draw subplots
+    # Add caption text
+    plt.figtext(0.65, 0.07, caption, size=11, ha='left', va='top')
+
+    # Build colormap and add colorbar
+    # Build colormap in sub delta plots before drawing subplots
+    if len(cmap_name) == 2:
+        # Adjust min/max for subplot delta colorbars
+        # This is so transition rate is the same for neg./pos.
+        mod_min = min(v_min, -v_max)
+        mod_max = max(-v_min, v_max)
+        logging.info('    Sub Delta Mod Min: {0:>7.2f} {1:>10}'.format(
+            v_min, mod_min))
+        logging.info('    Sub Delta Mod Max: {0:>7.2f} {1:>10}'.format(
+            v_max, mod_max))
+
+        zero_pct = percent_func(v_min, v_max, 0)
+        min_pct = percent_func(0, -mod_min, -v_min)
+        max_pct = percent_func(0, mod_max, v_max)
+        logging.info('    0%: {0:4.2f}  Min%: {1:4.2f}  Max%: {2:4.2f}'.format(
+            zero_pct, min_pct, max_pct))
+
+        # Generate subplot delta colorbar
+        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        if zero_pct <= 0:
+            subplot_cdict = colordict(cmap_name[1])
+            min_max_array = np.array([[0., v_max]])
+        elif zero_pct >= 1:
+            subplot_cdict = colordict(cmap_name[0])
+            min_max_array = np.array([[v_min, 0.]])
+        else:
+            # Rate of transition should be the same for neg/pos
+            # Get the neg/pos colorbars
+            color_neg_dict = colordict(cmap_name[0])
+            color_pos_dict = colordict(cmap_name[1])
+
+            # Scale the colors (i.e., they stop at pink instead of red)
+            def scale_color(color_list, scale_value):
+                return [v if (i == 0 or v == 1) else (1 - scale_value)
+                        for i, v in enumerate(color_list)]
+            # Build new composite colorbar that goes through white at zero_pct
+            subplot_cdict = {
+                'red': (
+                    scale_color(color_neg_dict['red'][0], min_pct),
+                    [zero_pct, 1., 1.],
+                    scale_color(color_pos_dict['red'][1], max_pct)),
+                'green': (
+                    scale_color(color_neg_dict['green'][0], min_pct),
+                    [zero_pct, 1., 1.],
+                    scale_color(color_pos_dict['green'][1], max_pct)),
+                'blue': (
+                    scale_color(color_neg_dict['blue'][0], min_pct),
+                    [zero_pct, 1., 1.],
+                    scale_color(color_pos_dict['blue'][1], max_pct))}
+            del color_neg_dict, color_pos_dict
+            min_max_array = np.array([[v_min, v_max]])
+        subplot_cmap = colors.LinearSegmentedColormap(
+            'subplot', subplot_cdict, 256)
+        plt.imshow(min_max_array, cmap=subplot_cmap)
+        ax.set_visible(False)
+        # ticks = plt.locator_params(nbins=4)
+        cax = plt.axes([0.05, 0.04, 0.55, 0.03])
+        cbar = plt.colorbar(cax=cax, orientation='horizontal', ticks=None)
+        cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
+        cbar.update_ticks()
+        cbar.ax.tick_params(labelsize=8)
+        # cbar.set_label('Percent Change [%]')
+    else:
+        # Add a basic colorbar
+        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        subplot_cmap = colormap(cmap_name)
+        plt.imshow(np.array([[v_min, v_max]]), cmap=subplot_cmap)
+        ax.set_visible(False)
+        cax = plt.axes([0.05, 0.04, 0.55, 0.03])
+        cbar = plt.colorbar(
+            cax=cax, orientation='horizontal', ticks=None)
+        cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
+        cbar.update_ticks()
+        cbar.ax.tick_params(labelsize=8)
+        # cbar.set_label(units_label)
+
+    # Draw subplots (after building colormap)
     for i, scenario in enumerate(scenario_list):
         for j, period in enumerate(period_list):
             sub_df = data_df[data_df[period_field] == period]
@@ -468,22 +526,7 @@ def sub_plot(output_path, data_df, caption, cmap, v_min, v_max,
                 sub_df[scenario_fields[scenario]]))
             plot_cells_func(
                 axes[i, j], cell_geom_dict, cell_data_dict,
-                cmap=cm.jet, v_min=v_min, v_max=v_max)
-
-    # Add caption text
-    plt.figtext(0.65, 0.07, caption, size=11, ha='left', va='top')
-
-    # Add a basic colorbar
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-    plt.imshow(np.array([[v_min, v_max]]), cmap=cmap)
-    ax.set_visible(False)
-    cax = plt.axes([0.05, 0.04, 0.55, 0.03])
-    cbar = plt.colorbar(
-        cax=cax, orientation='horizontal', ticks=None)
-    cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
-    cbar.update_ticks()
-    cbar.ax.tick_params(labelsize=8)
-    # cbar.set_label(units_label)
+                cmap=subplot_cmap, v_min=v_min, v_max=v_max)
 
     if save_flag:
         plt.savefig(output_path, dpi=figure_dpi)
@@ -495,7 +538,7 @@ def sub_plot(output_path, data_df, caption, cmap, v_min, v_max,
     # gc.collect()
 
 
-def colordicts_func():
+def colordict(cmap_name):
     color_dict = {}
     color_dict['green_red'] = {
         'red': ((0.0, 0.22, 0.22), (0.5, 1.0, 1.0), (1.0, 1.0, 1.0)),
@@ -529,15 +572,11 @@ def colordicts_func():
         'red': ((0., 1., 1.), (1., 1., 1.)),
         'green': ((0., 0., 0.), (1., 1., 1.)),
         'blue': ((0., 0., 0.), (1., 1., 1.))}
-    return color_dict
+    return color_dict[cmap_name]
 
 
-def colormaps_func(color_dict):
-    return {
-        name: colors.LinearSegmentedColormap(
-            name, color, 256)
-        for name, color in color_dict.items()
-    }
+def colormap(cmap_name):
+    return colors.LinearSegmentedColormap(cmap_name, colordict(cmap_name), 256)
 
 
 def myround(x, direction='round', base=5):
