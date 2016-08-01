@@ -23,13 +23,20 @@ import util
 
 
 def main(ini_path, show_flag=False, save_flag=True,
-         figure_size=(6.0, 7.5), figure_dpi=600, simplify_tol=None):
+         figure_size=(6.0, 7.5), figure_dpi=600, simplify_tol=None,
+         states_flag=False):
     """Plot future statistic maps
 
     For now, data is stored in excel files in stats_tables folder
 
     Args:
         ini_path (str): file path of the project INI file
+        show_flag (bool): if True, show figure
+        save_flag (bool): if True, save figure to disk
+        figure_size (tuple): figure size in inches (width, height)
+        figure_dpi (int): figure dots per inch
+        simplify_tol (float):
+        states_flag (bool): if True, draw state boundaries
 
     Returns:
         None
@@ -38,9 +45,9 @@ def main(ini_path, show_flag=False, save_flag=True,
     period_list = [2020, 2050, 2080]
     scenario_list = [5, 25, 50, 75, 95]
 
-    full_value_list = ['et', 'eto', 'niwr', 'ppt', 'rs', 'tmean', 'u']
-    sub_value_list = ['et', 'eto', 'niwr', 'ppt', 'tmean']
-    sub_delta_list = ['et', 'eto', 'niwr', 'ppt', 'tmean']
+    full_value_list = ['et', 'eto', 'niwr', 'ppt', 'q', 'rs', 'tmean', 'u']
+    sub_value_list = ['et', 'eto', 'niwr', 'ppt', 'q', 'rs', 'tmean', 'u']
+    sub_delta_list = ['et', 'eto', 'niwr', 'ppt', 'q', 'rs', 'tmean', 'u']
 
     delta_type = {
         'et': 'percent',
@@ -55,11 +62,12 @@ def main(ini_path, show_flag=False, save_flag=True,
 
     # Adjust data type names in output files
     output_var = {
+        'area': 'area',
         'et': 'et',
         'eto': 'eto',
         'niwr': 'niwr',
         'ppt': 'ppt',
-        'q': 'tdew',
+        'q': 'q',
         'rs': 'rs',
         'tmean': 'tmean',
         'u': 'wind'
@@ -67,6 +75,7 @@ def main(ini_path, show_flag=False, save_flag=True,
 
     # Figure caption text
     value_text = {
+        'area': 'Crop Area [acres]',
         'et': 'Evapotranspiration [mm]',
         'eto': 'Reference ET [mm/year]',
         'niwr': 'Net Irrigation Water\nRequirement [mm]',
@@ -81,14 +90,15 @@ def main(ini_path, show_flag=False, save_flag=True,
         'eto': 'Reference ET\nPercent Change [%]',
         'niwr': 'NIWR\nPercent Change [%]',
         'ppt': 'Precipitation\nPercent Change [%]',
-        # 'q': 'Specific Humidity\nPercent Change [%]',
-        # 'rs': 'Solar Radiation\nPercent Change [%]',
-        'tmean': 'Mean Temperature\nDelta [C]'
-        # 'u': 'Wind speed\nPercent Change [%]'
+        'q': 'Specific Humidity\nPercent Change [%]',
+        'rs': 'Solar Radiation\nPercent Change [%]',
+        'tmean': 'Mean Temperature\nDelta [C]',
+        'u': 'Wind speed\nPercent Change [%]'
     }
 
     # Colormap
     cmap_names = {
+        'area': {'value': 'white_green'},
         'et': {
             'value': 'blue_red',
             'delta': ['red_white', 'white_blue']},
@@ -116,12 +126,13 @@ def main(ini_path, show_flag=False, save_flag=True,
     }
 
     # Round values/deltas to next multiple of this amount
-    base = {
+    round_factor = {
+        'area': {'value': 1000},
         'et': {'value': 1, 'delta': 1},
         'eto': {'value': 1, 'delta': 1},
         'niwr': {'value': 1, 'delta': 1},
         'ppt': {'value': 1, 'delta': 1},
-        'q': {'value': 1, 'delta': 1},
+        'q': {'value': 0.0001, 'delta': 1},
         'rs': {'value': 1, 'delta': 1},
         'tmean': {'value': 1, 'delta': 1},
         'u': {'value': 1, 'delta': 1}
@@ -129,6 +140,7 @@ def main(ini_path, show_flag=False, save_flag=True,
 
     # ET Cells field names
     cell_id_field = 'CELL_ID'
+    ag_acres_field = 'AG_ACRES'
 
     # Excel file parameters
     # BasinID should not be in the file name
@@ -149,6 +161,13 @@ def main(ini_path, show_flag=False, save_flag=True,
         75: '75th percentile',
         95: '95th percentile'
     }
+
+    # Draw state boundaries on figures
+    states_flag = True
+    states_path = 'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\states\cb_2014_us_state_500k_albers.shp'
+    states_field = 'NAME'
+    # states_path = 'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\states\state_nrcs_a_mbr_albers.shp'
+    # states_field = 'STATENAME'
 
     # full_table_re = re.compile(
     #     '(?P<basin_id>\w+)_base_(?P<var>\w+).xlsx', re.I)
@@ -198,7 +217,6 @@ def main(ini_path, show_flag=False, save_flag=True,
     if not os.path.isdir(output_ws):
         os.makedirs(output_ws)
 
-
     # Read ET Cells into memory with fiona and shapely
     # Convert multi-polygons to list of polygons
     logging.info('\nReading ET cells shapefile')
@@ -208,6 +226,67 @@ def main(ini_path, show_flag=False, save_flag=True,
     if not cell_geom_dict:
         logging.error('  ET Cell shapefile not read in, exiting')
         return False
+
+    # Read in state geometries
+    if states_flag:
+        logging.info('\nReading state shapefile')
+        try:
+            state_geom_dict = read_cell_geometries(states_path, states_field)
+        except:
+            logging.error('  State geometries not read in, ignoring')
+            state_geom_dict = {}
+
+        # Remove state features that don't intersect the cells extent
+        for k, geom_list in state_geom_dict.items():
+            geom_list = [
+                g for g in geom_list
+                if extents_overlap(list(g.bounds), cell_extent)]
+            if geom_list:
+                state_geom_dict[k] = geom_list
+            else:
+                del state_geom_dict[k]
+
+    # Keyword arguments to plotting functions
+    full_kwargs = {
+        'table_id_field': table_id_field,
+        'scenario_field': scenario_fields[50],
+        'state_geom_dict': state_geom_dict,
+        'cell_geom_dict': cell_geom_dict,
+        'cell_extent': cell_extent,
+        'figure_size': figure_size,
+        'figure_dpi': figure_dpi,
+        'save_flag': save_flag,
+        'show_flag': show_flag
+    }
+    sub_kwargs = {
+        'period_list': period_list,
+        'scenario_list': scenario_list,
+        'table_id_field': table_id_field,
+        'period_field': period_field,
+        'scenario_fields': scenario_fields,
+        'state_geom_dict': state_geom_dict,
+        'cell_geom_dict': cell_geom_dict,
+        'cell_extent': cell_extent,
+        'figure_size': figure_size,
+        'figure_dpi': figure_dpi,
+        'save_flag': save_flag,
+        'show_flag': show_flag
+    }
+
+    # Plot the crop area
+    var = 'area'
+    logging.info('\nVariable: {}'.format(var))
+    cell_area_dict = read_cell_data(cells_path, cell_id_field, ag_acres_field)
+    # Convert the crop area dictionary to dataframe even though it
+    #   immediatly gets converted back to a dict in full_plot()
+    # For simplicity, set column names to match excel file column names
+    cell_area_df = pd.DataFrame(
+        cell_area_dict.items(), columns=[table_id_field, scenario_fields[50]])
+    full_plot(
+        os.path.join(output_ws, 'fullplot_{}_value.jpg'.format(output_var[var])),
+        cell_area_df, caption=value_text[var],
+        cmap_name=cmap_names[var]['value'],
+        v_min=0, v_max=max(cell_area_dict.values()), **full_kwargs)
 
     # Build master type list
     type_list = sorted(set(full_value_list + sub_value_list + sub_delta_list))
@@ -262,17 +341,17 @@ def main(ini_path, show_flag=False, save_flag=True,
 
         # Calculate min/max for value and delta
         full_value_round_min = myround(
-            full_value_min, 'floor', base[var]['value'])
+            full_value_min, 'floor', round_factor[var]['value'])
         full_value_round_max = myround(
-            full_value_max, 'ceil', base[var]['value'])
+            full_value_max, 'ceil', round_factor[var]['value'])
         sub_value_round_min = myround(
-            sub_value_min, 'floor', base[var]['value'])
+            sub_value_min, 'floor', round_factor[var]['value'])
         sub_value_round_max = myround(
-            sub_value_max, 'ceil', base[var]['value'])
+            sub_value_max, 'ceil', round_factor[var]['value'])
         sub_delta_round_min = myround(
-            sub_delta_min, 'floor', base[var]['delta'])
+            sub_delta_min, 'floor', round_factor[var]['delta'])
         sub_delta_round_max = myround(
-            sub_delta_max, 'ceil', base[var]['delta'])
+            sub_delta_max, 'ceil', round_factor[var]['delta'])
 
         # Print min/max value
         logging.info('    Full Value Min: {0:>10.2f} {1:>10}'.format(
@@ -299,31 +378,6 @@ def main(ini_path, show_flag=False, save_flag=True,
                 full_value_round_min, sub_value_round_min)
             sub_value_round_max = max(
                 full_value_round_max, sub_value_round_max)
-
-        # Keyword arguments to plotting functions
-        full_kwargs = {
-            'table_id_field': table_id_field,
-            'scenario_field': scenario_fields[50],
-            'cell_geom_dict': cell_geom_dict,
-            'cell_extent': cell_extent,
-            'figure_size': figure_size,
-            'figure_dpi': figure_dpi,
-            'save_flag': save_flag,
-            'show_flag': show_flag
-        }
-        sub_kwargs = {
-            'period_list': period_list,
-            'scenario_list': scenario_list,
-            'table_id_field': table_id_field,
-            'period_field': period_field,
-            'scenario_fields': scenario_fields,
-            'cell_geom_dict': cell_geom_dict,
-            'cell_extent': cell_extent,
-            'figure_size': figure_size,
-            'figure_dpi': figure_dpi,
-            'save_flag': save_flag,
-            'show_flag': show_flag
-        }
 
         # Build full value plots
         if var in full_value_list:
@@ -357,7 +411,7 @@ def main(ini_path, show_flag=False, save_flag=True,
 
 
 def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
-              cell_geom_dict, cell_extent,
+              state_geom_dict, cell_geom_dict, cell_extent,
               table_id_field, scenario_field,
               figure_size, figure_dpi, show_flag, save_flag):
     # Build the figure and subplots
@@ -365,7 +419,7 @@ def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
 
     # Position the subplots in the figure
     plt.subplots_adjust(
-        left=0.02, bottom=0.08, right=0.99, top=0.97,
+        left=0.01, bottom=0.07, right=0.99, top=0.97,
         wspace=0.001, hspace=0.001)
 
     # Remove all ticks and ticklabels
@@ -383,18 +437,24 @@ def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
     plot_cells_func(
         axes, cell_geom_dict, cell_data_dict,
         cmap=colormap(cmap_name), v_min=v_min, v_max=v_max)
+    plot_geom_func(axes, state_geom_dict)
 
     # Add caption text
-    plt.figtext(0.65, 0.07, caption, size=11, ha='left', va='top')
+    plt.figtext(0.65, 0.055, caption, size=11, ha='left', va='top')
 
     # Add a basic colorbar
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
     plt.imshow(np.array([[v_min, v_max]]), cmap=colormap(cmap_name))
     ax.set_visible(False)
-    cax = plt.axes([0.02, 0.04, 0.55, 0.03])
+    cax = plt.axes([0.05, 0.03, 0.55, 0.025])
     cbar = plt.colorbar(
         cax=cax, orientation='horizontal', ticks=None)
-    cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
+    if abs(v_max - v_min) < 1:
+        cbar.locator = ticker.MaxNLocator(nbins=6)
+    elif abs(v_max - v_min) > 100000:
+        cbar.locator = ticker.MaxNLocator(nbins=6)
+    else:
+        cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
     cbar.update_ticks()
     cbar.ax.tick_params(labelsize=8)
     # cbar.set_label(units_label)
@@ -410,7 +470,8 @@ def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
 
 
 def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
-             cell_geom_dict, cell_extent, period_list, scenario_list,
+             state_geom_dict, cell_geom_dict, cell_extent,
+             period_list, scenario_list,
              table_id_field, period_field, scenario_fields,
              figure_size, figure_dpi, show_flag, save_flag):
     # Build the figure and subplots
@@ -419,7 +480,7 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
 
     # Position the subplots in the figure
     plt.subplots_adjust(
-        left=0.05, bottom=0.08, right=0.99, top=0.97,
+        left=0.05, bottom=0.07, right=0.99, top=0.97,
         wspace=0.001, hspace=0.001)
 
     # Remove all ticks and ticklabels
@@ -438,7 +499,7 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
         ax.set_ylabel(scenario, ha='right', rotation=0, size='12')
 
     # Add caption text
-    plt.figtext(0.65, 0.07, caption, size=11, ha='left', va='top')
+    plt.figtext(0.65, 0.055, caption, size=11, ha='left', va='top')
 
     # Build colormap and add colorbar
     # Build colormap in sub delta plots before drawing subplots
@@ -497,7 +558,7 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
         plt.imshow(min_max_array, cmap=subplot_cmap)
         ax.set_visible(False)
         # ticks = plt.locator_params(nbins=4)
-        cax = plt.axes([0.05, 0.04, 0.55, 0.03])
+        cax = plt.axes([0.05, 0.03, 0.55, 0.025])
         cbar = plt.colorbar(cax=cax, orientation='horizontal', ticks=None)
         cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
         cbar.update_ticks()
@@ -509,10 +570,15 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
         subplot_cmap = colormap(cmap_name)
         plt.imshow(np.array([[v_min, v_max]]), cmap=subplot_cmap)
         ax.set_visible(False)
-        cax = plt.axes([0.05, 0.04, 0.55, 0.03])
+        cax = plt.axes([0.05, 0.03, 0.55, 0.025])
         cbar = plt.colorbar(
             cax=cax, orientation='horizontal', ticks=None)
-        cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
+        if abs(v_max - v_min) < 1:
+            cbar.locator = ticker.MaxNLocator(nbins=6)
+        elif abs(v_max - v_min) > 100000:
+            cbar.locator = ticker.MaxNLocator(nbins=6)
+        else:
+            cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
         cbar.update_ticks()
         cbar.ax.tick_params(labelsize=8)
         # cbar.set_label(units_label)
@@ -527,6 +593,7 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
             plot_cells_func(
                 axes[i, j], cell_geom_dict, cell_data_dict,
                 cmap=subplot_cmap, v_min=v_min, v_max=v_max)
+            plot_geom_func(axes[i, j], state_geom_dict)
 
     if save_flag:
         plt.savefig(output_path, dpi=figure_dpi)
@@ -560,6 +627,10 @@ def colordict(cmap_name):
         'red': ((0., 1., 1.), (1., 0., 0.)),
         'green': ((0., 1., 1.), (1., 0., 0.)),
         'blue': ((0., 1., 1.), (1., 1., 1.))}
+    color_dict['white_green'] = {
+        'red': ((0., 1., 1.), (1., 0.222, 0.222)),
+        'green': ((0., 1., 1.), (1., 0.667, 0.667)),
+        'blue': ((0., 1., 1.), (1., 0., 0.))}
     color_dict['white_red'] = {
         'red': ((0., 1., 1.), (1., 1., 1.)),
         'green': ((0., 1., 1.), (1., 0., 0.)),
@@ -644,6 +715,17 @@ def read_cell_extent(cells_path):
     return cell_extent
 
 
+def read_cell_data(cells_path, cell_id_field, data_field):
+    """"""
+    cell_data_dict = dict()
+    with fiona.open(cells_path, "r") as cell_f:
+        # Fiona is printing a debug statement here "Index: N"
+        for item in cell_f:
+            cell_id = item['properties'][cell_id_field]
+            cell_data_dict[cell_id] = item['properties'][data_field]
+    return cell_data_dict
+
+
 def adjust_extent_to_axes(cell_extent, ax, pad=0):
     """Adjust cell extent to match axes aspect ratio"""
     # Get axes extent and aspect ratio
@@ -672,8 +754,7 @@ def adjust_extent_to_axes(cell_extent, ax, pad=0):
     return minx, miny, maxx, maxy
 
 
-def plot_cells_func(ax, geom_dict, data_dict,
-                    cmap=None, v_min=None, v_max=None,
+def plot_cells_func(ax, geom_dict, data_dict, cmap, v_min, v_max,
                     label_flag=False, label_size=8):
     """Plot a cell values for a single field with descartes and matplotlib
 
@@ -689,22 +770,14 @@ def plot_cells_func(ax, geom_dict, data_dict,
     """
 
     # Set colormap
-    if cmap:
-        if v_min is None:
-            v_min = min(data_dict.values())
-            logging.debug('    v_min={}'.format(v_min))
-        if v_max is None:
-            v_max = max(data_dict.values())
-            logging.debug('    v_max={}'.format(v_max))
-        norm = colors.Normalize(vmin=v_min, vmax=v_max)
-        m = cm.ScalarMappable(norm=norm, cmap=cmap)
+    norm = colors.Normalize(vmin=v_min, vmax=v_max)
+    m = cm.ScalarMappable(norm=norm, cmap=cmap)
 
-        # If all values are the same
-        #   don't color the patches or draw a colorbar
-        # DEADBEEF - If the colorbar values were normalized for all crops
-        #   this wouldn't be applicable
-        if abs(v_max - v_min) <= 1.:
-            cmap, m = None, None
+    # If all values are the same
+    #   don't color the patches or draw a colorbar
+    # DEADBEEF - This approach will fail for a map with only one cell
+    # if len(set(data_dict.values())) == 1
+    #     cmap, m = None, None
 
     # Draw patches
     for id, geom_list in geom_dict.items():
@@ -753,6 +826,32 @@ def plot_cells_func(ax, geom_dict, data_dict,
     return True
 
 
+def plot_geom_func(ax, geom_dict):
+    """Plot geometries with descartes and matplotlib
+
+    Args:
+        ax:
+        geom_dict (dict): id, shapely geometry object
+    """
+    for id, geom_list in geom_dict.items():
+        for geom_i, geom in enumerate(geom_list):
+            ax.add_patch(PolygonPatch(
+                geom, fc='none', ec='#191919', lw=0.5))
+                # geom, fc='none', ec='#808080', lw=0.7))
+    return True
+
+
+def extents_overlap(a_extent, b_extent):
+    """Test if two extents overlap"""
+    if ((a_extent[0] > b_extent[2]) or
+        (a_extent[2] < b_extent[0]) or
+        (a_extent[1] > b_extent[3]) or
+        (a_extent[3] < b_extent[1])):
+        return False
+    else:
+        return True
+
+
 def parse_args():
     """"""
     parser = argparse.ArgumentParser(
@@ -774,9 +873,9 @@ def parse_args():
     parser.add_argument(
         '--show', default=False, action='store_true',
         help='Display maps as they are generated')
-    # parser.add_argument(
-    #     '--label', default=False, action='store_true',
-    #     help='Label maps with zone values')
+    parser.add_argument(
+        '--states', default=False, action='store_true',
+        help='Draw state boundaries on map')
     # parser.add_argument(
     #     '--start', default=None, type=util.valid_date,
     #     help='Start date (format YYYY-MM-DD)', metavar='DATE')
@@ -832,4 +931,5 @@ if __name__ == '__main__':
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
     main(ini_path, show_flag=args.show, save_flag=args.no_save,
-         figure_size=args.size, figure_dpi=args.dpi, simplify_tol=args.simp)
+         figure_size=args.size, figure_dpi=args.dpi, simplify_tol=args.simp,
+         states_flag=args.states)
