@@ -163,7 +163,6 @@ def main(ini_path, show_flag=False, save_flag=True,
     }
 
     # Draw state boundaries on figures
-    states_flag = True
     states_path = 'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\states\cb_2014_us_state_500k_albers.shp'
     states_field = 'NAME'
     # states_path = 'Z:\USBR_Ag_Demands_Project\CAT_Basins\common\gis\states\state_nrcs_a_mbr_albers.shp'
@@ -228,13 +227,13 @@ def main(ini_path, show_flag=False, save_flag=True,
         return False
 
     # Read in state geometries
+    state_geom_dict = {}
     if states_flag:
         logging.info('\nReading state shapefile')
         try:
             state_geom_dict = read_cell_geometries(states_path, states_field)
         except:
             logging.error('  State geometries not read in, ignoring')
-            state_geom_dict = {}
 
         # Remove state features that don't intersect the cells extent
         for k, geom_list in state_geom_dict.items():
