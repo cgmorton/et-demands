@@ -86,6 +86,9 @@ class InitializeCropCycle:
         self.dormant_setup_flag = False
         self.crop_setup_flag = True  # flag to setup crop parameter information
 
+        # Each growing season, track if the season every starts
+        self.active_season_flag = False
+
         # TP - Looks like its value comes from compute_crop_et(),
         # but needed for setup_dormant() below...
         self.totwatin_ze = 0.
@@ -264,16 +267,13 @@ class InitializeCropCycle:
         # zr_dormant was never assigned a value - what's its purpose - dlk 10/26/2011 ???????????????????
         zr_dormant = 0.0
 
-        # setup_crop is called from crop_cycle if is_season is false and crop_setup_flag is true
-        # thus only setup 1st time for crop (not each year)
-        # also called from kcb_daily each time GU/Plant date is reached, thus at growing season start
         self.height_min = crop.height_initial
         self.height_max = crop.height_max
         self.zr_min = crop.rooting_depth_initial
         self.zr_max = crop.rooting_depth_max
         self.height = self.height_min
         self.tew = self.tew2  # find total evaporable water
-        if self.tew3 > self.tew:
+        if self.tew < self.tew3:
             self.tew = self.tew3
         self.fw_irr = self.fw_std  # fw changed to fw_irr 8/10/06
         self.irr_auto = 0

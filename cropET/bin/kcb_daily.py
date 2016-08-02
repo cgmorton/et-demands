@@ -41,7 +41,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
         logging.debug('kcb_daily(): kc_bas %.6f  kc_bas_prev %.6f' % (
             foo.kc_bas, foo.kc_bas_prev))
 
-    # # Flag_for_means_to_estimate_pl_or_gu Case 1
+    # Flag_for_means_to_estimate_pl_or_gu Case 1
     if crop.flag_for_means_to_estimate_pl_or_gu == 1:
         # Only allow start flag to begin if < July 15
         # to prevent GU in fall after freezedown
@@ -89,11 +89,12 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
             # Note that this requires that all days be present (no missing days)
             if foo_day.doy == foo.doy_start_cycle:
                 foo.real_start = True
-                foo.stress_event = False  # reset severe stress event flag
-                foo.in_season = True  # turn season on
-                foo.dormant_setup_flag = True  # set set up flag positive for next end of season
-                foo.setup_crop(crop)  # initialize rooting depth, etc. for crop
+                foo.in_season = True
+                foo.stress_event = False
+                foo.dormant_setup_flag = True
+                foo.setup_crop(crop)
                 foo.cycle = 1  # first cycle for alfalfa
+                foo.active_season_flag = True
 
                 # some range grasses require backing up 10 days
                 # note that following logic will cause first 10 days
@@ -165,16 +166,13 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
             # (no missing days)
             if foo_day.doy == foo.doy_start_cycle:
                 foo.real_start = True
-                # Reset severe stress event flag
-                foo.stress_event = False
-                # Turn season on
                 foo.in_season = True
-                # Set setup flag positive for next end of season
+                foo.stress_event = False
                 foo.dormant_setup_flag = True
-                # Initialize rooting depth, etc. for crop
                 foo.setup_crop(crop)
                 # First cycle for alfalfa
                 foo.cycle = 1
+                foo.active_season_flag = True
 
                 # Some range grasses require backing up 10 days
                 # Note that following logic will cause first 10 days to not
@@ -198,7 +196,7 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
                      crop.date_of_pl_or_gu))
                 logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
 
-    # # Flag_for_means_to_estimate_pl_or_gu Case 3
+    # Flag_for_means_to_estimate_pl_or_gu Case 3
     elif crop.flag_for_means_to_estimate_pl_or_gu == 3:
         # Planting or greenup day of year
         doy = datetime.datetime(
@@ -211,16 +209,16 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
             (foo_day.sdays == 1 and doy >= crop.gdd_trigger_doy)):
             foo.doy_start_cycle = doy
             foo.in_season = True
-            # Reset severe stress event flag
             foo.stress_event = False
             foo.dormant_setup_flag = True
-            # Initialize rooting depth, etc. for crop
             foo.setup_crop(crop)
+            foo.active_season_flag = True
         logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
 
     # Flag_for_means_to_estimate_pl_or_gu Case 4
     elif crop.flag_for_means_to_estimate_pl_or_gu == 4:
         foo.in_season = True
+        foo.active_season_flag = True
         # Reset severe stress event flag if first
         if foo_day.doy == crop.gdd_trigger_doy:
             foo.stress_event = False
@@ -239,6 +237,17 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
         # foo.dormant_setup_flag = True
         # logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
 
+    # Clear the active season flag at the end of each year
+    if (not foo.in_season and
+        ((not crop.winter_crop and foo_day.month == 12 and foo_day.day == 31) or
+         (crop.winter_crop and foo_day.doy == crop.gdd_trigger_doy - 1))):
+        # Check if season ever went active
+        if not foo.active_season_flag:
+            logging.warning(
+                '  Crop {} - {} growing season never started'.format(
+                    crop.class_number, foo_day.year))
+        else:
+            foo.active_season_flag = False
 
     # Set MAD to MADmid universally at the start.
     # Value will be changed later.  R.Allen 12/14/2011

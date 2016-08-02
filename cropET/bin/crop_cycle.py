@@ -135,6 +135,12 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
     foo_day.sdays = 0
     foo_day.doy_prev = 0
 
+    # At very start for crop, set up for next season
+    # crop_setup_flag is only set true in initialize_crop_cycle
+    #   but setup_crop() is called in kcb_daily
+    if not foo.in_season and foo.crop_setup_flag:
+        foo.setup_crop(crop)
+
     for step_dt, step_doy in foo.crop_pd[['doy']].iterrows():
         if debug_flag:
             logging.debug(
@@ -156,10 +162,6 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
                     et_cell.climate_pd.at[step_dt, 'tmin'],
                     et_cell.climate_pd.at[step_dt, 'tmean'],
                     et_cell.climate_pd.at[step_dt, 't30']))
-
-        # At very start for crop, set up for next season
-        if not foo.in_season and foo.crop_setup_flag:
-            foo.setup_crop(crop)
 
         # At end of season for each crop, set up for non-growing and dormant season
         if not foo.in_season and foo.dormant_setup_flag:
