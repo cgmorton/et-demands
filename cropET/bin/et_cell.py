@@ -404,7 +404,8 @@ class ETCell():
         """Wrapper for setting all refet/weather/climate data"""
         # Could the pandas dataframes be inherited instead from data
         self.set_refet_data(data.refet)
-        self.set_refet_ratio_data(data.refet_ratios_path)
+        if data.refet_ratios_path:
+            self.set_refet_ratio_data(data.refet_ratios_path)
         self.set_weather_data(data.weather)
 
         # Process climate arrays
@@ -483,61 +484,58 @@ class ETCell():
 
     def set_refet_ratio_data(self, refet_ratios_path):
         """Read ETo/ETr ratios static file"""
-        if refet_ratios_path:
-            logging.info('  Reading ETo/ETr ratios')
-            # Assume field names are fixed
-            # The other easy approach would be assume the first two columns
-            #   are the ID and name
-            id_field = 'Met Node ID'
-            name_field = 'Met Node Name'
-            month_field = 'month'
-            ratio_field = 'ratio'
-            try:
-                refet_ratios_pd = pd.read_table(refet_ratios_path, dtype='str')
-                del refet_ratios_pd[name_field]
-            except IOError:
-                logging.error(
-                    ('  IOError: ETo ratios static file could not be ' +
-                     'read and may not exist\n  {}').format(refet_ratios_path))
-                return False
-            except:
-                logging.error(('  Unknown error reading ETo ratios static ' +
-                               'file\n {}').format(refet_ratios_path))
-                return False
-
-            # Flatten/flip the data so the ratio values are in one column
-            refet_ratios_pd = pd.melt(
-                refet_ratios_pd, id_vars=[id_field],
-                var_name=month_field, value_name=ratio_field)
-            refet_ratios_pd[ratio_field] = refet_ratios_pd[ratio_field].astype(np.float)
-            # Set any missing values to 1.0
-            refet_ratios_pd.fillna(value=1.0, inplace=True)
-
-            # Convert the month abbrevations to numbers
-            refet_ratios_pd[month_field] = [
-                datetime.datetime.strptime(m, '%b').month
-                for m in refet_ratios_pd[month_field]]
-
-            # Filter to current station
-            refet_ratios_pd = refet_ratios_pd[
-               refet_ratios_pd[id_field] == self.refet_id]
-            if refet_ratios_pd.empty:
-                logging.warning('  Empty table, ETo/ETr ratios not applied')
-                return False
-
-            # Set month as the index
-            refet_ratios_pd.set_index(month_field, inplace=True)
-            logging.info(refet_ratios_pd)
-
-            # Scale ETo/ETr values
-            self.refet_pd = self.refet_pd.join(refet_ratios_pd, 'month')
-            self.refet_pd['etref'] *= self.refet_pd[ratio_field]
-            del self.refet_pd[ratio_field]
-            del self.refet_pd[month_field]
-            del self.refet_pd[id_field]
-            return True
-        else:
+        logging.info('  Reading ETo/ETr ratios')
+        # Assume field names are fixed
+        # The other easy approach would be assume the first two columns
+        #   are the ID and name
+        id_field = 'Met Node ID'
+        name_field = 'Met Node Name'
+        month_field = 'month'
+        ratio_field = 'ratio'
+        try:
+            refet_ratios_pd = pd.read_table(refet_ratios_path, dtype='str')
+            del refet_ratios_pd[name_field]
+        except IOError:
+            logging.error(
+                ('  IOError: ETo ratios static file could not be ' +
+                 'read and may not exist\n  {}').format(refet_ratios_path))
             return False
+        except:
+            logging.error(('  Unknown error reading ETo ratios static ' +
+                           'file\n {}').format(refet_ratios_path))
+            return False
+
+        # Flatten/flip the data so the ratio values are in one column
+        refet_ratios_pd = pd.melt(
+            refet_ratios_pd, id_vars=[id_field],
+            var_name=month_field, value_name=ratio_field)
+        refet_ratios_pd[ratio_field] = refet_ratios_pd[ratio_field].astype(np.float)
+        # Set any missing values to 1.0
+        refet_ratios_pd.fillna(value=1.0, inplace=True)
+
+        # Convert the month abbrevations to numbers
+        refet_ratios_pd[month_field] = [
+            datetime.datetime.strptime(m, '%b').month
+            for m in refet_ratios_pd[month_field]]
+
+        # Filter to current station
+        refet_ratios_pd = refet_ratios_pd[
+           refet_ratios_pd[id_field] == self.refet_id]
+        if refet_ratios_pd.empty:
+            logging.warning('  Empty table, ETo/ETr ratios not applied')
+            return False
+
+        # Set month as the index
+        refet_ratios_pd.set_index(month_field, inplace=True)
+        logging.info(refet_ratios_pd)
+
+        # Scale ETo/ETr values
+        self.refet_pd = self.refet_pd.join(refet_ratios_pd, 'month')
+        self.refet_pd['etref'] *= self.refet_pd[ratio_field]
+        del self.refet_pd[ratio_field]
+        del self.refet_pd[month_field]
+        del self.refet_pd[id_field]
+        return True
 
 
     def set_weather_data(self, weather):
