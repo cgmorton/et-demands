@@ -86,9 +86,6 @@ class InitializeCropCycle:
         self.dormant_setup_flag = False
         self.crop_setup_flag = True  # flag to setup crop parameter information
 
-        # Each growing season, track if the season every starts
-        self.active_season_flag = False
-
         # TP - Looks like its value comes from compute_crop_et(),
         # but needed for setup_dormant() below...
         self.totwatin_ze = 0.

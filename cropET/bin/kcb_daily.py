@@ -94,7 +94,6 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
                 foo.dormant_setup_flag = True
                 foo.setup_crop(crop)
                 foo.cycle = 1  # first cycle for alfalfa
-                foo.active_season_flag = True
 
                 # some range grasses require backing up 10 days
                 # note that following logic will cause first 10 days
@@ -172,7 +171,6 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
                 foo.setup_crop(crop)
                 # First cycle for alfalfa
                 foo.cycle = 1
-                foo.active_season_flag = True
 
                 # Some range grasses require backing up 10 days
                 # Note that following logic will cause first 10 days to not
@@ -212,13 +210,11 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
             foo.stress_event = False
             foo.dormant_setup_flag = True
             foo.setup_crop(crop)
-            foo.active_season_flag = True
         logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
 
     # Flag_for_means_to_estimate_pl_or_gu Case 4
     elif crop.flag_for_means_to_estimate_pl_or_gu == 4:
         foo.in_season = True
-        foo.active_season_flag = True
         # Reset severe stress event flag if first
         if foo_day.doy == crop.gdd_trigger_doy:
             foo.stress_event = False
@@ -236,18 +232,6 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
         #     .stress_event = False
         # foo.dormant_setup_flag = True
         # logging.debug('kcb_daily(): in_season %d' % (foo.in_season))
-
-    # Clear the active season flag at the end of each year
-    if (not foo.in_season and
-        ((not crop.winter_crop and foo_day.month == 12 and foo_day.day == 31) or
-         (crop.winter_crop and foo_day.doy == crop.gdd_trigger_doy - 1))):
-        # Check if season ever went active
-        if not foo.active_season_flag:
-            logging.warning(
-                '  Crop {} - {} growing season never started'.format(
-                    crop.class_number, foo_day.year))
-        else:
-            foo.active_season_flag = False
 
     # Set MAD to MADmid universally at the start.
     # Value will be changed later.  R.Allen 12/14/2011

@@ -240,6 +240,19 @@ def crop_day_loop(data, et_cell, crop, debug_flag=False, vb_flag=False,
                  'DPerc {:.6f}  NIWR {:.6f}').format(
                     func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
+        # Check that season started
+        if foo_day.month == 12 and foo_day.day == 31:
+            season_count = foo.crop_pd.loc[
+                str(foo_day.year):str(foo_day.year), 'season'].sum()
+            if season_count == 0:
+                logging.warning(
+                    '  Crop {} - {} growing season never started'.format(
+                        crop.class_number, foo_day.year))
+            elif season_count == 1:
+                logging.warning(
+                    '  Crop {} - {} growing season active for 1 day'.format(
+                        crop.class_number, foo_day.year))
+
     # Write output files
     if (data.daily_output_flag or
             data.monthly_output_flag or
