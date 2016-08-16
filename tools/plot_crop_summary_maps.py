@@ -2,7 +2,7 @@
 # Name:         plot_crop_summary_maps.py
 # Purpose:      Plot crop summary maps from daily data
 # Author:       Charles Morton
-# Created       2016-07-19
+# Created       2016-08-16
 # Python:       2.7
 #--------------------------------
 
@@ -44,7 +44,7 @@ matplotlib.rc('font', family='sans-serif')
 
 
 def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
-         figure_size=(12, 12), figure_dpi=150, start_date=None, end_date=None,
+         figure_size=(12, 12), figure_dpi=300, start_date=None, end_date=None,
          crop_str='', simplify_tol=None, area_threshold=0):
     """Plot crop summary maps using daily output files
 
@@ -881,7 +881,7 @@ def parse_args():
         nargs=2, metavar=('WIDTH', 'HEIGHT'),
         help='Figure size in inches')
     parser.add_argument(
-        '--dpi', default=150, type=int, metavar='PIXELS',
+        '--dpi', default=300, type=int, metavar='PIXELS',
         help='Figure dots per square inch')
     parser.add_argument(
         '--no_save', default=True, action='store_false',

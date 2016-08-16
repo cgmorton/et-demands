@@ -1,3 +1,11 @@
+#--------------------------------
+# Name:         plot_future_stats_maps.py
+# Purpose:      Plot future stats maps
+# Author:       Charles Morton
+# Created       2016-08-16
+# Python:       2.7
+#--------------------------------
+
 # plot_future_stats_maps.py
 import argparse
 from collections import defaultdict
@@ -23,8 +31,8 @@ import util
 
 
 def main(ini_path, show_flag=False, save_flag=True,
-         figure_size=(6.0, 7.5), figure_dpi=600, simplify_tol=None,
-         states_flag=False):
+         full_size=(3.2, 4.0), sub_size=(6.5, 8.0),
+         full_dpi=300, sub_dpi=200, simplify_tol=None, states_flag=False):
     """Plot future statistic maps
 
     For now, data is stored in excel files in stats_tables folder
@@ -41,6 +49,7 @@ def main(ini_path, show_flag=False, save_flag=True,
     Returns:
         None
     """
+    image_ext = 'png'
 
     period_list = [2020, 2050, 2080]
     scenario_list = [5, 25, 50, 75, 95]
@@ -252,8 +261,8 @@ def main(ini_path, show_flag=False, save_flag=True,
         'state_geom_dict': state_geom_dict,
         'cell_geom_dict': cell_geom_dict,
         'cell_extent': cell_extent,
-        'figure_size': figure_size,
-        'figure_dpi': figure_dpi,
+        'figure_size': full_size,
+        'figure_dpi': full_dpi,
         'save_flag': save_flag,
         'show_flag': show_flag
     }
@@ -266,8 +275,8 @@ def main(ini_path, show_flag=False, save_flag=True,
         'state_geom_dict': state_geom_dict,
         'cell_geom_dict': cell_geom_dict,
         'cell_extent': cell_extent,
-        'figure_size': figure_size,
-        'figure_dpi': figure_dpi,
+        'figure_size': sub_size,
+        'figure_dpi': sub_dpi,
         'save_flag': save_flag,
         'show_flag': show_flag
     }
@@ -282,7 +291,9 @@ def main(ini_path, show_flag=False, save_flag=True,
     cell_area_df = pd.DataFrame(
         cell_area_dict.items(), columns=[table_id_field, scenario_fields[50]])
     full_plot(
-        os.path.join(output_ws, 'fullplot_{}_value.jpg'.format(output_var[var])),
+        os.path.join(
+            output_ws,
+            'fullplot_{}_value.{}'.format(output_var[var], image_ext)),
         cell_area_df, caption=value_text[var],
         cmap_name=cmap_names[var]['value'],
         v_min=0, v_max=max(cell_area_dict.values()), **full_kwargs)
@@ -380,7 +391,8 @@ def main(ini_path, show_flag=False, save_flag=True,
 
         # Build full value plots
         if var in full_value_list:
-            output_name = 'fullplot_{}_value.jpg'.format(output_var[var])
+            output_name = 'fullplot_{}_value.{}'.format(
+                output_var[var], image_ext)
             output_path = os.path.join(output_ws, output_name)
             full_plot(
                 output_path, full_value_df, caption=value_text[var],
@@ -390,7 +402,8 @@ def main(ini_path, show_flag=False, save_flag=True,
 
         # Build sub value plots
         if var in sub_value_list:
-            output_name = 'subplot_{}_value.jpg'.format(output_var[var])
+            output_name = 'subplot_{}_value.{}'.format(
+                output_var[var], image_ext)
             output_path = os.path.join(output_ws, output_name)
             sub_plot(
                 output_path, sub_value_df, caption=value_text[var],
@@ -400,7 +413,8 @@ def main(ini_path, show_flag=False, save_flag=True,
 
         # Build sub delta plots
         if var in sub_delta_list:
-            output_name = 'subplot_{}_delta.jpg'.format(output_var[var])
+            output_name = 'subplot_{}_delta.{}'.format(
+                output_var[var], image_ext)
             output_path = os.path.join(output_ws, output_name)
             sub_plot(
                 output_path, sub_delta_df, caption=delta_text[var],
@@ -413,12 +427,18 @@ def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
               state_geom_dict, cell_geom_dict, cell_extent,
               table_id_field, scenario_field,
               figure_size, figure_dpi, show_flag, save_flag):
+    caption_size = 7
+    label_size = 5
+    fig_border = 0.5
+    cbar_border = 0.5
+
     # Build the figure and subplots
     fig, axes = plt.subplots(1, 1, figsize=figure_size)
+    [i.set_linewidth(fig_border) for i in axes.spines.itervalues()]
 
     # Position the subplots in the figure
     plt.subplots_adjust(
-        left=0.01, bottom=0.07, right=0.99, top=0.97,
+        left=0.01, bottom=0.075, right=0.99, top=0.97,
         wspace=0.001, hspace=0.001)
 
     # Remove all ticks and ticklabels
@@ -439,15 +459,16 @@ def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
     plot_geom_func(axes, state_geom_dict)
 
     # Add caption text
-    plt.figtext(0.65, 0.055, caption, size=11, ha='left', va='top')
+    plt.figtext(0.60, 0.058, caption, size=caption_size, ha='left', va='top')
 
     # Add a basic colorbar
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
     plt.imshow(np.array([[v_min, v_max]]), cmap=colormap(cmap_name))
     ax.set_visible(False)
-    cax = plt.axes([0.05, 0.03, 0.55, 0.025])
+    cax = plt.axes([0.04, 0.035, 0.53, 0.025])
     cbar = plt.colorbar(
         cax=cax, orientation='horizontal', ticks=None)
+    cbar.outline.set_linewidth(cbar_border)
     if abs(v_max - v_min) < 1:
         cbar.locator = ticker.MaxNLocator(nbins=6)
     elif abs(v_max - v_min) > 100000:
@@ -455,7 +476,7 @@ def full_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
     else:
         cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
     cbar.update_ticks()
-    cbar.ax.tick_params(labelsize=8)
+    cbar.ax.tick_params(labelsize=label_size)
     # cbar.set_label(units_label)
 
     if save_flag:
@@ -473,9 +494,15 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
              period_list, scenario_list,
              table_id_field, period_field, scenario_fields,
              figure_size, figure_dpi, show_flag, save_flag):
+    caption_size = 11
+    label_size = 8
+    fig_border = 0.5
+    cbar_border = 0.5
+
     # Build the figure and subplots
     fig, axes = plt.subplots(
         len(scenario_list), len(period_list), figsize=figure_size)
+    # [i.set_linewidth(fig_border) for i in axes.spines.itervalues()]
 
     # Position the subplots in the figure
     plt.subplots_adjust(
@@ -498,7 +525,7 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
         ax.set_ylabel(scenario, ha='right', rotation=0, size='12')
 
     # Add caption text
-    plt.figtext(0.65, 0.055, caption, size=11, ha='left', va='top')
+    plt.figtext(0.65, 0.055, caption, size=caption_size, ha='left', va='top')
 
     # Build colormap and add colorbar
     # Build colormap in sub delta plots before drawing subplots
@@ -559,9 +586,10 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
         # ticks = plt.locator_params(nbins=4)
         cax = plt.axes([0.05, 0.03, 0.55, 0.025])
         cbar = plt.colorbar(cax=cax, orientation='horizontal', ticks=None)
+        # cbar.outline.set_linewidth(cbar_border)
         cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
         cbar.update_ticks()
-        cbar.ax.tick_params(labelsize=8)
+        cbar.ax.tick_params(labelsize=label_size)
         # cbar.set_label('Percent Change [%]')
     else:
         # Add a basic colorbar
@@ -572,6 +600,7 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
         cax = plt.axes([0.05, 0.03, 0.55, 0.025])
         cbar = plt.colorbar(
             cax=cax, orientation='horizontal', ticks=None)
+        # cbar.outline.set_linewidth(cbar_border)
         if abs(v_max - v_min) < 1:
             cbar.locator = ticker.MaxNLocator(nbins=6)
         elif abs(v_max - v_min) > 100000:
@@ -579,7 +608,7 @@ def sub_plot(output_path, data_df, caption, cmap_name, v_min, v_max,
         else:
             cbar.locator = ticker.MaxNLocator(nbins=8, integer=True)
         cbar.update_ticks()
-        cbar.ax.tick_params(labelsize=8)
+        cbar.ax.tick_params(labelsize=label_size)
         # cbar.set_label(units_label)
 
     # Draw subplots (after building colormap)
@@ -860,12 +889,19 @@ def parse_args():
         '-i', '--ini', metavar='PATH',
         type=lambda x: util.is_valid_file(parser, x), help='Input file')
     parser.add_argument(
-        '--size', default=(6.0, 7.5), type=float,
+        '--full_size', default=(3.2, 4.0), type=float,
         nargs=2, metavar=('WIDTH', 'HEIGHT'),
-        help='Figure size in inches')
+        help='Full plot figure size in inches')
     parser.add_argument(
-        '--dpi', default=600, type=int, metavar='PIXELS',
-        help='Figure dots per square inch')
+        '--sub_size', default=(6.5, 8.0), type=float,
+        nargs=2, metavar=('WIDTH', 'HEIGHT'),
+        help='Sub plot figure size in inches')
+    parser.add_argument(
+        '--full_dpi', default=300, type=int, metavar='PIXELS',
+        help='Full plot dots per square inch')
+    parser.add_argument(
+        '--sub_dpi', default=200, type=int, metavar='PIXELS',
+        help='Sub plot dots per square inch')
     parser.add_argument(
         '--no_save', default=True, action='store_false',
         help='Don\'t save maps to disk')
@@ -930,5 +966,6 @@ if __name__ == '__main__':
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
     main(ini_path, show_flag=args.show, save_flag=args.no_save,
-         figure_size=args.size, figure_dpi=args.dpi, simplify_tol=args.simp,
-         states_flag=args.states)
+         full_size=args.full_size, sub_size=args.sub_size,
+         full_dpi=args.full_dpi, sub_dpi=args.sub_dpi,
+         simplify_tol=args.simp, states_flag=args.states)
