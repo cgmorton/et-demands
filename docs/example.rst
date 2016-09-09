@@ -25,7 +25,7 @@ Change directory to the example folder if necessary::
 
 Clone the repository
 --------------------
-If you already have a local copy of the et-demands repository, make sure to pull the latest version from GitHub.  If you don't already have a local repository, either clone the repository locally or download a zip file of the scripts from Github.  For this example, the local copy will be cloned directly into the project folder (i.e. D:\Project\et-demands).  The repository will include an "example" sub-folder, but please create a separate "example" folder in the project folder (as indicated below in the Folder Structure section).  The example folder in "et-demands" is only used to provide copies of the example input data.
+If you already have a local copy of the et-demands repository, make sure to pull the latest version from GitHub.  If you don't already have a local repository, either clone the repository locally or download a zip file of the scripts from Github.  For this example, the local copy will be cloned directly into the project folder (i.e. D:\\Project\\et-demands).  The repository will include an "example" sub-folder, but please create a separate "example" folder in the project folder (as indicated below in the Folder Structure section).  The example folder in "et-demands" is only used to provide copies of the example input data.
 
 Folder Structure
 ----------------
@@ -77,7 +77,7 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
         |   +---huc8
         |   |       wbdhu8_albers.shp
         |   \---stations
-        |           nldas_4km_dd_pts_cat_basins.shp
+        |           nldas_4km_dd_pts.shp
         +---monthly_stats
         \---static
 
@@ -110,10 +110,10 @@ Weather Stations
 ----------------
 In order to generate the ET-Demands static input files, the user must provide a weather station point shapefile with at least one feature.  The shapefile must have columns/fields of the station ID, the corresponding zone ID, and the station latitude, longitude, and elevation (in feet).  Currently these fields must be named NLDAS_ID, [HUC8, HUC10, or COUNTYNAME], LAT, LON, and ELEV_FT respectively.  These fields are hard coded into the scripts, but they may eventually be set and modified using an INI file.
 
-To use the example study area, make a "gis\stations" subfolder and then copy all of the files in the example station shapefile from the github repository example folder.  The example station is the centroid of a single 4km cell from the `University of Idaho Gridded Surface Meteorological Data <http://metdata.northwestknowledge.net/>`_ that is located in the study area. ::
+To use the example study area, make a "gis\\stations" subfolder and then copy all of the files in the example station shapefile from the github repository example folder.  The example station is the centroid of a single 4km cell from the `University of Idaho Gridded Surface Meteorological Data <http://metdata.northwestknowledge.net/>`_ that is located in the study area. ::
 
     > mkdir gis\stations\
-    > copy ..\et-demands\example\stations\nldas_4km_dd_pts_cat_basins.* gis\stations\
+    > copy ..\et-demands\example\stations\nldas_4km_dd_pts.* gis\stations\
 
 Cropland Data Layer (CDL)
 -------------------------
@@ -162,6 +162,6 @@ Compute the mean elevation, soil properties, and crop acreages for each feature/
 
 Static Text Files
 -----------------
-Build the static text files from the templates in "et-demands\static".  The "acres" parameter can be used to only include crops that have at least N acres.  The "type" parameter is used to set the station zone field name (i.e 'huc8'->'HUC8', 'huc10'->'HUC10', or 'county'->'COUNTYNAME']).  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
+Build the static text files from the templates in "et-demands\\static".  The "acres" parameter can be used to only include crops that have at least N acres.  The "type" parameter is used to set the station zone field name (i.e 'huc8'->'HUC8', 'huc10'->'HUC10', or 'county'->'COUNTYNAME']).  There are numerous other parameters that are currently hard coded in the script but may eventually be read from an INI file. ::
 
-    > python ..\et-demands\prep\build_static_files.py --ini example.ini --zone huc8 --acres 10 -o
+    > python ..\et-demands\prep\build_static_files_arcpy.py --ini example.ini --zone huc8 --acres 10 -o
