@@ -505,6 +505,15 @@ class ETCell():
                            'file\n {}').format(refet_ratios_path))
             return False
 
+        # Remove duplicates
+        # If there are duplicate station IDs, for now only use first instance
+        # Eventually allow users to tie the station IDs to the cells
+        if refet_ratios_pd.duplicated(subset=id_field).any():
+            logging.warning(
+                '  There are duplicate station IDs in ETo Ratios file\n' +
+                '  Only the first instance of the station ID will be applied')
+            refet_ratios_pd.drop_duplicates(subset=id_field, inplace=True)
+
         # Flatten/flip the data so the ratio values are in one column
         refet_ratios_pd = pd.melt(
             refet_ratios_pd, id_vars=[id_field],
