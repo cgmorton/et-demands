@@ -2,7 +2,7 @@
 # Name:         build_ag_cdl_rasters.py
 # Purpose:      Build agricultural land and mask rasters from CDL rasters
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 import numpy as np
-from osgeo import gdal, ogr, osr
+from osgeo import gdal
 
 import gdal_common as gdc
 import util
@@ -281,11 +281,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, cdl_year=args.years, block_size=args.blocksize,
          mask_flag=args.mask, overwrite_flag=args.overwrite,

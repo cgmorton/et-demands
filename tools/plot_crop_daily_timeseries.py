@@ -2,12 +2,12 @@
 # Name:         plot_crop_daily_timeseries.py
 # Purpose:      Plot full daily data timeseries
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-19
 # Python:       2.7
 #--------------------------------
 
 import argparse
-import ConfigParser
+# import ConfigParser
 import datetime as dt
 import gc
 import logging
@@ -15,9 +15,9 @@ import os
 import re
 import sys
 
-from bokeh.plotting import figure, output_file, save, show, vplot
-from bokeh.models import Callback, ColumnDataSource, Range1d
-# from bokeh.models import Slider, DateRangeSlider
+from bokeh.plotting import figure, output_file, save, show
+from bokeh.layouts import column
+from bokeh.models import Range1d
 import numpy as np
 import pandas as pd
 
@@ -56,11 +56,11 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
     date_field = 'Date'
     doy_field = 'DOY'
     year_field = 'Year'
-    month_field = 'Month'
-    day_field = 'Day'
+    # month_field = 'Month'
+    # day_field = 'Day'
     pmeto_field = 'PMETo'
     precip_field = 'PPT'
-    t30_field = 'T30'
+    # t30_field = 'T30'
 
     etact_field = 'ETact'
     etpot_field = 'ETpot'
@@ -69,13 +69,13 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
     season_field = 'Season'
     runoff_field = 'Runoff'
     dperc_field = 'DPerc'
-    niwr_field = 'NIWR'
+    # niwr_field = 'NIWR'
 
     # Number of header lines in data file
-    header_lines = 2
+    # header_lines = 2
 
     # Additional figure controls
-    figure_dynamic_size = False
+    # figure_dynamic_size = False
     figure_ylabel_size = '12pt'
 
     # Delimiter
@@ -135,15 +135,9 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         logging.info('  End Year:    {0}'.format(year_end))
     except:
         year_end = None
-    if year_start and year_end and year_end <= year_start:
+    if year_start and year_end and year_end < year_start:
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
-
-    # Limit x_panning to a specified date range
-    # Doesn't currently work
-    # x_bounds = (
-    #     .datetime64(dt.datetime(year_start,1,1), 's'),
-    #     .datetime64(dt.datetime(year_end+1,1,1), 's'))
 
     # # Windows only a
     # if figure_dynamic_size:
@@ -193,20 +187,21 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
 
         # Get crop name
         with open(file_path, 'r') as file_f:
-            crop_name = file_f.readline().split('-',1)[1].strip()
+            crop_name = file_f.readline().split('-', 1)[1].strip()
             logging.debug('    Crop:            {0}'.format(crop_name))
 
         # Read data from file into record array (structured array)
         daily_df = pd.read_table(file_path, header=0, comment='#', sep=sep)
-        logging.debug('    Fields: {0}'.format(', '.join(daily_df.columns.values)))
+        logging.debug('    Fields: {0}'.format(
+            ', '.join(daily_df.columns.values)))
         daily_df[date_field] = pd.to_datetime(daily_df[date_field])
         daily_df.set_index(date_field, inplace=True)
         daily_df[year_field] = daily_df.index.year
         # daily_df[year_field] = daily_df[date_field].map(lambda x: x.year)
-        print daily_df
 
         # Build list of unique years
-        year_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
+        year_array = np.sort(np.unique(
+            np.array(daily_df[year_field]).astype(np.int)))
         logging.debug('    All Years: {0}'.format(
             ', '.join(list(util.ranges(year_array.tolist())))))
         # logging.debug('    All Years: {0}'.format(
@@ -230,10 +225,13 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             daily_df = daily_df[daily_df[year_field] < crop_year_end]
 
         # Only keep years between year_start and year_end
+        # Adjust crop years
         if year_start:
             daily_df = daily_df[daily_df[year_field] >= year_start]
+            crop_year_start = max(year_start, crop_year_start)
         if year_end:
             daily_df = daily_df[daily_df[year_field] <= year_end]
+            crop_year_end = min(year_end, crop_year_end)
 
         year_sub_array = np.sort(
             np.unique(np.array(daily_df[year_field]).astype(np.int)))
@@ -245,10 +243,17 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # Initial range of timeseries to show
         # For now default to last ~8 year
         if sub_x_range_flag:
-            x_range = (
+            x_range = Range1d(
                 np.datetime64(dt.datetime(
-                    max(crop_year_end-9, crop_year_start), 1, 1), 's'),
-                np.datetime64(dt.datetime(crop_year_end+1, 1, 1), 's'))
+                    max(crop_year_end - 9, crop_year_start), 1, 1), 's'),
+                np.datetime64(dt.datetime(crop_year_end + 1, 1, 1), 's'),
+                bounds=(
+                    np.datetime64(dt.datetime(crop_year_start, 1, 1), 's'),
+                    np.datetime64(dt.datetime(crop_year_end + 1, 1, 1), 's')))
+        else:
+            x_range = Range1d(
+                np.datetime64(dt.datetime(crop_year_start, 1, 1), 's'),
+                np.datetime64(dt.datetime(crop_year_end + 1, 1, 1), 's'))
 
         # Build separate arrays for each field of non-crop specific data
         dt_array = daily_df.index.date
@@ -257,7 +262,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         precip_array = daily_df[precip_field].values
 
         # Remove leap days
-        leap_array = (doy_array == 366)
+        # leap_array = (doy_array == 366)
         # doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
 
         # Build separate arrays for each set of crop specific fields
@@ -283,7 +288,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # Timeseries figures of daily data
         output_name = '{0}_crop_{1:02d}_{2}-{3}'.format(
             station, int(crop_num), crop_year_start, crop_year_end)
-        output_path = os.path.join(output_ws, output_name+'.html')
+        output_path = os.path.join(output_ws, output_name + '.html')
         if overwrite_flag and os.path.isfile(output_path):
             os.remove(output_path)
         f = output_file(output_path, title=output_name)
@@ -292,7 +297,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f1 = figure(
             x_axis_type='datetime', x_range=x_range,
             width=figure_size[0], height=figure_size[1],
-            tools=TOOLS, toolbar_location="right")
+            tools=TOOLS, toolbar_location="right",
+            active_scroll="xwheel_zoom")
             # title='Evapotranspiration', x_axis_type='datetime',
         f1.line(dt_array, etact_array, color='blue', legend='ETact')
         f1.line(dt_array, etbas_array, color='green', legend='ETbas')
@@ -308,7 +314,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f2 = figure(
             x_axis_type="datetime", x_range=f1.x_range,
             width=figure_size[0], height=figure_size[1],
-            tools=TOOLS, toolbar_location="right")
+            tools=TOOLS, toolbar_location="right",
+            active_scroll="xwheel_zoom")
         f2.line(dt_array, kc_array, color='blue', legend='Kc')
         f2.line(dt_array, kcb_array, color='green', legend='Kcb')
         f2.line(dt_array, season_array, color='black', legend='Season',
@@ -317,12 +324,12 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f2.grid.grid_line_alpha = 0.3
         f2.yaxis.axis_label = 'Kc and Kcb (dimensionless)'
         f2.yaxis.axis_label_text_font_size = figure_ylabel_size
-        # f2.xaxis.bounds = x_bounds
 
         f3 = figure(
             x_axis_type="datetime", x_range=f1.x_range,
             width=figure_size[0], height=figure_size[1],
-            tools=TOOLS, toolbar_location="right")
+            tools=TOOLS, toolbar_location="right",
+            active_scroll="xwheel_zoom")
         f3.line(dt_array, precip_array, color='blue', legend='PPT')
         f3.line(dt_array, irrig_array, color='black', legend='Irrigation',
                 line_dash="dotted")
@@ -331,13 +338,14 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # f3.xaxis.axis_label = 'Date'
         f3.yaxis.axis_label = 'PPT and Irrigation [mm]'
         f3.yaxis.axis_label_text_font_size = figure_ylabel_size
-        # f3.xaxis.bounds = x_bounds
 
         if figure_show_flag:
             # Open in a browser
-            show(vplot(f1, f2, f3))
+            show(column([f1, f2, f3], sizing_mode='stretch_both'))
+            # show(vplot(f1, f2, f3))
         if figure_save_flag:
-            save(vplot(f1, f2, f3))
+            save(column([f1, f2, f3], sizing_mode='stretch_both'))
+            # save(vplot(f1, f2, f3))
         del f1, f2, f3, f
 
         # Cleanup
@@ -418,7 +426,7 @@ if __name__ == '__main__':
         ini_path = util.get_path(os.getcwd(), 'Select the target INI file')
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{0}'.format('#'*80))
+    logging.info('\n{0}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))

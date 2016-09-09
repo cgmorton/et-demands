@@ -2,7 +2,7 @@
 # Name:         rasterize_soil_polygons.py
 # Purpose:      Convert soil polygons to raster
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -13,8 +13,8 @@ import os
 import subprocess
 import sys
 
-from osgeo import gdal, ogr, osr
 import numpy as np
+from osgeo import gdal
 
 import gdal_common as gdc
 import util
@@ -42,7 +42,7 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
     logging.info('\nRasterizing Soil Polygons')
 
     folder_fmt = 'gsmsoil_{}'
-    polygon_fmt = 'gsmsoilmu_a_{}_albers.shp'
+    polygon_fmt = 'gsmsoilmu_a_us_{}_albers.shp'
     output_soil_ws = os.path.join(gis_ws, 'soils')
 
     scratch_ws = os.path.join(gis_ws, 'scratch')
@@ -84,7 +84,7 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
         logging.error(
             ('\nERROR: The zone raster {} does not exist' +
              '\n  Try re-running "build_study_area_raster.py"').format(
-             zone_raster_path))
+                zone_raster_path))
         sys.exit()
     if not os.path.isdir(output_soil_ws):
         os.makedirs(output_soil_ws)
@@ -119,8 +119,8 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
             output_soil_ws, raster_fmt.format(prop_str))
 
         if not os.path.isfile(input_polygon_path):
-            logging.info('The soil polygon {} does not ' +
-                         'exist'.format(input_polygon_path))
+            logging.info(('The soil polygon {} does not ' +
+                          'exist').format(input_polygon_path))
             continue
         elif os.path.isfile(output_raster_path) and overwrite_flag:
             subprocess.call(['gdalmanage', 'delete', output_raster_path])
@@ -209,11 +209,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, input_soil_ws=args.soil, prop_list=args.type,
          overwrite_flag=args.overwrite, pyramids_flag=args.pyramids,

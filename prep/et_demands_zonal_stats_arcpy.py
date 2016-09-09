@@ -2,7 +2,7 @@
 # Name:         et_demands_zonal_stats_arcpy.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -64,7 +64,8 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #     _id_field = 'NLDAS_ID'
     #     _name_field = 'NLDAS_ID'
     #     _name_str = 'NLDAS_4km_'
-    nldas_id_field = 'NLDAS_ID'
+
+    station_id_field = 'NLDAS_ID'
 
     et_cells_path = os.path.join(gis_ws, 'ETCells.shp')
     # if gdb_flag:
@@ -91,7 +92,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     cell_elev_field = 'ELEV_FT'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
-    station_id_field = 'STATION_ID'
+    met_id_field = 'STATION_ID'
     awc_field = 'AWC'
     clay_field = 'CLAY'
     sand_field = 'SAND'
@@ -144,7 +145,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     crop_num_dict[23] = [11]    # Spring Wheat -> Spring Grain - irrigated
     crop_num_dict[24] = [13]    # Winter Wheat -> Winter Grain - irrigated
     crop_num_dict[25] = [11]    # Other Small Grains -> Spring Grain - irrigated
-    crop_num_dict[26] = [13,85]    # Dbl Crop WinWht/Soybeans -> Soybeans After Another Crop
+    crop_num_dict[26] = [13, 85]    # Dbl Crop WinWht/Soybeans -> Soybeans After Another Crop
     crop_num_dict[27] = [11]    # Rye -> Spring Grain - irrigated
     crop_num_dict[28] = [11]    # Oats -> Spring Grain - irrigated
     crop_num_dict[29] = [68]    # Millet -> Millet
@@ -214,18 +215,18 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     crop_num_dict[226] = [77]    # Dbl Crop Oats/Corn -> Field Corn After Another Crop
     crop_num_dict[227] = [71]    # Lettuce -> Lettuce (Single Crop)
     crop_num_dict[229] = [21]    # Pumpkins -> Garden Vegetables  - general
-    crop_num_dict[230] = [71,84]    # Dbl Crop Lettuce/Durum Wht -> Grain After Another Crop
-    crop_num_dict[231] = [71,83]    # Dbl Crop Lettuce/Cantaloupe -> Melons After Another Crop
-    crop_num_dict[232] = [71,79]    # Dbl Crop Lettuce/Cotton -> Cotton After Another Crop
-    crop_num_dict[233] = [71,84]    # Dbl Crop Lettuce/Barley -> Grain After Another Crop
-    crop_num_dict[234] = [71,78]    # Dbl Crop Durum Wht/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[235] = [71,78]    # Dbl Crop Barley/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[236] = [13,78]    # Dbl Crop WinWht/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[237] = [11,77]    # Dbl Crop Barley/Corn -> Field Corn After Another Crop
-    crop_num_dict[238] = [13,79]    # Dbl Crop WinWht/Cotton -> Cotton After Another Crop
-    crop_num_dict[239] = [66,79]    # Dbl Crop Soybeans/Cotton -> Cotton After Another Crop
-    crop_num_dict[240] = [66,84]    # Dbl Crop Soybeans/Oats -> Grain After Another Crop
-    crop_num_dict[241] = [7,85]    # Dbl Crop Corn/Soybeans -> Soybeans After Another Crop
+    crop_num_dict[230] = [71, 84]    # Dbl Crop Lettuce/Durum Wht -> Grain After Another Crop
+    crop_num_dict[231] = [71, 83]    # Dbl Crop Lettuce/Cantaloupe -> Melons After Another Crop
+    crop_num_dict[232] = [71, 79]    # Dbl Crop Lettuce/Cotton -> Cotton After Another Crop
+    crop_num_dict[233] = [71, 84]    # Dbl Crop Lettuce/Barley -> Grain After Another Crop
+    crop_num_dict[234] = [71, 78]    # Dbl Crop Durum Wht/Sorghum -> Sorghum After Another Crop
+    crop_num_dict[235] = [71, 78]    # Dbl Crop Barley/Sorghum -> Sorghum After Another Crop
+    crop_num_dict[236] = [13, 78]    # Dbl Crop WinWht/Sorghum -> Sorghum After Another Crop
+    crop_num_dict[237] = [11, 77]    # Dbl Crop Barley/Corn -> Field Corn After Another Crop
+    crop_num_dict[238] = [13, 79]    # Dbl Crop WinWht/Cotton -> Cotton After Another Crop
+    crop_num_dict[239] = [66, 79]    # Dbl Crop Soybeans/Cotton -> Cotton After Another Crop
+    crop_num_dict[240] = [66, 84]    # Dbl Crop Soybeans/Oats -> Grain After Another Crop
+    crop_num_dict[241] = [7, 85]    # Dbl Crop Corn/Soybeans -> Soybeans After Another Crop
     crop_num_dict[242] = [63]    # Blueberries -> Blueberries
     crop_num_dict[243] = [80]    # Cabbage -> Cabbage
     crop_num_dict[244] = [21]    # Cauliflower -> Garden Vegetables  - general
@@ -235,7 +236,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     crop_num_dict[248] = [21]    # Eggplants -> Garden Vegetables  - general
     crop_num_dict[249] = [21]    # Gourds -> Garden Vegetables  - general
     crop_num_dict[250] = [75]    # Cranberries -> Cranberries
-    crop_num_dict[254] = [11,85]    # Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
+    crop_num_dict[254] = [11, 85]    # Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
 
 
     # Check input folders
@@ -371,7 +372,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # Join the stations to the zones and read in the matches
     # if not arcpy.Exists(et_cells_path):
     #     _field_list = [f.name for f in arcpy.ListFields(zone_path)]
-    #     _field_list.append(nldas_id_field)
+    #     _field_list.append(met_id_field)
     #      zone_field_list.append('OBJECTID_1')
     #     .SpatialJoin_analysis(zone_path, station_path, et_cells_path)
     #      arcpy.SpatialJoin_analysis(station_path, zone_path, et_cells_path)
@@ -410,14 +411,14 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         logging.debug('  {0}'.format(cell_name_field))
         arcpy.AddField_management(
             et_cells_path, cell_name_field, 'TEXT', '', '', 48)
-    if station_id_field not in field_list:
-        logging.debug('  {0}'.format(station_id_field))
+    if met_id_field not in field_list:
+        logging.debug('  {0}'.format(met_id_field))
         arcpy.AddField_management(
-            et_cells_path, station_id_field, 'TEXT', '', '', 24)
-    if zone_id_field not in field_list:
-        logging.debug('  {0}'.format(zone_id_field))
-        arcpy.AddField_management(
-            et_cells_path, zone_id_field, 'TEXT', '', '', 8)
+            et_cells_path, met_id_field, 'TEXT', '', '', 24)
+    # if zone_id_field not in field_list:
+    #     logging.debug('  {0}'.format(zone_id_field))
+    #     arcpy.AddField_management(
+    #         et_cells_path, zone_id_field, 'TEXT', '', '', 8)
 
     # Status flags
     # if active_flag_field not in field_list:
@@ -480,10 +481,10 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     arcpy.CalculateField_management(
         et_cells_path, cell_name_field,
         '"{0}" + str(!{1}!)'.format(zone_name_str, zone_name_field), 'PYTHON')
-    # Set STATION_ID to NLDAS_ID
-    arcpy.CalculateField_management(
-        et_cells_path, station_id_field,
-        'str(!{0}!)'.format(nldas_id_field), 'PYTHON')
+    # Set MET_ID (STATION_ID) to NLDAS_ID
+    # arcpy.CalculateField_management(
+    #     et_cells_path, met_id_field,
+    #     'str(!{0}!)'.format(station_id_field), 'PYTHON')
 
     # Remove existing (could use overwrite instead)
     zone_proj_path = os.path.join(table_ws, zone_proj_name)
@@ -756,11 +757,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, input_soil_ws=args.soil,
          cdl_year=args.year, zone_type=args.zone,

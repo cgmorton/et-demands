@@ -2,13 +2,12 @@
 # Name:         build_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-09-09
 # Python:       2.7
 #--------------------------------
 
 import argparse
 from collections import defaultdict
-import ConfigParser
 import datetime as dt
 import logging
 import os
@@ -55,12 +54,43 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     # DEADBEEF - For now, get cropET folder from INI file
     # This function may eventually be moved into the main cropET code
     config = util.read_ini(ini_path, section='CROP_ET')
-    project_ws = config.get('CROP_ET', 'project_folder')
-    gis_ws = config.get('CROP_ET', 'gis_folder')
-    et_cells_path = config.get('CROP_ET', 'et_cells_path')
-    stations_path = config.get('CROP_ET', 'stations_path')
-    crop_et_ws = config.get('CROP_ET', 'crop_et_folder')
-    template_ws = config.get('CROP_ET', 'template_folder')
+    try:
+        project_ws = config.get('CROP_ET', 'project_folder')
+    except:
+        logging.error(
+            'project_folder parameter must be set in the INI file, exiting')
+        return False
+    try:
+        gis_ws = config.get('CROP_ET', 'gis_folder')
+    except:
+        logging.error(
+            'gis_folder parameter must be set in the INI file, exiting')
+        return False
+    try:
+        et_cells_path = config.get('CROP_ET', 'cells_path')
+    except:
+        logging.error(
+            'cells_path parameter must be set in the INI file, exiting')
+        return False
+    try:
+        stations_path = config.get('CROP_ET', 'stations_path')
+    except:
+        logging.error(
+            'stations_path parameter must be set in the INI file, exiting')
+        return False
+    try:
+        crop_et_ws = config.get('CROP_ET', 'crop_et_folder')
+    except:
+        logging.error(
+            'crop_et_ws parameter must be set in the INI file, exiting')
+        return False
+    try:
+        template_ws = config.get('CROP_ET', 'template_folder')
+    except:
+        template_ws = os.path.join(os.path.dirname(crop_et_ws), 'static')
+        logging.info(
+            ('\nStatic text file "template_folder" parameter was not set ' +
+             'in the INI\n  Defaulting to: {}').format(template_ws))
 
     # Read data from geodatabase or shapefile
     # if '.gdb' in et_cells_path and not et_cells_path.endswith('.shp'):
@@ -71,7 +101,6 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
 
     # Output sub-folder names
     static_ws = os.path.join(project_ws, 'static')
-    pmdata_ws = os.path.join(project_ws, 'pmdata')
 
     # Weather station shapefile
     # Generate by selecting the target NLDAS 4km cell intersecting each HUC
@@ -93,7 +122,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
 
     # Field names
     cell_lat_field = 'LAT'
-    cell_lon_field = 'LON'
+    # cell_lon_field = 'LON'
     if cell_elev_units.upper() in ['FT', 'FEET']:
         cell_elev_field = 'ELEV_FT'
     elif cell_elev_units.upper() in ['M', 'METERS']:
@@ -101,13 +130,13 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     # cell_elev_field = 'ELEV_FT'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
-    awc_field = 'AWC'
+    met_id_field = 'STATION_ID'
+    # awc_field = 'AWC'
     clay_field = 'CLAY'
     sand_field = 'SAND'
     awc_in_ft_field = 'AWC_IN_FT'
     hydgrp_num_field = 'HYDGRP_NUM'
     hydgrp_field = 'HYDGRP'
-    # station_id_field = 'STATION_ID'
     # huc_field = 'HUC{}'.format(huc)
     # permeability_field = 'PERMEABILITY'
     # soil_depth_field = 'SOIL_DEPTH'
@@ -121,8 +150,9 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     cell_cuttings_name = 'MeanCuttings.txt'
     crop_params_name = 'CropParams.txt'
     crop_coefs_name = 'CropCoefs.txt'
+    eto_ratio_name = 'EToRatiosMon.txt'
     static_list = [crop_params_name, crop_coefs_name, cell_props_name,
-                   cell_crops_name, cell_cuttings_name]
+                   cell_crops_name, cell_cuttings_name, eto_ratio_name]
 
     # Check input folders
     if not os.path.isdir(crop_et_ws):
@@ -148,8 +178,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                        'does not exist\n').format(et_cells_path))
         sys.exit()
     elif not os.path.isfile(stations_path) or not arcpy.Exists(stations_path):
-        logging.critical(('ERROR: The NLDAS station shapefile ' +
-                          'does not exist\n  %s').format(stations_path))
+        logging.critical(('ERROR: The NLDAS station shapefile does ' +
+                          'not exist\n  %s').format(stations_path))
         sys.exit()
     for static_name in static_list:
         if not os.path.isfile(os.path.join(template_ws, static_name)):
@@ -191,7 +221,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     for k, v in station_data_dict.iteritems():
         logging.debug('  {0}: {1}'.format(k, v))
 
-    # ReadET Cell zonal stats
+    # Read ET Cell zonal stats
     logging.info('\nReading ET Cell Zonal Stats')
     logging.debug('  {}'.format(et_cells_path))
     crop_field_list = sorted([
@@ -208,6 +238,16 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
             for field in fields[1:]:
                 # Key/match on strings even if ID is an integer
                 cell_data_dict[str(row[0])][field] = row[fields.index(field)]
+
+    # Update ET Cell MET_ID/STATION_ID value
+    fields = [cell_id_field, met_id_field]
+    with arcpy.da.UpdateCursor(et_cells_path, fields) as u_cursor:
+        for row in u_cursor:
+            try:
+                row[1] = station_data_dict[row[0]][station_id_field]
+                u_cursor.updateRow(row)
+            except KeyError:
+                pass
 
     # Covert elevation units if necessary
     if station_elev_units.upper() in ['METERS', 'M']:
@@ -233,8 +273,9 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     cell_props_path = os.path.join(static_ws, cell_props_name)
     cell_crops_path = os.path.join(static_ws, cell_crops_name)
     cell_cuttings_path = os.path.join(static_ws, cell_cuttings_name)
-    crop_params_path = os.path.join(static_ws, crop_params_name)
-    crop_coefs_path = os.path.join(static_ws, crop_coefs_name)
+    # crop_params_path = os.path.join(static_ws, crop_params_name)
+    # crop_coefs_path = os.path.join(static_ws, crop_coefs_name)
+    eto_ratio_path = os.path.join(static_ws, eto_ratio_name)
 
     # Write cell properties
     logging.debug('  {}'.format(cell_props_path))
@@ -276,7 +317,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                 station_id = ''
             output_list = [
                 cell_id, cell_data[cell_name_field], station_id, irrigation]
-            crop_list = ['CROP_{:02d}'.format(i) for i in range(1, crops+1)]
+            crop_list = ['CROP_{:02d}'.format(i) for i in range(1, crops + 1)]
             crop_area_list = [
                 cell_data[crop] if crop in cell_data.keys() else 0
                 for crop in crop_list]
@@ -294,6 +335,26 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                 cell_id, cell_data[cell_name_field],
                 '{:>9.4f}'.format(cell_data[cell_lat_field]),
                 dairy_cuttings, beef_cuttings]
+            output_f.write('\t'.join(map(str, output_list)) + '\n')
+            del output_list
+
+    # Write monthly ETo ratios
+    logging.debug('  {}'.format(eto_ratio_path))
+    with open(eto_ratio_path, 'a') as output_f:
+        for cell_id, cell_data in sorted(cell_data_dict.iteritems()):
+            if cell_id in station_data_dict.keys():
+                station_data = station_data_dict[cell_id]
+                station_id = station_data[station_id_field]
+                # station_lat = '{:>9.4f}'.format(station_data[station_lat_field])
+                # station_lon = '{:>9.4f}'.format(station_data[station_lon_field])
+                # station_elev = '{:.2f}'.format(station_data[station_elev_field])
+            else:
+                logging.debug(
+                    ('    Cell_ID {} was not found in the ' +
+                     'station data').format(cell_id))
+                # station_id, lat, lon, elev = '', '', '', ''
+                continue
+            output_list = [station_id, ''] + [1.0] * 12
             output_f.write('\t'.join(map(str, output_list)) + '\n')
             del output_list
 
@@ -336,11 +397,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(ini_path=args.ini, area_threshold=args.acres, zone_type=args.zone,
          dairy_cuttings=args.dairy, beef_cuttings=args.beef,

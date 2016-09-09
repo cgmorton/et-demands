@@ -2,7 +2,7 @@
 # Name:         build_study_area_raster.py
 # Purpose:      Build study area raster
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -13,8 +13,6 @@ import logging
 import os
 import subprocess
 import sys
-
-from osgeo import gdal, ogr, osr
 
 import gdal_common as gdc
 import util
@@ -149,7 +147,7 @@ def main(gis_ws, cdl_ws, cdl_year, study_area_path, study_area_buffer=None,
 def remove_file(file_path):
     """Remove a feature/raster and all of its ancillary files"""
     file_ws = os.path.dirname(file_path)
-    for file_name in glob.glob(os.path.splitext(file_path)[0]+".*"):
+    for file_name in glob.glob(os.path.splitext(file_path)[0] + ".*"):
         os.remove(os.path.join(file_ws, file_name))
 
 
@@ -201,11 +199,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, cdl_ws=args.cdl, cdl_year=args.years,
          study_area_path=args.shapefile, study_area_buffer=args.buffer,

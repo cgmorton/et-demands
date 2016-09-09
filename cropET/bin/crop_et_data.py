@@ -1,12 +1,9 @@
 #!/usr/bin/env python
-
 import ConfigParser
 import datetime as dt
 import logging
 import os
 import sys
-
-import numpy as np
 
 import crop_coefficients
 import crop_parameters
@@ -46,8 +43,9 @@ class CropETData():
         refet_sec = 'REFET'
         if set(config.sections()) != set([crop_et_sec, weather_sec, refet_sec]):
             logging.error(
-                '\nERROR: The input file must have the following sections:\n' +
-                '  [{}], [{}], and [{}]'.format(crop_et_sec, weather_sec, refet_sec))
+                ('\nERROR: The input file must have the following sections:\n' +
+                 '  [{}], [{}], and [{}]').format(
+                    crop_et_sec, weather_sec, refet_sec))
             sys.exit()
 
         # The project and CropET folders need to be full/absolute paths
@@ -55,11 +53,11 @@ class CropETData():
         crop_et_ws = config.get(crop_et_sec, 'crop_et_folder')
         if not os.path.isdir(self.project_ws):
             logging.critical(
-                'ERROR: The project folder does not exist\n  %s' % self.project_ws)
+                'ERROR: The project folder does not exist\n  {}'.format(self.project_ws))
             sys.exit()
         elif not os.path.isdir(crop_et_ws):
             logging.critical(
-                'ERROR: The project folder does not exist\n  %s' % crop_et_ws)
+                'ERROR: The project folder does not exist\n  {}'.format(crop_et_ws))
             sys.exit()
 
         # Basin
@@ -92,6 +90,20 @@ class CropETData():
             logging.debug('    growing_season_stats_flag = False')
             self.gs_output_flag = False
 
+        # Allow user to only run annual or perennial crops
+        try:
+            self.annual_skip_flag = config.getboolean(
+                crop_et_sec, 'annual_skip_flag')
+        except:
+            logging.info('    annual_skip_flag = False')
+            self.annual_skip_flag = False
+        try:
+            self.perennial_skip_flag = config.getboolean(
+                crop_et_sec, 'perennial_skip_flag')
+        except:
+            logging.info('    perennial_skip_flag = False')
+            self.perennial_skip_flag = False
+
         # For testing, allow the user to process a subset of the crops
         try:
             self.crop_skip_list = list(util.parse_int_set(
@@ -112,13 +124,15 @@ class CropETData():
 
         # For testing, allow the user to process a subset of the cells
         try:
-            self.cell_skip_list = config.get(crop_et_sec, 'cell_skip_list').split(',')
+            self.cell_skip_list = config.get(
+                crop_et_sec, 'cell_skip_list').split(',')
             self.cell_skip_list = [c.strip() for c in self.cell_skip_list]
         except:
             logging.debug('    cell_skip_list = []')
             self.cell_skip_list = []
         try:
-            self.cell_test_list = config.get(crop_et_sec, 'cell_test_list').split(',')
+            self.cell_test_list = config.get(
+                crop_et_sec, 'cell_test_list').split(',')
             self.cell_test_list = [c.strip() for c in self.cell_test_list]
         except:
             logging.debug('    cell_test_list = False')
@@ -130,36 +144,40 @@ class CropETData():
         if self.daily_output_flag:
             try:
                 self.daily_output_ws = os.path.join(
-                    self.project_ws, config.get(crop_et_sec, 'daily_output_folder'))
+                    self.project_ws,
+                    config.get(crop_et_sec, 'daily_output_folder'))
                 if not os.path.isdir(self.daily_output_ws):
-                   os.makedirs(self.daily_output_ws)
+                    os.makedirs(self.daily_output_ws)
             except:
                 logging.debug('    daily_output_folder = daily_stats')
                 self.daily_output_ws = 'daily_stats'
         if self.monthly_output_flag:
             try:
                 self.monthly_output_ws = os.path.join(
-                    self.project_ws, config.get(crop_et_sec, 'monthly_output_folder'))
+                    self.project_ws,
+                    config.get(crop_et_sec, 'monthly_output_folder'))
                 if not os.path.isdir(self.monthly_output_ws):
-                   os.makedirs(self.monthly_output_ws)
+                    os.makedirs(self.monthly_output_ws)
             except:
                 logging.debug('    monthly_output_folder = monthly_stats')
                 self.monthly_output_ws = 'monthly_stats'
         if self.annual_output_flag:
             try:
                 self.annual_output_ws = os.path.join(
-                    self.project_ws, config.get(crop_et_sec, 'annual_output_folder'))
+                    self.project_ws,
+                    config.get(crop_et_sec, 'annual_output_folder'))
                 if not os.path.isdir(self.annual_output_ws):
-                   os.makedirs(self.annual_output_ws)
+                    os.makedirs(self.annual_output_ws)
             except:
                 logging.debug('    annual_output_folder = annual_stats')
                 self.annual_output_ws = 'annual_stats'
         if self.gs_output_flag:
             try:
                 self.gs_output_ws = os.path.join(
-                    self.project_ws, config.get(crop_et_sec, 'gs_output_folder'))
+                    self.project_ws,
+                    config.get(crop_et_sec, 'gs_output_folder'))
                 if not os.path.isdir(self.gs_output_ws):
-                   os.makedirs(self.gs_output_ws)
+                    os.makedirs(self.gs_output_ws)
             except:
                 logging.debug('    gs_output_folder = growing_season_stats')
                 self.gs_output_ws = 'growing_season_stats'
@@ -199,17 +217,22 @@ class CropETData():
             self.co2_flag = False
 
         # Static cell/crop files
-        def check_static_file(static_name, static_var):
+        def check_static_file(static_name, static_var, optional=False):
             try:
                 static_path = os.path.join(
                     static_ws, config.get(crop_et_sec, static_var))
             except:
                 static_path = os.path.join(static_ws, static_name)
                 logging.debug('  {0} = {1}'.format(static_var, static_name))
-            if not os.path.isfile(static_path):
+            if not os.path.isfile(static_path) and not optional:
                 logging.error('ERROR: The static file {} does not exist'.format(
                     static_path))
                 sys.exit()
+            elif not os.path.isfile(static_path) and optional:
+                logging.info(
+                    '  Optional static file {} does not exist, ignoring'.format(
+                        os.path.basename(static_path)))
+                return None
             else:
                 return static_path
         self.cell_properties_path = check_static_file(
@@ -222,16 +245,22 @@ class CropETData():
             'CropParams.txt', 'crop_params_name')
         self.crop_coefs_path = check_static_file(
             'CropCoefs.txt', 'crop_coefs_name')
+        self.refet_ratios_path = check_static_file(
+            'EToRatiosMon.txt', 'eto_ratios_name', optional=True)
 
         # Spatially varying calibration
-        try: self.spatial_cal_flag = config.getboolean(crop_et_sec, 'spatial_cal_flag')
-        except: self.spatial_cal_flag = False
+        try:
+            self.spatial_cal_flag = config.getboolean(
+                crop_et_sec, 'spatial_cal_flag')
+        except:
+            self.spatial_cal_flag = False
         try:
             self.spatial_cal_ws = config.get(crop_et_sec, 'spatial_cal_folder')
         except:
             self.spatial_cal_ws = None
-        if (self.spatial_cal_flag and self.spatial_cal_ws is not None and
-            not os.path.isdir(self.spatial_cal_ws)):
+        if (self.spatial_cal_flag and
+                self.spatial_cal_ws is not None and
+                not os.path.isdir(self.spatial_cal_ws)):
             logging.error(('ERROR: The spatial calibration folder {} ' +
                            'does not exist').format(self.spatial_cal_ws))
             sys.exit()
@@ -397,7 +426,8 @@ class CropETData():
 
         # Snow and snow depth are optional
         try:
-            self.weather['fields']['snow'] = config.get(weather_sec, 'snow_field')
+            self.weather['fields']['snow'] = config.get(
+                weather_sec, 'snow_field')
         except:
             self.weather['fields']['snow'] = None
         try:
@@ -480,7 +510,7 @@ class CropETData():
             logging.info('  CO2 correction')
             try:
                 self.co2_grass_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_grass_list'))))
+                    config.get(crop_et_sec, 'co2_grass_list'))))
             except:
                 self.co2_grass_crops = []
                 # # DEADBEEF - Make these the defaults?
@@ -489,14 +519,14 @@ class CropETData():
                 #     69,71,72,73,75,79,80,81,83,84,85])
             try:
                 self.co2_trees_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_trees_list'))))
+                    config.get(crop_et_sec, 'co2_trees_list'))))
             except:
                 self.co2_trees_crops = []
                 # # DEADBEEF - Make these the defaults?
                 # self.co2_trees_crops = [19, 20, 70, 74, 82]
             try:
                 self.co2_c4_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_c4_list'))))
+                    config.get(crop_et_sec, 'co2_c4_list'))))
             except:
                 self.co2_c4_crops = []
                 # # DEADBEEF - Make these the defaults?

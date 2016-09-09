@@ -2,7 +2,7 @@
 # Name:         download_dem_rasters.py
 # Purpose:      Download NED tiles
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -14,7 +14,7 @@ import sys
 import urllib
 import zipfile
 
-from osgeo import gdal, ogr, osr
+from osgeo import gdal, ogr
 
 import gdal_common as gdc
 import util
@@ -66,13 +66,13 @@ def main(gis_ws, tile_ws, dem_cs, mask_flag=False, overwrite_flag=False):
         logging.error(
             ('\nERROR: The zone raster {} does not exist' +
              '\n  Try re-running "build_study_area_raster.py"').format(
-             zone_raster_path))
+                zone_raster_path))
         sys.exit()
     if mask_flag and not os.path.isfile(zone_polygon_path):
         logging.error(
             ('\nERROR: The zone polygon {} does not exist and mask_flag=True' +
              '\n  Try re-running "build_study_area_raster.py"').format(
-             zone_raster_path))
+                zone_raster_path))
         sys.exit()
     if not os.path.isdir(tile_ws):
         os.makedirs(tile_ws)
@@ -250,11 +250,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, tile_ws=args.tiles, dem_cs=args.cellsize,
          mask_flag=args.mask, overwrite_flag=args.overwrite)

@@ -2,7 +2,7 @@
 # Name:         merge_dem_rasters.py
 # Purpose:      Prepare NED DEM rasters
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-22
 # Python:       2.7
 #--------------------------------
 
@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 import numpy as np
-from osgeo import gdal, ogr, osr
+from osgeo import gdal
 
 import gdal_common as gdc
 import util
@@ -63,7 +63,7 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
         logging.error(
             ('\nERROR: The zone raster {} does not exist' +
              '\n  Try re-running "build_study_area_raster.py"').format(
-             zone_raster_path))
+                zone_raster_path))
         sys.exit()
     elif output_units not in ['FEET', 'METERS']:
         logging.error('\nERROR: The output units must be FEET or METERS\n')
@@ -146,10 +146,10 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
             # It would also work to add the scripts folder to the path (in Pythong)
             # Or the scripts folder could be added to the system PYTHONPATH?
             args_list = [
-                 'python', '{}\scripts\gdal_merge.py'.format(sys.exec_prefix),
-                 '-o', dem_gcs_path, '-of', 'HFA',
-                 '-co', 'COMPRESSED=YES', '-a_nodata',
-                 str(f32_nodata)] + input_path_list
+                'python', '{}\scripts\gdal_merge.py'.format(sys.exec_prefix),
+                '-o', dem_gcs_path, '-of', 'HFA',
+                '-co', 'COMPRESSED=YES', '-a_nodata',
+                str(f32_nodata)] + input_path_list
             logging.debug(args_list)
             logging.debug('command length: {}'.format(len(' '.join(args_list))))
             subprocess.call(args_list, cwd=tile_ws)
@@ -211,10 +211,12 @@ def main(gis_ws, tile_ws, dem_cs, overwrite_flag=False,
         logging.info('\nBuilding pyramids')
         if os.path.isfile(dem_proj_path):
             logging.debug('  {}'.format(dem_proj_path))
-            subprocess.call(['gdaladdo', '-ro', dem_proj_path] + levels.split())
+            subprocess.call(
+                ['gdaladdo', '-ro', dem_proj_path] + levels.split())
         if os.path.isfile(dem_hs_path):
             logging.debug('  {}'.format(dem_hs_path))
-            subprocess.call(['gdaladdo', '-ro', dem_hs_path] + levels.split())
+            subprocess.call(
+                ['gdaladdo', '-ro', dem_hs_path] + levels.split())
         # subprocess.call(
         #     'gdaladdo', '-ro', '--config', 'USE_RRD', 'YES',
         #     '--config', 'HFA_USE_RRD', 'YES', dem_proj_path] + levels.split()])
@@ -230,7 +232,7 @@ def m2ft_func(input_raster):
     """Scale the input raster from meters to feet"""
     input_ds = gdal.Open(input_raster, 1)
     input_band = input_ds.GetRasterBand(1)
-    input_nodata = input_band.GetNoDataValue()
+    # input_nodata = input_band.GetNoDataValue()
     input_array = input_band.ReadAsArray(
         0, 0, input_ds.RasterXSize, input_ds.RasterYSize)
     input_array[~np.isnan(input_array)] /= 0.3048
@@ -280,11 +282,12 @@ if __name__ == '__main__':
     args = arg_parse()
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#'*80))
+    logging.info('\n{}'.format('#' * 80))
     logging.info('{0:<20s} {1}'.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
     logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+    logging.info('{0:<20s} {1}'.format(
+        'Script:', os.path.basename(sys.argv[0])))
 
     main(gis_ws=args.gis, tile_ws=args.tiles,
          dem_cs=args.cellsize, overwrite_flag=args.overwrite,

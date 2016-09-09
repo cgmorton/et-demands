@@ -2,7 +2,7 @@
 # Name:         plot_crop_summary_maps.py
 # Purpose:      Plot crop summary maps from daily data
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-08-16
 # Python:       2.7
 #--------------------------------
 
@@ -21,7 +21,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as colors
-from matplotlib.collections import PatchCollection
+# from matplotlib.collections import PatchCollection
 import numpy as np
 import pandas as pd
 from shapely.geometry import MultiPolygon, Polygon, shape
@@ -44,7 +44,7 @@ matplotlib.rc('font', family='sans-serif')
 
 
 def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
-         figure_size=(12, 12), figure_dpi=150, start_date=None, end_date=None,
+         figure_size=(12, 12), figure_dpi=300, start_date=None, end_date=None,
          crop_str='', simplify_tol=None, area_threshold=0):
     """Plot crop summary maps using daily output files
 
@@ -97,7 +97,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
     gs_length_field = 'GS_Length'
 
     # Number of header lines in data file
-    header_lines = 2
+    # header_lines = 2
 
     # Additional figure controls
     # figure_dynamic_size = False
@@ -109,8 +109,8 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
 
     daily_input_re = re.compile(
         '(?P<cell_id>\w+)_daily_crop_(?P<crop_num>\d{2}).csv', re.I)
-    gs_input_re = re.compile(
-        '(?P<cell_id>\w+)_gs_crop_(?P<crop_num>\d{2}).csv', re.I)
+    # gs_input_re = re.compile(
+    #     '(?P<cell_id>\w+)_gs_crop_(?P<crop_num>\d{2}).csv', re.I)
 
     logging.info('\nGenerate crop summary maps from daily data')
     logging.info('  INI: {}'.format(ini_path))
@@ -133,7 +133,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
     project_ws = get_config_param(config, 'project_folder', crop_et_sec)
     daily_stats_ws = os.path.join(
         project_ws, get_config_param(
-                config, 'daily_output_folder', crop_et_sec))
+            config, 'daily_output_folder', crop_et_sec))
 
     try:
         output_ws = os.path.join(
@@ -167,7 +167,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         logging.info('  End Year:    {0}'.format(year_end))
     except:
         year_end = None
-    if year_start and year_end and year_end <= year_start:
+    if year_start and year_end and year_end < year_start:
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
 
@@ -284,12 +284,12 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         'save_flag': save_flag,
         'show_flag': show_flag,
         'label_flag': label_flag,
-        }
+    }
 
     # Plot CELL_ID
     logging.info('\nPlotting total crop acreage')
     cell_id_dict = {
-            k: k.replace(' ', '\n') for k in cell_data_dict.iterkeys()}
+        k: k.replace(' ', '\n') for k in cell_data_dict.iterkeys()}
     # cell_id_dict = {k:k for k in cell_data_dict.iterkeys()}
     cell_plot_func(
         os.path.join(output_ws, 'cell_id.png'),
@@ -300,7 +300,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
     # Plot total CDL crop acreages
     logging.info('\nPlotting total crop acreage')
     crop_area_dict = {
-            k: v[crop_area_field] for k, v in cell_data_dict.iteritems()}
+        k: v[crop_area_field] for k, v in cell_data_dict.iteritems()}
     # crop_area_dict = {
     #     :v[crop_area_field] for k,v in cell_data_dict.iteritems()
     #      v[crop_area_field] > area_threshold}
@@ -323,7 +323,7 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
     # Build an empty dataframe to write the total area weighted ET
     # columns_dict = {cell_id_field:sorted(cell_data_dict.keys())}
     columns_dict = {
-            'CROP_{0:02d}'.format(k): None for k in daily_path_dict.keys()}
+        'CROP_{0:02d}'.format(k): None for k in daily_path_dict.keys()}
     columns_dict[cell_id_field] = sorted(cell_data_dict.keys())
     crop_area_df = pd.DataFrame(columns_dict).set_index(cell_id_field)
     annual_et_df = pd.DataFrame(columns_dict).set_index(cell_id_field)
@@ -338,9 +338,9 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
         # First threshold CDL crop areas
         # Check all cell_id's against crop_area_dict keys
         crop_area_dict = {
-                k: v[crop_column] for k, v in cell_data_dict.iteritems()
-                if (k in daily_path_dict[crop_num].keys() and
-                    v[crop_column] > area_threshold)}
+            k: v[crop_column] for k, v in cell_data_dict.iteritems()
+            if (k in daily_path_dict[crop_num].keys() and
+                v[crop_column] > area_threshold)}
         # crop_area_dict = {
         #     k: v[crop_column] for k,v in cell_data_dict.iteritems()
         #     if k in daily_path_dict[crop_num].keys()}
@@ -426,8 +426,10 @@ def main(ini_path, show_flag=False, save_flag=True, label_flag=False,
 
             # Seasonal/Annual ET
             crop_seasonal_et_df = daily_df[daily_df[season_field] > 0].resample(
-                'AS', how={etact_field:np.sum})
-            crop_annual_et_df = daily_df.resample('AS', how={etact_field:np.sum})
+                'AS', how={etact_field: np.sum})
+            crop_annual_et_df = daily_df.resample(
+                'AS', how={etact_field: np.sum})
+
             crop_output_df.set_value(
                 cell_id, seasonal_et_field, float(crop_seasonal_et_df.mean()))
             crop_output_df.set_value(
@@ -615,15 +617,18 @@ def cell_plot_func(output_path, geom_dict, data_dict, title_str, clabel_str,
     """Plot a cell values for a single field with descartes and matplotlib
 
     Args:
-        plot_path (str): output file path
-        cell_geom_dict (dict): id, shapely geometry object
-        cell_data_dict (dict): id, map value
+        output_path (str): output file path
+        geom_dict (dict): id, shapely geometry object
+        data_dict (dict): id, map value
         title_str (str): Text at the top of the figure/map
         clabel_str (str): Text to display next to the colorbar
         extent (list): extent of all geometry objects [minx, miny, maxx, maxy]
         cmap (): colormap
+        v_min ():
+        v_max ():
         fig_size (tuple): figure size in inches (width, height)
         fig_dpi (int): Figure dots per square inch
+        label_flag (bool): If True, label figures with id
         save_flag (bool): If True, save the figure
         show_flag (bool): If True, show the figure
         label_size (int): Label text font size
@@ -876,7 +881,7 @@ def parse_args():
         nargs=2, metavar=('WIDTH', 'HEIGHT'),
         help='Figure size in inches')
     parser.add_argument(
-        '--dpi', default=150, type=int, metavar='PIXELS',
+        '--dpi', default=300, type=int, metavar='PIXELS',
         help='Figure dots per square inch')
     parser.add_argument(
         '--no_save', default=True, action='store_false',
@@ -933,11 +938,11 @@ if __name__ == '__main__':
         ini_path = util.get_path(os.getcwd(), 'Select the target INI file')
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{0}'.format('#'*80))
+    logging.info('\n{0}'.format('#' * 80))
     log_f = '{0:<20s} {1}'
     logging.info(log_f.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info(log_f.format('Current Directory:', args.workspace))
+    logging.info(log_f.format('Current Directory:', os.getcwd()))
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
     main(ini_path, show_flag=args.show, save_flag=args.no_save,

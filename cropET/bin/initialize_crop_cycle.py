@@ -1,5 +1,4 @@
 import logging
-import sys
 
 import numpy as np
 
@@ -157,7 +156,7 @@ class InitializeCropCycle:
         self.kc_bas_mid = 0.
         # Bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
         if crop.curve_number > 0:
-            self.kc_bas_mid = et_cell.crop_coeffs[crop.curve_number].max_value(self.kc_bas_mid)
+            self.kc_bas_mid = np.max(et_cell.crop_coeffs[crop.curve_number].data)
 
         # Available water in soil
         self.aw = et_cell.stn_whc / 12 * 1000.   # in/ft to mm/m
@@ -265,16 +264,13 @@ class InitializeCropCycle:
         # zr_dormant was never assigned a value - what's its purpose - dlk 10/26/2011 ???????????????????
         zr_dormant = 0.0
 
-        # setup_crop is called from crop_cycle if is_season is false and crop_setup_flag is true
-        # thus only setup 1st time for crop (not each year)
-        # also called from kcb_daily each time GU/Plant date is reached, thus at growing season start
         self.height_min = crop.height_initial
         self.height_max = crop.height_max
         self.zr_min = crop.rooting_depth_initial
         self.zr_max = crop.rooting_depth_max
         self.height = self.height_min
         self.tew = self.tew2  # find total evaporable water
-        if self.tew3 > self.tew:
+        if self.tew < self.tew3:
             self.tew = self.tew3
         self.fw_irr = self.fw_std  # fw changed to fw_irr 8/10/06
         self.irr_auto = 0

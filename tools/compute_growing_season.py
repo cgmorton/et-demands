@@ -2,12 +2,12 @@
 # Name:         compute_growing_season.py
 # Purpose:      Extract growing season data from daily output files
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-07-19
 # Python:       2.7
 #--------------------------------
 
 import argparse
-import ConfigParser
+# import ConfigParser
 import csv
 import datetime as dt
 import logging
@@ -50,7 +50,7 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
     baddata_name = 'growing_season_bad_data.txt'
 
     # Number of header lines in data file
-    header_lines = 2
+    # header_lines = 2
 
     # Delimiter
     sep = ','
@@ -100,7 +100,7 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
         logging.info('  End Year:    {0}'.format(year_end))
     except:
         year_end = None
-    if year_start and year_end and year_end <= year_start:
+    if year_start and year_end and year_end < year_start:
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
 
@@ -138,9 +138,9 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
     # site_file_re = '^RG\d{8}ETca.dat$'
     # site_file_list = sorted([item for item in os.listdir(workspace)
     #                         if re.match(site_file_re, item)])
-    site_file_list = sorted([
-        item for item in os.listdir(daily_stats_ws)
-        if re.match('\w+_daily_crop_\d{2}.csv$', item)])
+    # site_file_list = sorted([
+    #     item for item in os.listdir(daily_stats_ws)
+    #     if re.match('\w+_daily_crop_\d{2}.csv$', item)])
 
     # Initialize output data arrays and open bad data log file
     gs_summary_data = []
@@ -190,7 +190,8 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
         # daily_df[year_field] = daily_df[date_field].map(lambda x: x.year)
 
         # Build list of unique years
-        year_array = np.sort(np.unique(np.array(daily_df[year_field]).astype(np.int)))
+        year_array = np.sort(np.unique(
+            np.array(daily_df[year_field]).astype(np.int)))
         logging.debug('    All Years: {0}'.format(
             ', '.join(list(util.ranges(year_array.tolist())))))
         # logging.debug('    All Years: {0}'.format(
@@ -205,10 +206,12 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
         crop_year_start = min(daily_df[year_field])
         crop_year_end = max(daily_df[year_field])
         if sum(daily_df[year_field] == crop_year_start) < 365:
-            logging.debug('    Skipping {}, missing days'.format(crop_year_start))
+            logging.debug('    Skipping {}, missing days'.format(
+                crop_year_start))
             daily_df = daily_df[daily_df[year_field] > crop_year_start]
         if sum(daily_df[year_field] == crop_year_end) < 365:
-            logging.debug('    Skipping {}, missing days'.format(crop_year_end))
+            logging.debug('    Skipping {}, missing days'.format(
+                crop_year_end))
             daily_df = daily_df[daily_df[year_field] < crop_year_end]
         del crop_year_start, crop_year_end
 
@@ -249,7 +252,7 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
             logging.debug(year_crop_str)
 
             # Extract data for target year
-            year_mask = (year_array==year)
+            year_mask = (year_array == year)
             date_sub_array = date_array[year_mask]
             doy_sub_array = doy_array[year_mask]
             season_sub_mask = season_array[year_mask]
@@ -419,7 +422,7 @@ if __name__ == '__main__':
         ini_path = util.get_path(os.getcwd(), 'Select the target INI file')
 
     logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{0}'.format('#'*80))
+    logging.info('\n{0}'.format('#' * 80))
     log_f = '{0:<20s} {1}'
     logging.info(log_f.format(
         'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
