@@ -2,7 +2,7 @@
 # Name:         build_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2016-09-09
 # Python:       2.7
 #--------------------------------
 
@@ -54,12 +54,43 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     # DEADBEEF - For now, get cropET folder from INI file
     # This function may eventually be moved into the main cropET code
     config = util.read_ini(ini_path, section='CROP_ET')
-    project_ws = config.get('CROP_ET', 'project_folder')
-    gis_ws = config.get('CROP_ET', 'gis_folder')
-    et_cells_path = config.get('CROP_ET', 'et_cells_path')
-    stations_path = config.get('CROP_ET', 'stations_path')
-    crop_et_ws = config.get('CROP_ET', 'crop_et_folder')
-    template_ws = config.get('CROP_ET', 'template_folder')
+    try:
+        project_ws = config.get('CROP_ET', 'project_folder')
+    except:
+        logging.error(
+            'project_folder parameter must be set in the INI file, exiting')
+        return False
+    try:
+        gis_ws = config.get('CROP_ET', 'gis_folder')
+    except:
+        logging.error(
+            'gis_folder parameter must be set in the INI file, exiting')
+        return False
+    try:
+        et_cells_path = config.get('CROP_ET', 'cells_path')
+    except:
+        logging.error(
+            'cells_path parameter must be set in the INI file, exiting')
+        return False
+    try:
+        stations_path = config.get('CROP_ET', 'stations_path')
+    except:
+        logging.error(
+            'stations_path parameter must be set in the INI file, exiting')
+        return False
+    try:
+        crop_et_ws = config.get('CROP_ET', 'crop_et_folder')
+    except:
+        logging.error(
+            'crop_et_ws parameter must be set in the INI file, exiting')
+        return False
+    try:
+        template_ws = config.get('CROP_ET', 'template_folder')
+    except:
+        template_ws = os.path.join(os.path.dirname(crop_et_ws), 'static')
+        logging.info(
+            ('\nStatic text file "template_folder" parameter was not set ' +
+             'in the INI\n  Defaulting to: {}').format(template_ws))
 
     # Read data from geodatabase or shapefile
     # if '.gdb' in et_cells_path and not et_cells_path.endswith('.shp'):
@@ -70,7 +101,6 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
 
     # Output sub-folder names
     static_ws = os.path.join(project_ws, 'static')
-    pmdata_ws = os.path.join(project_ws, 'pmdata')
 
     # Weather station shapefile
     # Generate by selecting the target NLDAS 4km cell intersecting each HUC
@@ -92,7 +122,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
 
     # Field names
     cell_lat_field = 'LAT'
-    cell_lon_field = 'LON'
+    # cell_lon_field = 'LON'
     if cell_elev_units.upper() in ['FT', 'FEET']:
         cell_elev_field = 'ELEV_FT'
     elif cell_elev_units.upper() in ['M', 'METERS']:
@@ -101,7 +131,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     met_id_field = 'STATION_ID'
-    awc_field = 'AWC'
+    # awc_field = 'AWC'
     clay_field = 'CLAY'
     sand_field = 'SAND'
     awc_in_ft_field = 'AWC_IN_FT'
@@ -243,8 +273,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     cell_props_path = os.path.join(static_ws, cell_props_name)
     cell_crops_path = os.path.join(static_ws, cell_crops_name)
     cell_cuttings_path = os.path.join(static_ws, cell_cuttings_name)
-    crop_params_path = os.path.join(static_ws, crop_params_name)
-    crop_coefs_path = os.path.join(static_ws, crop_coefs_name)
+    # crop_params_path = os.path.join(static_ws, crop_params_name)
+    # crop_coefs_path = os.path.join(static_ws, crop_coefs_name)
     eto_ratio_path = os.path.join(static_ws, eto_ratio_name)
 
     # Write cell properties
@@ -315,9 +345,9 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
             if cell_id in station_data_dict.keys():
                 station_data = station_data_dict[cell_id]
                 station_id = station_data[station_id_field]
-                station_lat = '{:>9.4f}'.format(station_data[station_lat_field])
-                station_lon = '{:>9.4f}'.format(station_data[station_lon_field])
-                station_elev = '{:.2f}'.format(station_data[station_elev_field])
+                # station_lat = '{:>9.4f}'.format(station_data[station_lat_field])
+                # station_lon = '{:>9.4f}'.format(station_data[station_lon_field])
+                # station_elev = '{:.2f}'.format(station_data[station_elev_field])
             else:
                 logging.debug(
                     ('    Cell_ID {} was not found in the ' +
