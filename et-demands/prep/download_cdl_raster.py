@@ -2,7 +2,7 @@
 # Name:         download_cdl.py
 # Purpose:      Download national CDL zips
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2016-10-20
 # Python:       2.7
 #--------------------------------
 
@@ -70,7 +70,7 @@ def arg_parse():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '--cdl', metavar='FOLDER', required=True,
-        type=lambda x: util.is_valid_directory(parser, x),
+        # type=lambda x: util.is_valid_directory(parser, x),
         help='Common CDL workspace/folder')
     parser.add_argument(
         '-y', '--years', metavar='YEAR', required=True,
