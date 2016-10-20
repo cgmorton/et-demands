@@ -1,31 +1,22 @@
 CropET Example
 ==============
 
-In Windows, to open the command prompt, press the "windows" key and "r" or click the "Start" button, "Accessories", and then "Command Prompt".  Within the command prompt or terminal, change to the target drive if necessary::
+Clone the repository
+--------------------
+If you already have a local copy of the et-demands repository, make sure to pull the latest version from GitHub.  If you don't already have a local repository, either clone the repository locally or download a zip file of the scripts from Github.  For this example, the repository will be cloned directly to the D: drive (i.e. D:\\et-demands).
+
+Command prompt
+--------------
+
+All of the ET-Demands scripts should be run from the command prompt or terminal window.  In Windows, to open the command prompt, press the "windows" key and "r" or click the "Start" button, "Accessories", and then "Command Prompt".  
+
+Within the command prompt or terminal, change to the target drive if necessary::
 
     > D:
 
-Change directory to the project folder::
+Then change directory to the et-demands folder::
 
-    > cd D:\Project
-
-Building the Example
---------------------
-For this example, all scripts and tools will be executed from the "example" folder.
-
-Build the example folder if it doesn't exist::
-
-    > mkdir example
-
-
-Change directory to the example folder if necessary::
-
-    > cd example
-
-
-Clone the repository
---------------------
-If you already have a local copy of the et-demands repository, make sure to pull the latest version from GitHub.  If you don't already have a local repository, either clone the repository locally or download a zip file of the scripts from Github.  For this example, the local copy will be cloned directly into the project folder (i.e. D:\\Project\\et-demands).  The repository will include an "example" sub-folder, but please create a separate "example" folder in the project folder (as indicated below in the Folder Structure section).  The example folder in "et-demands" is only used to provide copies of the example input data.
+    > cd D:\et-demands
 
 Folder Structure
 ----------------
@@ -83,8 +74,20 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
 
 Data Prep
 ---------
-The basic data preparation workflow is to download ancillary data for the the CONUS into the "common\gis" folder, and then clip/subset the data for the study area into the "example\\gis" folder.
+The basic data preparation workflow is to download ancillary data for the the CONUS into the "common\\gis" folder, and then clip/subset the data for the study area into the "example\\gis" folder.
 
+You may need to build the common folder if it doesn't exist::
+
+    > mkdir common
+
+Building the Example
+--------------------
+For this example, all scripts and tools will be executed from the "example" folder.
+
+Build the example folder if it doesn't exist::
+
+    > mkdir example
+    
 Cropland Data Layer (CDL)
 -------------------------
 The CDL raster is used to determine which crops will be simulated and the acreage of each crop.  The CDL raster is also used as the "snap raster" or reference raster for all subsequent operations.  If you don't already have a CONUS CDL raster, it can be downloaded from the `USDA FTP <ftp://ftp.nass.usda.gov/download/res>`_, or using the provided CDL download script.  Set the "cdl" parameter to the "common\\cdl" subfolder and set the "year" parameter. ::

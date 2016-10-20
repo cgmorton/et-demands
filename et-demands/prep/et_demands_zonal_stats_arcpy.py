@@ -2,7 +2,7 @@
 # Name:         et_demands_zonal_stats_arcpy.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2016-09-14
 # Python:       2.7
 #--------------------------------
 
@@ -714,7 +714,7 @@ def arg_parse():
         type=lambda x: util.is_valid_directory(parser, x),
         help='GIS workspace/folder', metavar='FOLDER')
     parser.add_argument(
-        '--zone', default='county', metavar='', type=str,
+        '--zone', default='huc8', metavar='', type=str,
         choices=('huc8', 'huc10', 'county'),
         help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county'])))
     parser.add_argument(

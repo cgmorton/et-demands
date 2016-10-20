@@ -1,3 +1,11 @@
+#--------------------------------
+# Name:         util.py
+# Purpose:      Utilitiy functions for ET-Demands prep scripts
+# Author:       Charles Morton
+# Created       2016-09-14
+# Python:       2.7
+#--------------------------------
+
 import ConfigParser
 import glob
 from itertools import groupby
@@ -16,18 +24,22 @@ def remove_file(file_path):
 
 def is_valid_file(parser, arg):
     """"""
-    if not os.path.isfile(arg):
-        parser.error('The file {} does not exist!'.format(arg))
-    else:
+    if os.path.isfile(arg):
         return arg
+    elif os.path.isfile(os.path.abspath(arg)):
+        return os.path.abspath(arg)
+    else:
+        parser.error('\nThe file {} does not exist!'.format(arg))
 
 
 def is_valid_directory(parser, arg):
     """"""
-    if not os.path.isdir(arg):
-        parser.error('The directory {} does not exist!'.format(arg))
-    else:
+    if os.path.isdir(arg):
         return arg
+    elif os.path.isdir(os.path.abspath(arg)):
+        return os.path.abspath(arg)
+    else:
+        parser.error('\nThe directory {} does not exist!'.format(arg))
 
 
 def parse_int_set(nputstr=""):

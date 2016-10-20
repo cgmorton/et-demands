@@ -2,7 +2,7 @@
 # Name:         build_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2016-09-09
+# Created       2016-09-14
 # Python:       2.7
 #--------------------------------
 
@@ -368,7 +368,7 @@ def arg_parse():
         '-i', '--ini', metavar='PATH',
         type=lambda x: util.is_valid_file(parser, x), help='Input file')
     parser.add_argument(
-        '--zone', default='county', metavar='STR', type=str,
+        '--zone', default='huc8', metavar='STR', type=str,
         choices=('huc8', 'huc10', 'county'),
         help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county'])))
     parser.add_argument(

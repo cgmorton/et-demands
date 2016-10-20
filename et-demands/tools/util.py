@@ -2,7 +2,7 @@
 # Name:         util.py
 # Purpose:      Utilitiy functions for ET-Demands tools
 # Author:       Charles Morton
-# Created       2015-12-08
+# Created       2016-09-14
 # Python:       2.7
 #--------------------------------
 
@@ -26,6 +26,7 @@ def get_path(workspace, title_str, file_types=[('INI files', '.ini')]):
     root.destroy()
     return path
 
+
 # def get_directory(workspace, title_str):
 #     """"""
 #      Tkinter, tkFileDialog
@@ -35,19 +36,25 @@ def get_path(workspace, title_str, file_types=[('INI files', '.ini')]):
 #     .destroy()
 #      user_ws
 
+
 def is_valid_file(parser, arg):
     """"""
-    if not os.path.isfile(arg):
-        parser.error('The file {} does not exist!'.format(arg))
-    else:
+    if os.path.isfile(arg):
         return arg
+    elif os.path.isfile(os.path.abspath(arg)):
+        return os.path.abspath(arg)
+    else:
+        parser.error('\nThe file {} does not exist!'.format(arg))
+
 
 def is_valid_directory(parser, arg):
     """"""
-    if not os.path.isdir(arg):
-        parser.error('The directory {} does not exist!'.format(arg))
-    else:
+    if os.path.isdir(arg):
         return arg
+    elif os.path.isdir(os.path.abspath(arg)):
+        return os.path.abspath(arg)
+    else:
+        parser.error('\nThe directory {} does not exist!'.format(arg))
 
 
 def valid_date(input_date):
