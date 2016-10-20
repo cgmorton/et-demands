@@ -98,16 +98,13 @@ The CDL raster is used to determine which crops will be simulated and the acreag
 
     > python ..\et-demands\prep\download_cdl_raster.py --cdl ..\common\cdl --years 2010
 
+If the download script doesn't work, please try downloading the `2010_30m_cdls.zip <ftp://ftp.nass.usda.gov/download/res/2010_30m_cdls.zip>`_ file directly from your browser or using a dedicated FTP program.
+
 Study Area
 ----------
 In order to prep the ET-Demands data, the user must provide a study area polygon shapefile with at least one feature.  Typically the features will be HUC 8 or 10 watersheds or counties.
 
 For the included example, the study area is a single HUC 8 watershed `12090105 <http://water.usgs.gov/lookup/getwatershed?12090105/www/cgi-bin/lookup/getwatershed>`_ in Texas.  The feature was extracted from the full `USGS Watershed Boundary Dataset <http://nhd.usgs.gov/wbd.html>`_ (WBD) geodatabase.  A subset of the WBD HUC polygons can downloaded using the `USDA Geospatial Data Gateway <https://gdg.sc.egov.usda.gov/>`_ or the full dataset can be downloaded using the `USGS FTP <ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/WBD/>`_.
-
-To use the example study area, make a "gis\\huc8" subfolder and then copy all of the files in the example study area shapefile from the github repository example folder. ::
-
-    > mkdir gis\huc8\
-    > copy ..\et-demands\example\huc8\wbdhu8_albers.* gis\huc8\
 
 The study area shapefile then needs to be projected to the CDL spatial reference, and converted to a raster that all of the other prep scripts will reference.  The following will buffer the study area extent by 300m.  The "cdl" parameter is needed to get the CDL spatial reference and grid size. ::
 
@@ -117,17 +114,13 @@ Weather Stations
 ----------------
 In order to generate the ET-Demands static input files, the user must provide a weather station point shapefile with at least one feature.  The shapefile must have columns/fields of the station ID, the corresponding zone ID, and the station latitude, longitude, and elevation (in feet).  Currently these fields must be named NLDAS_ID, [HUC8, HUC10, or COUNTYNAME], LAT, LON, and ELEV_FT respectively.  These fields are hard coded into the scripts, but they may eventually be set and modified using an INI file.
 
-To use the example study area, make a "gis\\stations" subfolder and then copy all of the files in the example station shapefile from the github repository example folder.  The example station is the centroid of a single 4km cell from the `University of Idaho Gridded Surface Meteorological Data <http://metdata.northwestknowledge.net/>`_ that is located in the study area. ::
-
-    > mkdir gis\stations\
-    > copy ..\et-demands\example\stations\nldas_4km_dd_pts.* gis\stations\
+The example station is the centroid of a single 4km cell from the `University of Idaho Gridded Surface Meteorological Data <http://metdata.northwestknowledge.net/>`_ that is located in the study area. ::
 
 Cropland Data Layer (CDL)
 -------------------------
 The CDL raster can then be clipped to the study area::
 
     > python ..\et-demands\prep\clip_cdl_raster.py --cdl ..\common\cdl --years 2010 --stats -o
-
 
 Mask the non-agricultural CDL pixels::
 
@@ -149,9 +142,11 @@ Mask the non-agricultural DEM pixels (based on CDL)::
 
 Soils
 -----
-The available water capacity (AWC) and percent clay, sand, and sil soils data cannot (currently) be directly downloaded.  The easiest way to obtain these soils data is to download the `STATSGO <http://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/geo/?cid=nrcs142p2_053629>`_ database for the target state(s) using the `USDA Geospatial Data Gateway <https://gdg.sc.egov.usda.gov/>`_.  Shapefiles of the soil properties can be extracted using the `NRCS Soil Data Viewer <http://www.nrcs.usda.gov/wps/portal/nrcs/detailfull/soils/home/?cid=nrcs142p2_053620>`_.  The `SSURGO <http://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/geo/?cid=nrcs142p2_053627>`_ databases can also be used, but these typically cover a smaller area and may have areas of missing data.  It may also be possible to used the gridded SSRUGO data, but this has not been tested.
+**For this example, the soils shapefiles have already been converted to raster and are in the example\\gis\\statsgo folder.  It is not necessary to run the "rasterize_soil_polygons.py script explained below.**
 
-Currently, for the example, it is assumed that you already have shapefiles of the soils data.  The names of the soil shapefiles are currently hard coded in the scripts as 'gsmsoilmu_a_us_%s_albers.shp' and the folders are hardcoded as 'gsmsoil_%s', with the four type options being: 'awc', 'clay', 'sand', or 'silt'.  (see folder structure section above)
+The available water capacity (AWC), percent clay, and percent sand data cannot (currently) be directly downloaded.  The easiest way to obtain these soils data is to download the `STATSGO <http://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/geo/?cid=nrcs142p2_053629>`_ database for the target state(s) using the `USDA Geospatial Data Gateway <https://gdg.sc.egov.usda.gov/>`_.  Shapefiles of the soil properties can be extracted using the `NRCS Soil Data Viewer <http://www.nrcs.usda.gov/wps/portal/nrcs/detailfull/soils/home/?cid=nrcs142p2_053620>`_.  The `SSURGO <http://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/geo/?cid=nrcs142p2_053627>`_ databases can also be used, but these typically cover a smaller area and may have areas of missing data.  It may also be possible to used the gridded SSRUGO data, but this has not been tested.
+
+To build the soils rasters, it is assumed that you already have shapefiles of the soils data downloaded in the common\\statsgo folder.  The names of the soil shapefiles are currently hard coded in the scripts as 'gsmsoilmu_a_us_%s_albers.shp' and the folders are hardcoded as 'gsmsoil_%s', with the four type options being: 'awc', 'clay', 'sand', or 'all'.  (see folder structure section above)
 
 Rasterize the soil shapefiles to match the CDL grid size and spatial reference::
 
