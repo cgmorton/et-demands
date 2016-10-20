@@ -4,4 +4,7 @@ __pycache__/
 *.bak
 
 docs/_build
-example
+et_volumes
+
+# Temporary microsoft files
+~$*
