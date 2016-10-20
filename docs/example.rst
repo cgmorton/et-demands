@@ -3,12 +3,12 @@ CropET Example
 
 Clone the repository
 --------------------
-If you already have a local copy of the et-demands repository, make sure to pull the latest version from GitHub.  If you don't already have a local repository, either clone the repository locally or download a zip file of the scripts from Github.  For this example, the repository will be cloned directly to the D: drive (i.e. D:\\et-demands).
+If you already have a local copy of the et-demands repository, make sure to pull the latest version from GitHub.  If you don't already have a local copy of the repository, either clone the repository locally or download a zip file of the scripts from Github.  For this example, the repository will be cloned directly to the D: drive (i.e. D:\\et-demands).
 
 Command prompt
 --------------
 
-All of the ET-Demands scripts should be run from the command prompt or terminal window.  In Windows, to open the command prompt, press the "windows" key and "r" or click the "Start" button, "Accessories", and then "Command Prompt".  
+All of the ET-Demands scripts should be run from the command prompt or terminal window.  In Windows, to open the command prompt, press the "windows" key and "r" or click the "Start" button, "Accessories", and then "Command Prompt".
 
 Within the command prompt or terminal, change to the target drive if necessary::
 
@@ -82,12 +82,16 @@ You may need to build the common folder if it doesn't exist::
 
 Building the Example
 --------------------
-For this example, all scripts and tools will be executed from the "example" folder.
+**For this example, all scripts and tools will be executed from the "example" folder.**
 
 Build the example folder if it doesn't exist::
 
     > mkdir example
-    
+
+Change directory into the example folder::
+
+    > cd example
+
 Cropland Data Layer (CDL)
 -------------------------
 The CDL raster is used to determine which crops will be simulated and the acreage of each crop.  The CDL raster is also used as the "snap raster" or reference raster for all subsequent operations.  If you don't already have a CONUS CDL raster, it can be downloaded from the `USDA FTP <ftp://ftp.nass.usda.gov/download/res>`_, or using the provided CDL download script.  Set the "cdl" parameter to the "common\\cdl" subfolder and set the "year" parameter. ::
