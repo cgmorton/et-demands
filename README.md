@@ -48,7 +48,9 @@ Plots of the ET, ETo, Kc, growing season, irrigation, precipitation, and NIWR ca
 ## Dependencies
 The ET-Demands tools have only been tested using Python 2.7 but they may work with Python 3.X.
 
-The easiest way to install the following modules is to use [Anaconda](https://www.continuum.io/downloads).
+Please see the requirements.txt file for details on the versioning requirements.  Older versions of the modules may work but have not been extensively tested.
+
+#### CropET
 + [NumPy](http://www.numpy.org)
 + [Pandas](http://pandas.pydata.org)
 
@@ -70,3 +72,69 @@ The following modules are only needed if making summary maps (tools/plot_crop_su
 + [Fiona](https://github.com/Toblerity/Fiona)
 + [Descartes](https://bitbucket.org/sgillies/descartes)
 + [Shapely](https://github.com/Toblerity/Shapely)
+
+## Anaconda
+
+The easiest way to install the required external Python modules is to use [Anaconda](https://www.continuum.io/downloads)
+
+It is important to double check that you are calling the Anaconda version, especially if you have two or more version of Python installed (e.g. Anaconda and ArcGIS).
+
++ Windows: "where python"
++ Linux/Mac: "which python"
+
+#### ArcPy (Windows only)
+
+ArcPy is only needed for two of the prep scripts, which will eventually be modified to use GDAL instead. Until the ArcPy dependency is removed, it is important to install a version of Anaconda that will work with ArcGIS/ArcPy.  If you have the standard 32-bit version of ArcGIS installed, make sure to download the 32-bit Python 2.7 version of Anaconda.  You should install the 64-bit Python 2.7 version of Anaconda if you have installed the ArcGIS 64-bit background geoprocessing add-on.
+
+To access the ArcPy modules from Anaconda, it is necessary to copy the following file from the ArcGIS Python site-packages folder into the Anaconda site-packages folder. (the paths and file names may be slightly different depending on your installation of ArcGIS and Anaconda)
+
+From:
++ (*32-bit*) C:\Python27\ArcGIS10.3\Lib\site-packages\Desktop10.3.pth
++ (*64-bit*) C:\Python27\ArcGISx6410.3\Lib\site-packages\DTBGGP64.pth
+
+To:
++ C:\Anaconda2\Lib\site-packages
+
+ArcPy can be imported if no errors are returned by the following command:
+```
+> python -c "import arcpy"
+```
+
+#### Conda Forge
+
+After installing Anaconda, add the [conda-forge](https://conda-forge.github.io/) channel by entering the following in the command prompt or terminal:
+```
+> conda config --add channels conda-forge
+```
+
+#### Installing Modules
+
+External modules can installed all at once (this is the preferred approach):
+```
+> conda install numpy scipy pandas gdal bokeh
+```
+
+or one at a time:
+```
+> conda install numpy
+> conda install pandas
+> conda install bokeh
+```
+
+#### GDAL_DATA
+
+After installing GDAL, you may need to manually set the GDAL_DATA user environmental variable.
+
+###### Windows
+You can check the current value of the variable by typing the following in the command prompt:
+```
+echo %GDAL_DATA%
+```
+If GDAL_DATA is set, this will return a folder path (something similar to C:\Anaconda2\Library\share\gdal)
+
+If GDAL_DATA is not set, type the following in the command prompt (note, your path may vary):
+```
+> setx GDAL_DATA "C:\Anaconda2\Library\share\gdal"
+```
+
+The GDAL_DATA environment variable can also be set through the Windows Control Panel (System -> Advanced system settings -> Environment Variables).
