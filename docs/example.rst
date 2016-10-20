@@ -142,7 +142,7 @@ Mask the non-agricultural DEM pixels (based on CDL)::
 
 Soils
 -----
-**For this example, the soils shapefiles have already been converted to raster and are in the example\\gis\\statsgo folder.  It is not necessary to run the "rasterize_soil_polygons.py script explained below.**
+**For this example, the soils shapefiles have already been converted to raster and are located in the example\\gis\\statsgo folder.  It is not necessary to run the "rasterize_soil_polygons.py step below.**
 
 The available water capacity (AWC), percent clay, and percent sand data cannot (currently) be directly downloaded.  The easiest way to obtain these soils data is to download the `STATSGO <http://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/geo/?cid=nrcs142p2_053629>`_ database for the target state(s) using the `USDA Geospatial Data Gateway <https://gdg.sc.egov.usda.gov/>`_.  Shapefiles of the soil properties can be extracted using the `NRCS Soil Data Viewer <http://www.nrcs.usda.gov/wps/portal/nrcs/detailfull/soils/home/?cid=nrcs142p2_053620>`_.  The `SSURGO <http://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/geo/?cid=nrcs142p2_053627>`_ databases can also be used, but these typically cover a smaller area and may have areas of missing data.  It may also be possible to used the gridded SSRUGO data, but this has not been tested.
 
