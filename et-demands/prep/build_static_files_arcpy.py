@@ -291,7 +291,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                 logging.debug(
                     ('    Cell_ID {} was not found in the ' +
                      'station data').format(cell_id))
-                station_id, lat, lon, elev = '', '', '', ''
+                station_id, station_lat, station_lon, station_elev = '', '', '', ''
             # There is an extra/unused column in the template and excel files
             output_list = [
                 cell_id, cell_data[cell_name_field],
@@ -352,7 +352,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                 logging.debug(
                     ('    Cell_ID {} was not found in the ' +
                      'station data').format(cell_id))
-                # station_id, lat, lon, elev = '', '', '', ''
+                # station_id, station_lat, station_lon, station_elev = '', '', '', ''
                 continue
             output_list = [station_id, ''] + [1.0] * 12
             output_f.write('\t'.join(map(str, output_list)) + '\n')

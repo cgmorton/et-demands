@@ -22,7 +22,7 @@ Folder Structure
 ----------------
 The ET-Demands scripts and tools are assuming that the user will use a folder structure similar to the one below.  The exact folder paths can generally be adjusted by either changing the INI file or explicitly setting the folder using the script command line arguments.  Most of the GIS sub-folders can be built and populated using the "prep" scripts. ::
 
-    Project
+    et-demands
     |
     +---common
     |   +---cdl
@@ -38,10 +38,8 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
     |       |       gsmsoilmu_a_us_awc_albers.shp
     |       +---gsmsoil_clay
     |       |       gsmsoilmu_a_us_clay_albers.shp
-    |       +---gsmsoil_sand
-    |       |       gsmsoilmu_a_us_sand_albers.shp
-    |       \---gsmsoil_silt
-    |               gsmsoilmu_a_us_silt_albers.shp
+    |       \---gsmsoil_sand
+    |               gsmsoilmu_a_us_sand_albers.shp
     |
     +---et-demands
     |   +---cropET
@@ -53,6 +51,7 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
     |   |      CropParams.txt
     |   |      ETCellsCrops.txt
     |   |      ETCellsProperties.txt
+    |   |      EToRatiosMon.txt
     |   |      MeanCuttings.txt
     |   |      TemplateMetAndDepletionNodes.xlsx
     |   \---tools
@@ -64,9 +63,14 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
         +---daily_plots
         +---daily_stats
         +---gis
+        |   +---cdl
         |   +---dem
         |   +---huc8
         |   |       wbdhu8_albers.shp
+        |   +---soils
+        |   |       awc_30m_albers.img
+        |   |       clay_30m_albers.img
+        |   |       sand_30m_albers.img
         |   \---stations
         |           nldas_4km_dd_pts.shp
         +---monthly_stats

@@ -3,9 +3,12 @@ __pycache__/
 *.py[cod]
 *.bak
 
+# Temporary microsoft files
+~$*
+
 common
 docs/_build
 et_volumes
-
-# Temporary microsoft files
-~$*
+example/*_plots*
+example/*_stats
+example/static
