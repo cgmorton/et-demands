@@ -42,10 +42,13 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
     |               gsmsoilmu_a_us_sand_albers.shp
     |
     +---et-demands
+    |   +---areaET
+    |   |   \---bin
     |   +---cropET
     |   |   \---bin
     |   +---prep
     |   +---refET
+    |   |   \---bin
     |   +---static
     |   |      CropCoefs.txt
     |   |      CropParams.txt

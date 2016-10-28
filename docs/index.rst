@@ -16,10 +16,14 @@ Table of Contents:
    prep
    static
    spatial
-   run_basin
+   run_ret
+   run_cet
+   run_aet
    tools
    
+   refet
    cropet
+   areaet
 
 Indices and tables
 ==================
@@ -28,3 +32,7 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+User Manual
+===========
+
+:download:'User Manual<../PythonETApplications.pdf>'
