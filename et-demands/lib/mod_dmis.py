@@ -179,10 +179,8 @@ def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead,
         if input_df.empty:
             logging.error("No data read in file" + file_path)
             return return_df
-        # print 'input data before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         input_columns = list(input_df.columns)
         lc_columns = [x.lower() for x in input_columns]
-        # print "lower case input columns are", lc_columns
         
         # determine date column
 
@@ -193,17 +191,14 @@ def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead,
         date_column_name = input_columns[date_column]
         input_columns.remove(date_column_name)
         lc_columns.remove(date_column_name.lower())
-        # print "lc columns without date are", lc_columns
             
         # set date column as index
 
-        # print input_df[date_column_name].head(2)
         input_df = input_df.rename(columns = {date_column_name:'date'})
         
         # make sure that daily, monthly and annual data use end of period dates and do not include a time stamp
         
         input_df['date'] = pd.to_datetime(input_df['date'])
-        # print 'input data after date conversion\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         input_df.set_index('date', inplace = True)
         if time_step == 'day' or time_step == 'month' or time_step == 'year':
             input_df['year'] = input_df.index.year
@@ -221,8 +216,6 @@ def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead,
                 lambda s : datetime.datetime(*s),axis = 1)
             input_df['date'] = pd.to_datetime(input_df['date'])
             input_df.set_index('date', inplace = True)
-        # print "adjusted index\n", input_df.index
-        # print 'input data after date indexing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         
         # verify period
         
@@ -232,15 +225,12 @@ def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead,
         if end_dt is None: 
             pydt = input_df.index[len(input_df) - 1]
             end_dt = pd.to_datetime(datetime.datetime(pydt.year, pydt.month, pydt.day, pydt.hour, pydt.minute))
-        # print "Final start_dt is", start_dt, "Final end_dt is", end_dt
                 
-        # print "dmi start_dt is", start_dt, "dmi end_dt is", end_dt
         try:
             input_df = input_df.truncate(before = start_dt, after = end_dt)
         except:
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred truncating input data')
             return return_df
-        # print 'all input data after truncation\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         if len(input_df.index) < 1:
            input_df = ModDmis.make_ts_dataframe(time_step, ts_quantity, start_dt, 
                        end_dt, wyem)
@@ -256,14 +246,11 @@ def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead,
         notFound = True
         for column, input_column in enumerate(lc_columns):
             if lc_station in input_column and lc_param in input_column:
-                # print "matched ", input_column, "to ", lc_station, lc_param, "with column number", column
                 notFound = False
                 break
-        # print "rocs values column number is", column
         if notFound:
             logging.error("Unable to locate station " + stationToRead + " and parameter " + parameterToRead + " in file " + file_path + ".")
             return return_df
-        # print "rocs column name is", lc_columns[column], input_columns[column], "for column", column, stationToRead, parameterToRead
             
         # merge values
         
@@ -275,15 +262,12 @@ def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead,
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred merging input data with return dataframe.\n')
             # raise
             return return_df
-        # print 'Merged data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         del input_df, full_index
         return_df = return_df.rename(columns = {column_name:parameterToRead})
-        # print 'Renamed data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         
         # scale values
 
         return_df[parameterToRead] *= scaleFactor
-        # print 'Returned data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reading column slot data from file\n' + file_path)
@@ -326,14 +310,12 @@ def ReadOneTextRDB(file_path, header_lines, names_line, stationToRead,
             if input_df.empty:
                 logging.error("No data read in file" + file_path)
                 return return_df
-            # print 'all input data before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
             sta_column_name = "Station"
             param_column_name = "Parameter"
             date_column_name = "Date"
             values_column_name = "Value"
             input_columns = ['Station', 'Parameter', 'Date', 'Value']
             input_df.columns = input_columns
-            # print "default columns are", input_df.columns
         else:
             # dynamic column names and location
             
@@ -345,10 +327,8 @@ def ReadOneTextRDB(file_path, header_lines, names_line, stationToRead,
             if input_df.empty:
                 logging.error("No data read in file" + file_path)
                 return return_df
-            # print 'all input data before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
             input_columns = list(input_df.columns)
             lc_columns = [x.lower() for x in input_columns]
-            # print "lower case input columns are", lc_columns
         
             # determine column types
 
@@ -381,15 +361,12 @@ def ReadOneTextRDB(file_path, header_lines, names_line, stationToRead,
         
         # create new column of lower case station and parameter
         
-        # print 'all input data before sta_param column\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         try:
             input_df["sta_param"] = (input_df[sta_column_name].map(str) + "." 
                                       + input_df[param_column_name].map(str)).str.lower()
         except:
-            # print '\n  ERROR: ', sys.exc_info()[0], 'occurred creating sta_param column.\n'
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred creating sta_param column.\n')
             return return_df
-        # print 'all input data with sta_param column\n', input_df.head(2), '\n', input_df.tail(2), '\n'
     
         # locate requested station and parameter
 
@@ -397,36 +374,28 @@ def ReadOneTextRDB(file_path, header_lines, names_line, stationToRead,
         notFound = True
         for sta_param in sta_params:
             if lc_station in sta_param and lc_param in sta_param:
-                # print "Found ", lc_station, lc_param, "in list of stations."
                 notFound = False
                 break
         if notFound:
             logging.error("Unable to locate station " + stationToRead + " and parameter " + parameterToRead + " in file " + file_path + ".")
             return return_df
-        # print "sta_param name is", sta_param, "for", stationToRead, parameterToRead
     
         # filter data to requested station and parameter values
         
-        # print 'all input data before station and parameter filtering\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         try:
             input_df = input_df[input_df.sta_param == sta_param]
         except:
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred filtering to ', sta_param, '.\n')
-            print '\n  ERROR: ', sys.exc_info()[0], 'occurred filtering to', sta_param, '\n'
             return return_df
 
         # set date column as index
 
-        # print 'all input data before date indexing and truncation\n', input_df.head(2), '\n', input_df.tail(2), '\n'
-        # print "date column name is", date_column_name
-        # print input_df[date_column_name].head(2)
         input_df = input_df.rename(columns = {date_column_name:'date'})
         if time_step == 'year' and len(str(input_df['date'][0])) == 4:
             input_df['date'] = pd.to_datetime(input_df['date'], format = '%Y')
         else:
             input_df['date'] = pd.to_datetime(input_df['date'])
         input_df.set_index('date', inplace = True)
-        # print 'all input data after date indexing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         
         # set starting and ending dates
         
@@ -436,13 +405,11 @@ def ReadOneTextRDB(file_path, header_lines, names_line, stationToRead,
         if end_dt is None: 
             pydt = input_df.index[len(input_df) - 1]
             end_dt = pd.to_datetime(datetime.datetime(pydt.year, pydt.month, pydt.day, pydt.hour, pydt.minute))
-        # print "dmi start_dt is", start_dt, "dmi end_dt is", end_dt
         try:
             input_df = input_df.truncate(before = start_dt, after = end_dt)
         except:
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred truncating input data')
             return return_df
-        # print 'all input data after truncation\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         
         # adjust for missing rows
         
@@ -456,19 +423,15 @@ def ReadOneTextRDB(file_path, header_lines, names_line, stationToRead,
             return_df = pd.merge(make_ts_dataframe(time_step, ts_quantity, start_dt, end_dt), 
                     input_df[[values_column_name]], left_index = True, right_index = True)
         except:
-            # print '\n  ERROR: ', sys.exc_info()[0], 'occurred merging input data with return dataframe.\n'
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred merging input data with return dataframe.\n')
             # raise
             return return_df
-        # print 'Merged data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         del input_df, full_index
         return_df = return_df.rename(columns = {values_column_name:parameterToRead})
-        # print 'Renamed data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         
         # scale values
 
         return_df[parameterToRead] *= scaleFactor
-        # print 'Returned data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reading RDB data from file\n' + file_path)
@@ -533,10 +496,8 @@ def ReadOneExcelColumn(file_path, ws_name, header_lines, names_line, stationToRe
         input_df.set_index('Date', inplace = True)
         input_df.drop(['year', 'month', 'day', 'hour', 'minute'], axis = 1, inplace = True)
 
-        # print 'all input data before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         input_columns = list(input_df.columns)
         lc_columns = [x.lower() for x in input_columns]
-        # print "lc columns are", lc_columns
         
         # set starting and ending dates
 
@@ -560,27 +521,22 @@ def ReadOneExcelColumn(file_path, ws_name, header_lines, names_line, stationToRe
         else:
             if time_step == 'day' or time_step == 'month' or time_step == 'year':
                 end_dt = pd.to_datetime(datetime.datetime(end_dt.year, end_dt.month, end_dt.day, 23, 59))
-        # print "dmi start_dt is", start_dt, "dmi end_dt is", end_dt
         try:
             input_df = input_df.truncate(before = start_dt, after = end_dt)
         except:
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred truncating input data')
             return return_df
-        # print 'all input data after truncation\n', input_df.head(2), '\n', input_df.tail(2), '\n'
     
         # determine values column
 
         notFound = True
         for column, input_column in enumerate(lc_columns):
             if lc_station in input_column and lc_param in input_column:
-                # print "matched ", input_column, "to ", lc_station, lc_param, "with column number", column
                 notFound = False
                 break
-        # print "rox values column number is", column
         if notFound:
             logging.error("Unable to locate station " + stationToRead + " and parameter " + parameterToRead + " in file " + file_path + ".")
             return return_df
-        # print "rox column name is", lc_columns[column], input_columns[column], "for column", column, stationToRead, parameterToRead
         
         # adjust for missing rows
         
@@ -595,19 +551,15 @@ def ReadOneExcelColumn(file_path, ws_name, header_lines, names_line, stationToRe
             return_df = pd.merge(make_ts_dataframe(time_step, ts_quantity, start_dt, end_dt), 
                     input_df[[column_name]], left_index=True, right_index=True)
         except:
-            # print '\n  ERROR: ', sys.exc_info()[0], 'occurred merging input data with return dataframe.\n'
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred merging input data with return dataframe.\n')
             # raise
             return return_df
-        # print 'Merged data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         del input_df, full_index
         return_df = return_df.rename(columns = {column_name:parameterToRead})
-        # print 'Renamed data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         
         # scale values
 
         return_df[parameterToRead] *= scaleFactor
-        # print 'Returned data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reading data from workbook')
@@ -644,10 +596,8 @@ def ColumnSlotToDataframe(file_path, header_lines, names_line,
         if input_df.empty:
             logging.error("No data read in file" + file_path)
             return return_df
-        # print 'all input data before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         input_columns = list(input_df.columns)
         lc_columns = [x.lower() for x in input_columns]
-        # print "lower case input columns are", lc_columns
         
         # determine date column
 
@@ -656,13 +606,11 @@ def ColumnSlotToDataframe(file_path, header_lines, names_line,
         except:
             date_column = 0
         date_column_name = input_columns[date_column]
-        # print "setting dcn to", date_column_name
         input_df = input_df.rename(columns = {date_column_name:'date'})
         
         # make sure that daily, monthly and annual data use end of period dates and do not include a time stamp
         
         input_df['date'] = pd.to_datetime(input_df['date'])
-        # print 'input data after date conversion\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         input_df.set_index('date', inplace = True)
         if time_step == 'day' or time_step == 'month' or time_step == 'year':
             input_df['year'] = input_df.index.year
@@ -680,8 +628,6 @@ def ColumnSlotToDataframe(file_path, header_lines, names_line,
                 lambda s : datetime.datetime(*s),axis = 1)
             input_df['date'] = pd.to_datetime(input_df['date'])
             input_df.set_index('date', inplace = True)
-        # print "adjusted index\n", input_df.index
-        # print 'input data after date indexing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         
         # verify period
         
@@ -691,9 +637,7 @@ def ColumnSlotToDataframe(file_path, header_lines, names_line,
         if end_dt is None: 
             pydt = input_df.index[len(input_df) - 1]
             end_dt = pd.to_datetime(datetime.datetime(pydt.year, pydt.month, pydt.day, pydt.hour, pydt.minute))
-        # print "Final start_dt is", start_dt, "Final end_dt is", end_dt
 
-        # print 'all input data before truncation\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         try:
             input_df = input_df.truncate(before = start_dt, after = end_dt)
         except:
@@ -702,7 +646,6 @@ def ColumnSlotToDataframe(file_path, header_lines, names_line,
         if len(input_df.index) < 1:
            input_df = ModDmis.make_ts_dataframe(time_step, ts_quantity, start_dt, 
                        end_dt, wyem)
-        # print 'all input data after truncation\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         
         # adjust for missing rows
         
@@ -712,7 +655,6 @@ def ColumnSlotToDataframe(file_path, header_lines, names_line,
         # return_df = input_df.reindex(index = full_index, fill_value = mia_value)
         return_df = input_df.reindex(index = full_index)
         del input_df, full_index
-        # print 'return data\n', return_df.head(2), '\n', return_df.tail(2)
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reading column slot data from\n' + file_path)
@@ -749,14 +691,12 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
             if input_df.empty:
                 logging.error("No data read in file" + file_path)
                 return return_df
-            # print 'all input data before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
             sta_column_name = "Station"
             param_column_name = "Parameter"
             date_column_name = "Date"
             values_column_name = "Value"
             input_columns = ['Station', 'Parameter', 'Date', 'Value']
             input_df.columns = input_columns
-            # print "default columns are", input_df.columns
         else:
             # dynamic column names and location
             
@@ -768,10 +708,8 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
             if input_df.empty:
                 logging.error("No data read in file" + file_path)
                 return return_df
-            # print 'all input data before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
             input_columns = list(input_df.columns)
             lc_columns = [x.lower() for x in input_columns]
-            # print "lower case input columns are", lc_columns
         
             # determine column types
 
@@ -804,15 +742,12 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
         
         # create new column of station and parameter
         
-        # print 'all input data before sta_param column\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         try:
             input_df["sta_param"] = input_df[sta_column_name].map(str) \
                                       + "." + input_df[param_column_name].map(str)
         except:
-            # print '\n  ERROR: ', sys.exc_info()[0], 'occurred creating sta_param column.\n'
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred creating sta_param column.\n')
             return return_df
-        # print 'all input data with sta_param column\n', input_df.head(2), '\n', input_df.tail(2), '\n'
     
         # set starting and ending dates
 
@@ -821,7 +756,6 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
             input_df['date'] = pd.to_datetime(input_df['date'], format = '%Y')
         else:
             input_df['date'] = pd.to_datetime(input_df['date'])
-        # print 'all input data with date column\n', input_df.head(2), '\n', input_df.tail(2)
         pysdt = input_df['date'][0]
         pyedt = input_df['date'][len(input_df) - 1]
         if time_step == 'year':
@@ -847,10 +781,8 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
         # parse sta_param column into output dataframe
 
         sta_params = list(pd.unique(input_df.sta_param.ravel()))
-        # print "sta_params are", sta_params
         notFound = True
         for sta_param in sta_params:
-            # print "processing", sta_param
             try:
                 # temp_df = make_ts_dataframe(time_step, ts_quantity, sdt, edt)
                 temp_df = input_df[input_df.sta_param == sta_param]
@@ -859,11 +791,8 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
                 # return_df = pd.merge(return_df, temp_df[[sta_param]], left_index = True, right_index = True)
             except:
                 logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred filtering to ', sta_param, '.\n')
-                print '\n  ERROR: ', sys.exc_info()[0], 'occurred filtering to', sta_param, '\n'
                 sys.exit()
         del input_df
-        # print 'return df before date trunction has', len(return_df.columns), 'columns which are', return_df.columns
-        # print 'return df before date truncation\n', return_df.head(2), '\n', return_df.tail(2), '\n'
     
         # set starting and ending dates and truncate final dataframe
 
@@ -871,15 +800,12 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
             start_dt = return_df.index[0]
         if end_dt is None: 
             end_dt = return_df.index[len(return_df) - 1]
-        # print "dmi start_dt is", start_dt, "dmi end_dt is", end_dt
         try:
             input_df = return_df.truncate(before = start_dt, after = end_dt)
         except:
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred truncating input data')
             return_df = None
             return return_df
-        # print 'input df after date trunction has', len(input_df.columns), 'columns which are', input_df.columns
-        # print 'input df after date truncation\n', input_df.head(2), '\n', input_df.tail(2), '\n'
         
         # adjust for missing rows
 
@@ -887,7 +813,6 @@ def TextRDBToDataframe(file_path, header_lines, names_line,
         full_index = full_index + pd.Timedelta(full_index[0] - input_df.index[0])
         return_df = input_df.reindex(index = full_index)
         del input_df, full_index
-        # print 'return data\n', return_df.head(2), '\n', return_df.tail(2)
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reading RDB data from\n' + file_path)
@@ -923,12 +848,10 @@ def ExcelWorksheetToDataframe(file_path, ws_name, header_lines, names_line,
         if input_df.empty:
             logging.error("No data read in file" + file_path)
             return return_df
-        # print 'Input data df before processing\n', input_df.head(2), '\n', input_df.tail(2), '\n'
 
         # deal with excess rows at bottom that show up as NaT dates
 
         input_df = input_df[pd.notnull(input_df.index)]
-        # print "Input data df after NaT's\n", input_df.head(2), '\n', input_df.tail(2), '\n'
             
         # Deal with possible exitence of 23:59 hour:minute in workbook dates from RiverWare dates
             
@@ -946,7 +869,6 @@ def ExcelWorksheetToDataframe(file_path, ws_name, header_lines, names_line,
         input_df.reset_index('date', inplace = True, drop = True)
         input_df.set_index('Date', inplace = True)
         input_df.drop(['year', 'month', 'day', 'hour', 'minute'], axis = 1, inplace = True)
-        # print "Input data df after dt's check\n", input_df.head(2), '\n', input_df.tail(2)
         
         # set starting and ending dates
 
@@ -971,13 +893,11 @@ def ExcelWorksheetToDataframe(file_path, ws_name, header_lines, names_line,
             if time_step == 'day' or time_step == 'month' or time_step == 'year':
                 edt = datetime.datetime(end_dt.year, end_dt.month, end_dt.day, 23, 59)
                 end_dt = pd.to_datetime(edt)
-        # print "dmi start_dt is", start_dt, "dmi end_dt is", end_dt
         try:
             input_df = input_df.truncate(before = start_dt, after = end_dt)
         except:
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred truncating input data')
             return return_df
-        # print "Input data df after truncation\n", input_df.head(2), '\n', input_df.tail(2)
         
         # adjust for missing rows
         
@@ -987,7 +907,6 @@ def ExcelWorksheetToDataframe(file_path, ws_name, header_lines, names_line,
         # return_df = input_df.reindex(index = full_index, fill_value = mia_value)
         return_df = input_df.reindex(index = full_index)
         del input_df, full_index
-        # print 'Return dataframe\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reading data from workbook')
@@ -1011,7 +930,6 @@ def ReduceDataframeToParameter(input_df, parameterToUse):
         for sta_param in input_columns:
             if lc_param not in sta_param.lower():
                 return_df.drop(sta_param, axis = 1, inplace = True)
-        # print 'Parameter reduced data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reducing to ' + parameterToUse)
@@ -1041,21 +959,17 @@ def ReadOneDataframeColumn(input_df, stationToRead, parameterToRead, units,
     try:
         input_columns = list(input_df.columns)
         lc_columns = [x.lower() for x in input_columns]
-        # print "lower case input columns are", lc_columns
     
         # determine values column
 
         notFound = True
         for column, input_column in enumerate(lc_columns):
             if lc_station in input_column and lc_param in input_column:
-                # print "matched ", input_column, "to ", lc_station, lc_param, "with column number", column
                 notFound = False
                 break
-        # print "rodfc values column number is", column
         if notFound:
             logging.error("Unable to locate station " + stationToRead + " and parameter " + parameterToRead + " in dataframe.")
             return return_df
-        # print "rodfc column name is", lc_columns[column], input_columns[column], "for column", column, stationToRead, parameterToRead
         column_name = input_columns[column]
             
         # merge values
@@ -1063,25 +977,16 @@ def ReadOneDataframeColumn(input_df, stationToRead, parameterToRead, units,
         try:
             return_df = make_ts_dataframe(time_step, ts_quantity, start_dt, end_dt)
             return_df[column_name] = input_df[column_name].values
-            """
-            # previous code broke with annual time step and water years
-            return_df = pd.merge(make_ts_dataframe(time_step, ts_quantity, start_dt, end_dt), 
-                    input_df[[column_name]], left_index = True, right_index = True)
-            """
         except:
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred merging input data with return dataframe.\n')
-            print '\n  ERROR: ', sys.exc_info()[0], 'occurred merging input data with return dataframe.\n'
             # raise
             return return_df
-        # print 'Merged data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         del input_df
         return_df = return_df.rename(columns = {column_name:parameterToRead})
-        # print 'Renamed data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         
         # scale values
 
         return_df[parameterToRead] *= scaleFactor
-        # print 'Returned data frame\n', return_df.head(2), '\n', return_df.tail(2), '\n'
         return return_df
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + ' Error occurred reading column data from dataframe')
@@ -1156,13 +1061,11 @@ def rdb_output_by_df_nodate_formatting(file_path,
             else:
                 station = sta
                 param = 'NaN'
-            # print "processing station", station, "and parameter", param
             column_df = pd.DataFrame(columns = ['Station', 'Parameter', 'Date', 'Value'])
             column_df['Date'] = dates
             column_df['Value'] = new_data_df[sta].values
             column_df['Station'] = station
             column_df['Parameter'] = param
-            # print column_df.head(2), column_df.tail(2)
             output_dict[sta] = column_df
             del column_df
 
@@ -1198,13 +1101,11 @@ def rdb_output_by_dataframe(file_path, delimiter,
     logging.debug('  Posting specified data to a text rdb')
     dates_dti = pd.to_datetime(new_data_df.index)
     dates = dates_dti.strftime(date_format)
-    # print "Formatted dates\n", dates
     try:
         # create dictionary of rdb dataframes
             
         stas = list(new_data_df.columns)
         for staCount, sta in enumerate(stas):
-            # print "Processing", staCount, sta
             if '.' in sta:
                 split_values = sta.split(".")
                 station = split_values[0]
@@ -1212,13 +1113,11 @@ def rdb_output_by_dataframe(file_path, delimiter,
             else:
                 station = sta
                 param = 'NaN'
-            # print "processing station", station, "and parameter", param
             column_df = pd.DataFrame(columns = ['Station', 'Parameter', 'Date', 'Value'])
             column_df['Date'] = dates
             column_df['Value'] = new_data_df[sta].values
             column_df['Station'] = station
             column_df['Parameter'] = param
-            # print column_df.head(2), column_df.tail(2)
             if float_format is None:
                 if staCount == 0:
                     column_df.to_csv(path_or_buf = file_path, sep = delimiter, 
@@ -1269,7 +1168,6 @@ def wb_output_by_df_ew(wb_path, ws_name, new_data_df,
             temp_df = new_data_df.copy().reset_index()
             temp_df.to_excel(wb_writer, ws_name, index = False, 
                     float_format = float_format, na_rep = mia_value)
-            # print "temp_df\n", temp_df.head(1)
             del temp_df
         else:
             new_data_df.to_excel(wb_writer, ws_name, index = False, 
@@ -1335,7 +1233,6 @@ def wb_output_by_df_xlsxwriter(wb_writer, wb, ws_name, new_data_df,
             temp_df = new_data_df.copy().reset_index()
             temp_df.to_excel(wb_writer, ws_name, index = False, 
                     float_format = float_format, na_rep = mia_value)
-            # print "temp_df\n", temp_df.head(1)
             del temp_df
         else:
             new_data_df.to_excel(wb_writer, ws_name, index = False, 
@@ -1362,7 +1259,6 @@ def wb_output_by_df_xlsxwriter(wb_writer, wb, ws_name, new_data_df,
         else:
             ws.set_column(0, 0, 12)
             ws.set_column(1, len(new_data_df.columns), 12)
-        # print "new_data_df.columns", new_data_df.columns
         for column, column_name in enumerate(list(new_data_df.columns)):
             if date_is_posted:
                 ws.write_string(0, column + 1, column_name, header_format)
@@ -1438,7 +1334,6 @@ def wb_output_via_df_dict_xlsxwriter(wb_path, ws_names, new_data_dict,
         if os.path.isfile(wb_path):
             # workbook exists - copy and write to an ExcelWriter object
         
-            # print "copying existing data from", wb_path
             # existing_sheets_dict = pd.read_excel(wb_path, sheetname = None, na_values = ['NaN'])
             existing_sheets_dict = pd.read_excel(wb_path, sheetname = None, na_values = mia_value)
             header_format = wb.add_format()
@@ -1449,7 +1344,6 @@ def wb_output_via_df_dict_xlsxwriter(wb_path, ws_names, new_data_dict,
 
             for sn, existing_df in existing_sheets_dict.items():
                 # check if a time series worksheet
-                # print "processing sn", sn
         
                 existing_columns = list(existing_df.columns)
                 existing_lc_cols = [x.lower() for x in existing_columns]
@@ -1507,7 +1401,6 @@ def wb_output_via_df_dict_xlsxwriter(wb_path, ws_names, new_data_dict,
                             existing_df = pd.merge(new_data_df, existing_df, left_index = True, right_index = True)
                         except:
                             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred merging new data with existing data.\n')
-                            print '\nERROR: ', sys.exc_info()[0], 'occurred merging new data with existing data.\n'
                             return False
                         """
                         # brut force merging approach
@@ -1574,12 +1467,9 @@ def wb_output_via_df_dict_xlsxwriter(wb_path, ws_names, new_data_dict,
                             ws.write_string(0, column, column_name, header_format)
             del existing_sheets_dict
         if len(new_data_dict.keys()) > 0:
-            # print "adding new content"
             field_count = -1
             for field_name, new_data_df in new_data_dict.items():
                 field_count += 1
-                # print "posting", field_name, "to worksheet", ws_names[field_count]
-                # print "new_data_df\n", new_data_df.head(2)
                 if not wb_output_by_df_xlsxwriter(wb_writer, wb, 
                         ws_names[field_count], new_data_df, float_format, 
                         date_is_posted, time_freq, mia_value):
@@ -1634,9 +1524,6 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
     try:
         logging.debug('Reading existing content of workbook\n' + wb_path)
         time_freq = get_ts_freq(time_step, ts_quantity, wyem)
-        # print "frequency", time_freq
-        # print "workbook, "to\n", wb_path
-        # print "worksheets", ws_names
         if not os.path.isfile(wb_path):
             # workbook does not exist - create an empty one
 
@@ -1648,40 +1535,28 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
             
         # open one copy of workbook for reading and one for writing
         
-        # print "reading existing content of\n", wb_path
-        # existing_wb = op.load_workbook(wb_path, data_only = True)
-        # existing_wb = op.load_workbook(wb_path, data_only = True, read_only = True)
-        # existing_wb = op.load_workbook(wb_path, data_only = True, keep_vba = True)
-        # existing_wb = op.load_workbook(wb_path, data_only = True, guess_types = True)
         existing_wb = op.load_workbook(wb_path, data_only = True)
-        # print "parsing worksheets"
         existing_sheets = existing_wb.sheetnames
-        # print "all existing_sheets\n", existing_sheets
         for ws_name in existing_sheets:
             if not ws_name in ws_names:
                 existing_wb.remove_sheet(existing_wb[ws_name])
         existing_sheets = existing_wb.sheetnames
-        # print "reduced existing_sheets\n", existing_sheets
         wb = op.load_workbook(wb_path)
-        # print "existing_sheets via openpyxl load_workbook\n", wb.sheetnames
         
         # loop thru list of worksheets to post
         
         for ws_name in ws_names:
             # set up worksheet
             
-            # print "processing new data on ws", ws_name
             if ws_name in existing_sheets:
                 wb.remove_sheet(wb[ws_name])
             ws = wb.create_sheet(title = ws_name)
             key_index = ws_names.index(ws_name)
             key_name = new_data_dict.keys()[key_index]
             new_data_df = new_data_dict[key_name]
-            # print "initial new_data_df\n", new_data_df.head(2), '\n', new_data_df.tail(2)
             if ws_name in existing_sheets:
                 # merge new data with existing data
 
-                # print "pulling existing data from ws", ws_name
                 try:
                     dv = existing_wb[ws_name].values
                     dc = next(dv)
@@ -1689,14 +1564,11 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
                 except:
                     logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred pulling existing data from workbook')
                     sys.exit()
-                # print "initial existing_df\n", existing_df.head(2), '\n', existing_df.tail(2)
                 existing_columns = list(existing_df.columns)
-                # print "existing columns\n", existing_columns
                 
                 # deal with excess rows at bottom that show up as NaT dates
 
                 existing_df = existing_df[pd.notnull(existing_df[existing_columns[0]])]
-                # print "first interim existing_df\n", existing_df.head(2), '\n', existing_df.tail(2)
                 existing_df.set_index(existing_columns[0], inplace = True)
                 existing_df.index.names = ['date']
                 existing_df['year'] = existing_df.index.year
@@ -1713,13 +1585,9 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
                 existing_df.set_index('Date', inplace = True)
                 existing_df.drop(['year', 'month', 'day', 'hour', 'minute'], axis = 1, inplace = True)
                 existing_columns = list(existing_df.columns)
-                # print "second interim existing_df\n", existing_df.head(2), '\n', existing_df.tail(2)
-                # print "second interim existing columns\n", existing_columns
-                # replace_flag = False    # debugging
                 if replace_flag:
                     # replace existing period with new period
 
-                    # print "setting existing index to new index"
                     existing_df = existing_df.reindex(index = new_data_df.index, fill_value = 'NaN')
                 else:
                     # blend existing and new periods
@@ -1741,7 +1609,6 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
                 # brut force merging approach
 
                 new_columns = list(new_data_df.columns)
-                # print "new columns\n", new_columns
                         
                 # pick up new values for existing columns
                         
@@ -1755,7 +1622,6 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
                         existing_df[col_name] = existing_values
                         del existing_values, new_data_values, v_count
                 existing_columns = list(existing_df.columns)
-                # print "revised existing columns\n", existing_columns
                         
                 # add new columns
                         
@@ -1763,32 +1629,26 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
                     if not col_name in existing_columns:
                         existing_df[col_name] = new_data_df[col_name].values
                 new_data_df = existing_df.copy()
-                # print "blended new_data_df\n", new_data_df.head(2), "\n", new_data_df.tail(2)
                 del existing_df
 
             # post data
 
-            # print "posting rows"
             for row in dataframe_to_rows(new_data_df, index = True, header = True):
                 ws.append(row)
-            # print "setting column width"
             for row in ws.iter_cols(min_col = 2, max_row = 1):
                 for cur_cell in row:
                     ws.column_dimensions[op.utils.cell.get_column_letter(cur_cell.col_idx)].width = 10.00
-            # print "setting header formats"
             for row in ws.iter_cols(max_row = 1):
                 for cur_cell in row:
                     cur_cell.alignment =  op.styles.alignment.Alignment(wrap_text = True)
                     cur_cell.border =  op.styles.borders.Border(outline = op.styles.borders.Side(border_style = None))
                     cur_cell.font =  op.styles.Font(bold = True)
             if date_format is not None:
-                # print "setting date formats"
                 for row in ws.iter_rows(max_col = 1):
                     for cur_cell in row:
                         cur_cell.number_format = date_format
                         cur_cell.font =  op.styles.Font(bold = True)
             if float_format is not None:
-                # print "setting values formats with", float_format
                 for row in ws.iter_rows(min_row = 2, min_col = 2):
                     for cur_cell in row:
                         cur_cell.number_format = float_format
@@ -1811,7 +1671,6 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
             ws.freeze_panes = 'B2'
         if new_wb:
             wb.remove_sheet(wb['Sheet'])
-        # print "saving\n", wb_path
         wb.save(wb_path)
         del wb, existing_wb
         return True

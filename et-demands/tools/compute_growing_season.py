@@ -95,7 +95,6 @@ def main(ini_path, start_date = None, end_date = None, crop_str = ''):
             name_format = '%s_daily_crop_%c.csv'
     except:
         name_format = '%s_daily_crop_%c.csv'
-    print "name_format", name_format
     if '%s' not in name_format or '%c' not in name_format:
         logging.error("crop et file name format requires '%s' and '%c' wildcards.")
         sys.exit()

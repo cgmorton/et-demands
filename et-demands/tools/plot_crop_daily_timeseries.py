@@ -279,7 +279,6 @@ def main(ini_path, figure_show_flag = False, figure_save_flag = True,
         if year_end:
             daily_df = daily_df[daily_df[year_field] <= year_end]
             crop_year_end = min(year_end, crop_year_end)
-        # print "daily_df after trimming \n", daily_df.head(2), "\n", daily_df.tail(2)
 
         year_sub_array = np.sort(
             np.unique(np.array(daily_df[year_field]).astype(np.int)))
