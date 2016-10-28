@@ -1,7 +1,6 @@
 import logging
 
-
-def calculate_height(crop, foo, debug_flag=False):
+def calculate_height(crop, foo, debug_flag = False):
     """Determine height of crop based on Kc and height limits
 
     Args:

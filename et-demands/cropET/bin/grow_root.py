@@ -1,7 +1,6 @@
 import logging
 import math
 
-
 def grow_root(crop, foo, debug_flag=False):
     """Determine depth of root zone"""
 
