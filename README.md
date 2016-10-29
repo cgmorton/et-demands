@@ -174,8 +174,7 @@ or one at a time:
 
 #### Out of date module
 
-Required openpylx (at least 2.4.0-a1) is not yet installed with Anaconda.
-Install it as
+Required openpylx (at least 2.4.0-a1) is not yet installed with Anaconda. Install it as:
 ```
 >
 pip install --upgrade openpyxl==2.4.0-a1
