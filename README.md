@@ -11,15 +11,13 @@ Currently, scripts should be run from windows command prompt (or Linux terminal)
 To see what arguments are available for a script and their default values, pass "-h" argument to script.
 ```
 > python run_ret.py -h
-usage: run_ret.py [-h] [-i PATH] [-vb] [-d] [-v] [-m [M]] [-mp [N]]
+usage: run_ret.py [-h] [-i PATH] [-d] [-v] [-m [M]] [-mp [N]]
 
 Reference ET
 
 optional arguments:
   -h, --help            show this help message and exit
   -i PATH, --ini PATH   Configuration (initialization) file (default: None)
-  -vb, --vb             Mimic calculations in VB version of code (default:
-                        False)
   -d, --debug           Save debug level comments to debug.txt (default:
                         False)
   -v, --verbose         Print info level comments (default: False)
@@ -28,14 +26,13 @@ optional arguments:
                         Number of processers to use (default: 1)
 
 > python run_cet.py -h
-usage: run_cet.py [-h] [-i PATH] [-vb] [-d] [-v] [-c [C]] [-mp [N]]
+usage: run_cet.py [-h] [-i PATH] [-d] [-v] [-c [C]] [-mp [N]]
 
 Crop ET-Demands
 
 optional arguments:
   -h, --help            show this help message and exit
   -i PATH, --ini PATH   Configuration (initialization) file (default: None)
-  -vb, --vb             Mimic calculations in VB version of code (default:
                         False)
   -d, --debug           Save debug level comments to debug.txt (default:
                         False)
@@ -45,15 +42,13 @@ optional arguments:
                         Number of processers to use (default: 1)
 
 > python run_aet.py -h
-usage: run_aet.py [-h] [-i PATH] [-vb] [-d] [-v] [-c [C]] [-mp [N]]
+usage: run_aet.py [-h] [-i PATH] [-d] [-v] [-c [C]] [-mp [N]]
 
 Area ET
 
 optional arguments:
   -h, --help            show this help message and exit
   -i PATH, --ini PATH   Configuration (initialization) file (default: None)
-  -vb, --vb             Mimic calculations in VB version of code (default:
-                        False)
   -d, --debug           Save debug level comments to debug.txt (default:
                         False)
   -v, --verbose         Print info level comments (default: False)
@@ -179,7 +174,7 @@ or one at a time:
 
 #### Out of date module
 
-Required openpylx (at least 2.4.0-a1) is not yet installed with Ananconda.
+Required openpylx (at least 2.4.0-a1) is not yet installed with Anaconda.
 Install it as
 """
 >
