@@ -11,7 +11,6 @@ import csv
 import datetime as dt
 import logging
 import os
-import re
 import sys
 
 import numpy as np
@@ -176,6 +175,9 @@ def main(ini_path, start_date = None, end_date = None, crop_str = ''):
         if prefix in item and suffix in item:
             if not item in data_file_list:
                 data_file_list.append(os.path.join(daily_stats_ws, item))
+    if len(data_file_list) < 1:
+        logging.info('No files found')
+        sys.exit()
     data_file_list = sorted(data_file_list)
 
     # Process each file
@@ -188,9 +190,7 @@ def main(ini_path, start_date = None, end_date = None, crop_str = ''):
         crop_num = int(crop_num[:crop_num.index(suf_no_ext)])
         logging.debug('    Station:         {0}'.format(station))
         logging.debug('    Crop Num:        {0}'.format(crop_num))
-        if station == 'temp':
-            logging.debug('      Skipping')
-            continue
+        if station == 'temp': continue
 
         # Get crop name
 

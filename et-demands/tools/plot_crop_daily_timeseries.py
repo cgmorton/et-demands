@@ -10,7 +10,6 @@ import argparse
 import datetime as dt
 import gc
 import logging
-import re
 import os
 import sys
 
@@ -182,12 +181,14 @@ def main(ini_path, figure_show_flag = False, figure_save_flag = True,
         if prefix in item and suffix in item:
             if not item in data_file_list:
                 data_file_list.append(os.path.join(input_ws, item))
+    if len(data_file_list) < 1:
+        logging.info('No files found')
+        sys.exit()
     data_file_list = sorted(data_file_list)
 
     # Process each file
 
     for file_count, file_path in enumerate(data_file_list):
-        if file_count == 2: sys.exit()
         file_name = os.path.basename(file_path)
         logging.debug('')
         logging.info('  Processing {0}'.format(file_name))

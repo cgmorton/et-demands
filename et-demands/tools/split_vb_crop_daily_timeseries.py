@@ -16,39 +16,61 @@ import sys
 import numpy as np
 import pandas as pd
 
-
-def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
-         kc_flag=False, crop_name_flag=False, overwrite_flag=True):
+def main(workspace, start_date = None, end_date = None, 
+         input_ws = None, input_name_format = None, 
+         output_ws = None, output_name_format = None,
+         niwr_flag = False,  kc_flag = False, 
+         crop_name_flag = False):
     """Split full daily data by crop
 
-    For now, scipt will assume it is run in the project/basin folder and will
-        look for a PMData sub-folder
-
     Args:
-        pmdata_ws (str):
+        workspace (str): mother workspace
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
+        input_ws (str): Input data workspace (location of of vb.net horizontal format files)
+        input_name_format (str): file name format of vb.net horizontal format files
+        output_ws (str): Output data workspace (location to post DRI format files)
+        output_name_format (str): file name format of DIR format files
         niwr_flag (bool): If True, compute daily NIWR
         kc_flag (bool): If True, compute daily Kc
         crop_name_flag (bool): If True, include crop name as first line in file
-        overwrite_flag (bool): If True, overwrite existing files
 
     Returns:
         None
     """
-
-    # Input names
-    et_folder = 'ETc'
-
-    # Output names
-    output_folder = 'ETc'
+    
+    # set up data folders
+    
+    if not workspace: workspace = os.getcwd()
+    if not input_ws: 
+        input_ws = 'pmdata' + os.sep + 'ET'
+    # print "input_ws", input_ws
+    if not output_ws: 
+        output_ws = 'pmdata' + os.sep + 'ET'
+    # print "output_ws", output_ws
+    
+    # file name formats
+    
+    if not input_name_format:
+        input_name_format = '%sETc.dat'
+    swl = input_name_format.index('%s') + 2
+    input_suffix = input_name_format[(swl):len(input_name_format)]
+    if not output_name_format:
+        output_name_format = '%s_daily_crop_%c.csv'
+    if '%s' not in output_name_format or '%c' not in output_name_format:
+        logging.error("output crop et file name format requires '%s' and '%c' wildcards.")
+        sys.exit()
 
     # These crops will not be processed (if set)
+
     crop_skip_list = []
+
     # Only these crops will be processed (if set)
+
     crop_keep_list = []
 
     # Field names
+
     year_field = 'Year'
     doy_field = 'DoY'
     month_field = 'Mo'
@@ -56,7 +78,6 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
     pmeto_field = 'PMETo'
     precip_field = 'Prmm'
     t30_field = 'T30'
-
     etact_field = 'ETact'
     etpot_field = 'ETpot'
     etbas_field = 'ETbas'
@@ -66,31 +87,31 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
     dperc_field = 'DPerc'
 
     # Number of header lines in data file
+    
     header_lines = 5
-    # delimiter = '\t'
-    # delimiter = ','
-    # delimiter = r'\s*'
+    logging.info('\nMother workspace: {0}'.format(workspace))
 
-    logging.info('\nPlot mean daily data by crop')
-    logging.info('  PMData Folder: {0}'.format(pmdata_ws))
+    # Input folder
+    
+    input_folder = os.path.join(workspace, input_ws)
+    logging.info('  Input ET Folder: {0}'.format(input_folder))
 
-    # Input workspaces
-    et_ws = os.path.join(pmdata_ws, et_folder)
-    logging.debug('  ET Folder: {0}'.format(et_ws))
-
-    # Output workspaces
-    output_ws = os.path.join(pmdata_ws, output_folder)
-    logging.debug('  Output Folder: {0}'.format(output_ws))
+    # Output folder
+    
+    output_folder = os.path.join(workspace, output_ws)
+    logging.info('  Output ET Folder: {0}'.format(output_folder))
 
     # Check workspaces
-    if not os.path.isdir(et_ws):
+    
+    if not os.path.isdir(input_folder):
         logging.error(
-            '\nERROR: The ET folder {0} could be found\n'.format(et_ws))
+            '\nERROR: Input ET folder {0} could be found\n'.format(input_folder))
         sys.exit()
-    if not os.path.isdir(output_ws):
-        os.mkdir(output_ws)
+    if not os.path.isdir(output_folder):
+        os.mkdir(output_folder)
 
-    # Range of data to plot
+    # Range of data to use
+    
     try:
         year_start = dt.datetime.strptime(start_date, '%Y-%m-%d').year
         logging.info('  Start Year:  {0}'.format(year_start))
@@ -105,41 +126,36 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         logging.error('\n  ERROR: End date must be after start date\n')
         sys.exit()
 
-    # Regular expressions
-    data_re = re.compile('(?P<CELLID>\w+)ETc.dat$', re.I)
+    # Build crop name and index dictionaries as files are processed
 
-    # Build crop name and index dictionaries as the files are processed
     crop_name_dict = dict()
     crop_index_dict = dict()
 
-    # Build list of all data files
-    data_file_list = sorted(
-        [os.path.join(et_ws, f_name) for f_name in os.listdir(et_ws)
-         if data_re.match(f_name)])
-    if not data_file_list:
-        logging.error(
-            '  ERROR: No daily ET files were found\n' +
-            '  ERROR: Check the folder_name parameters\n')
+    # make used file list using name_format attributes
+    
+    data_file_list = []
+    for item in os.listdir(input_folder):
+        if input_suffix in item:
+            if not item in data_file_list:
+                data_file_list.append(os.path.join(input_folder, item))
+    if len(data_file_list) < 1:
+        logging.info('No files found')
         sys.exit()
-
-    # Build list of stations
-    station_list = sorted(list(set([
-        os.path.basename(f_path).split('ETc')[0]
-        for f_path in data_file_list])))
+    data_file_list = sorted(data_file_list)
 
     # Process each file
+
     for file_path in data_file_list:
         file_name = os.path.basename(file_path)
         logging.debug('')
-        logging.info('  {0}'.format(file_name))
-
-        station = file_name.split('ETc')[0]
-        if station == 'temp':
-            logging.debug('      Skipping')
-            continue
+        logging.info('Processing {0}'.format(file_name))
+        station = file_name.split(input_suffix)[0]
+        if station == 'temp': continue
+        print station
         logging.debug('    Station:         {0}'.format(station))
 
-        # Read in file header
+        # Read file header
+
         with open(file_path, 'r') as f:
             header_list = f.readlines()[:header_lines]
         f.close()
@@ -147,6 +163,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         # Parse crop list (split on Crop:, remove white space)
         # Split on "Crop:" but skip first item (number of crops)
         # Remove white space and empty strings
+
         f_crop_list = header_list[header_lines - 2]
         f_crop_list = [
             item.strip() for item in f_crop_list.split('Crop:')[1:]]
@@ -169,6 +186,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         logging.debug('\nCrops: \n{0}'.format(f_crop_list))
 
         # Read data from file into record array (structured array)
+
         try:
             data = np.genfromtxt(
                 file_path, skip_header=(header_lines - 1), names=True)
@@ -179,9 +197,12 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
         logging.debug('\nFields: \n{0}'.format(data.dtype.names))
 
         # Build list of unique years
+
         year_sub_array = np.unique(data[year_field].astype(np.int))
         logging.debug('\nAll Years: \n{0}'.format(year_sub_array.tolist()))
+
         # Only keep years between year_start and year_end
+
         if year_start:
             year_sub_array = year_sub_array[(year_start <= year_sub_array)]
         if year_end:
@@ -192,6 +213,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             data[year_field].astype(np.int), year_sub_array)
 
         # Build separate arrays for each field of non-crop specific data
+
         doy_array = data[doy_field][date_mask].astype(np.int)
         year_array = data[year_field][date_mask].astype(np.int)
         month_array = data[month_field][date_mask].astype(np.int)
@@ -203,13 +225,10 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             dt.datetime(int(year), int(month), int(day))
             for year, month, day in zip(year_array, month_array, day_array)])
 
-        # Remove leap days
-        # leap_array = (doy_array == 366)
-        # doy_sub_array = np.delete(doy_array, np.where(leap_array)[0])
-
         # Process each crop
-        # f_crop_i is based on order of crops in the file
-        # crop_i is based on a sorted index of the user crop_list
+        # f_crop_i is based on order of crops in file
+        # crop_i is based on a sorted index of user crop_list
+
         for f_crop_i, (crop_num, crop_name) in enumerate(f_crop_list):
             logging.debug('  Crop: {0} ({1})'.format(crop_name, crop_num))
             if crop_num in crop_skip_list:
@@ -229,7 +248,8 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             else:
                 crop_i = crop_index_dict[crop_num]
 
-            # Field names are built based on the crop i value
+            # Field names are built based on crop i value
+            
             if f_crop_i == 0:
                 etact_sub_field = etact_field
                 etpot_sub_field = etpot_field
@@ -252,11 +272,17 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             # niwr_sub_array = np.delete(niwr_array, np.where(leap_array)[0])
 
             # Timeseries figures of daily data
+            
+            """
             output_name = '{0}_daily_crop_{1:02d}.csv'.format(
                 station, int(crop_num))
-            output_path = os.path.join(output_ws, output_name)
+            data.cet_out['name_format'].replace('%c', '%02d' % int(crop.class_number)) % et_cell.cell_id)
+            """
+            output_name = output_name_format.replace('%c', '%02d' % int(crop_num)) % station
+            output_path = os.path.join(output_folder, output_name)
 
             # Build an output data frame
+
             output_dict = {
                 'Date': dt_array, 'DOY': doy_array,
                 # 'T30':t30_array,
@@ -273,17 +299,22 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             output_df.set_index('Date', inplace=True)
 
             # NIWR is ET - precip + runoff + deep percolation
+
             output_df['NIWR'] = output_df['ETact'] - (precip_array - output_df['Runoff'])
+
             # Only include deep percolation when not irrigating
+
             irrig_mask = output_df['Irrigation'] == 0
             output_df.loc[irrig_mask, 'NIWR'] += output_df.loc[irrig_mask, 'DPerc']
             del irrig_mask
 
             # Crop coefficients
+
             output_df['Kc'] = output_df['ETact'] / pmeto_array
             output_df['Kcb'] = output_df['ETbas'] / pmeto_array
 
-            # Format the output columns
+            # Format output columns
+
             output_df['Year'] = output_df.index.year
             output_df['Month'] = output_df.index.month
             output_df['Day'] = output_df.index.day
@@ -291,11 +322,14 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             output_df['Month'] = output_df['Month'].map(lambda x: ' %2d' % x)
             output_df['Day'] = output_df['Day'].map(lambda x: ' %2d' % x)
             output_df['DOY'] = output_df['DOY'].map(lambda x: ' %3d' % x)
+            
             # This will convert negative "zeros" to positive
+            
             output_df['NIWR'] = np.round(output_df['NIWR'], 6)
             output_df['Season'] = output_df['Season'].map(lambda x: ' %1d' % x)
 
-            # Order the output columns
+            # Order output columns
+            
             output_columns = [
                 'Year', 'Month', 'Day', 'DOY',
                 'PMETo', 'ETact', 'ETpot', 'ETbas',
@@ -309,6 +343,7 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             # output_df =  output_df[output_columns]
 
             # Write output dataframe to file
+            
             with open(output_path, 'w') as output_f:
                 if crop_name_flag:
                     output_f.write(
@@ -319,32 +354,20 @@ def main(pmdata_ws, start_date=None, end_date=None, niwr_flag=False,
             del output_df
 
         # Cleanup
+        
         del file_path, f_crop_list, data
         del doy_array, year_array, month_array, day_array
         del pmeto_array, precip_array, t30_array
         del date_mask, dt_array
 
-
-def get_pmdata_workspace(workspace):
-    """"""
-    import Tkinter
-    import tkFileDialog
-    root = Tkinter.Tk()
-    user_ws = tkFileDialog.askdirectory(
-        initialdir=workspace, parent=root,
-        title='Select the target PMData directory', mustexist=True)
-    root.destroy()
-    return user_ws
-
-
 def valid_date(input_date):
     """Check that a date string is ISO format (YYYY-MM-DD)
 
-    This function is used to check the format of dates entered as command
+    This function is used to check format of dates entered as command
       line arguments.
     DEADBEEF - It would probably make more sense to have this function
-      parse the date using dateutil parser (http://labix.org/python-dateutil)
-      and return the ISO format string
+      parse date using dateutil parser (http://labix.org/python-dateutil)
+      and return ISO format string
 
     Args:
         input_date: string
@@ -360,49 +383,57 @@ def valid_date(input_date):
         msg = "Not a valid date: '{0}'.".format(input_date)
         raise argparse.ArgumentTypeError(msg)
 
-
 def parse_args():
     """"""
     parser = argparse.ArgumentParser(
-        description='Split Crop Daily Timeseries',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        description = 'Split Crop Daily Timeseries',
+        formatter_class = argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        # 'workspace', nargs='?', default=get_pmdata_workspace(os.getcwd()),
-        'workspace', nargs='?', default=os.path.join(os.getcwd(), 'PMData'),
-        help='PMData Folder', metavar='FOLDER')
+        '-ws', '--workspace', nargs = '?', default = None,
+        help = 'Input ET Folder', metavar = 'workspace')
     parser.add_argument(
-        '--start', default=None, type=valid_date,
-        help='Start date (format YYYY-MM-DD)', metavar='DATE')
+        '-iw', '--inputws', metavar = 'input_ws', 
+        default = None, help = "Input data workspace")
     parser.add_argument(
-        '--end', default=None, type=valid_date,
-        help='End date (format YYYY-MM-DD)', metavar='DATE')
+        '--inf', default = None,
+        help = "Input file name format")
     parser.add_argument(
-        '--niwr', action="store_true", default=False,
-        help="Compute/output net irrigation water requirement (NIWR)")
+        '-ow', '--outputws', metavar = 'output_ws', 
+        default = None, help = "Output data workspace")
     parser.add_argument(
-        '--kc', action="store_true", default=False,
-        help="Compute/output crop coefficient (Kc)")
+        '--onf', default = None,
+        help = "Output file name format")
     parser.add_argument(
-        '--crop_name', action="store_true", default=False,
-        help="Write crop name as first line in file")
+        '--start', default = None, type = valid_date,
+        help = 'Start date (format YYYY-MM-DD)', metavar = 'DATE')
     parser.add_argument(
-        '-o', '--overwrite', default=None, action="store_true",
-        help='Force overwrite of existing files')
+        '--end', default = None, type = valid_date,
+        help='End date (format YYYY-MM-DD)', metavar = 'DATE')
     parser.add_argument(
-        '--debug', default=logging.INFO, const=logging.DEBUG,
-        help='Debug level logging', action="store_const", dest="loglevel")
+        '--niwr', action = "store_true", default = False,
+        help = "Compute/output net irrigation water requirement (NIWR)")
+    parser.add_argument(
+        '--kc', action = "store_true", default = False,
+        help = "Compute/output crop coefficient (Kc)")
+    parser.add_argument(
+        '--crop_name', action = "store_true", default = False,
+        help = "Write crop name as first line in file")
+    parser.add_argument(
+        '--debug', default=logging.INFO, const = logging.DEBUG,
+        help = 'Debug level logging', action = "store_const", dest = "loglevel")
     args = parser.parse_args()
 
-    # Convert PMData folder to an absolute path if necessary
+    # Convert workspace to an absolute path if necessary
+
     if args.workspace and os.path.isdir(os.path.abspath(args.workspace)):
         args.workspace = os.path.abspath(args.workspace)
     return args
 
-
 if __name__ == '__main__':
     args = parse_args()
+    print args
 
-    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logging.basicConfig(level = logging.INFO, format='%(message)s')
     logging.info('\n{0}'.format('#' * 80))
     log_f = '{0:<20s} {1}'
     logging.info(log_f.format(
@@ -410,6 +441,9 @@ if __name__ == '__main__':
     logging.info(log_f.format('Current Directory:', args.workspace))
     logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
 
-    main(pmdata_ws=args.workspace, start_date=args.start, end_date=args.end,
-         niwr_flag=args.niwr, kc_flag=args.kc, crop_name_flag=args.crop_name,
-         overwrite_flag=args.overwrite)
+    main(workspace = args.workspace, 
+         input_ws = args.inputws, input_name_format = args.inf,
+         output_ws = args.outputws, output_name_format = args.onf,
+         start_date = args.start, end_date = args.end,
+         niwr_flag = args.niwr, kc_flag = args.kc, 
+         crop_name_flag = args.crop_name)
