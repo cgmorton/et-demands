@@ -57,6 +57,10 @@ optional arguments:
                         Number of processers to use (default: 1)
 ```
 
+#### User manual
+
+[View or download](docs/PythonETApplications.pdf)
+
 #### Configuration files
 Key parameters in configuration files are folder location of current project, static (meta) data file specifcatins and time series data specifications.  To set configuration file, use "-i" or "--ini" argument.
 ```
