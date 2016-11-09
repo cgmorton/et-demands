@@ -31,3 +31,8 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+User Manual
+===========
+
+:download:'User Manual<../PythonETApplications.pdf>'
