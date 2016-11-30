@@ -232,7 +232,7 @@ def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead,
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred truncating input data')
             return return_df
         if len(input_df.index) < 1:
-           input_df = ModDmis.make_ts_dataframe(time_step, ts_quantity, start_dt, 
+           input_df = make_ts_dataframe(time_step, ts_quantity, start_dt, 
                        end_dt, wyem)
         
         # adjust for missing rows
@@ -644,7 +644,7 @@ def ColumnSlotToDataframe(file_path, header_lines, names_line,
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred truncating input data')
             return return_df
         if len(input_df.index) < 1:
-           input_df = ModDmis.make_ts_dataframe(time_step, ts_quantity, start_dt, 
+           input_df = make_ts_dataframe(time_step, ts_quantity, start_dt, 
                        end_dt, wyem)
         
         # adjust for missing rows
