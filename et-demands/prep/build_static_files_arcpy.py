@@ -21,7 +21,7 @@ import util
 
 
 def main(ini_path, zone_type='huc8', area_threshold=10,
-         dairy_cuttings=5, beef_cuttings=4,
+         beef_cuttings=4, dairy_cuttings=5,
          overwrite_flag=False, cleanup_flag=False):
     """Build static text files needed to run ET-Demands model
 
@@ -29,8 +29,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         ini_path (str): file path of the project INI file
         zone_type (str): Zone type (huc8, huc10, county)
         area_threshold (float): CDL area threshold [acres]
-        dairy_cuttings (int): Initial number of dairy hay cuttings
         beef_cuttings (int): Initial number of beef hay cuttings
+        dairy_cuttings (int): Initial number of dairy hay cuttings
         overwrite_flag (bool): If True, overwrite existing files
         cleanup_flag (bool): If True, remove temporary files
 
@@ -375,11 +375,11 @@ def arg_parse():
         '--acres', default=10, type=float,
         help='Crop area threshold')
     parser.add_argument(
-        '--dairy', default=5, type=int,
-        help='Number of dairy hay cuttings')
-    parser.add_argument(
         '--beef', default=4, type=int,
         help='Number of beef hay cuttings')
+    parser.add_argument(
+        '--dairy', default=5, type=int,
+        help='Number of dairy hay cuttings')
     parser.add_argument(
         '-o', '--overwrite', default=None, action='store_true',
         help='Overwrite existing file')
