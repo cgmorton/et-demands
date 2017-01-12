@@ -416,11 +416,11 @@ class ETCell():
         except IOError:
             logging.error(('  IOError: RefET data file could not be read ' +
                            'and may not exist\n  {}').format(refet_path))
-            return False
+            sys.exit()
         except:
             logging.error(('  Unknown error reading RefET data ' +
                            'file\n {}').format(refet_path))
-            return False
+            sys.exit()
         logging.debug('  Columns: {}'.format(
             ', '.join(list(self.refet_pd.columns.values))))
 
@@ -478,11 +478,11 @@ class ETCell():
             logging.error(
                 ('  IOError: ETo ratios static file could not be ' +
                  'read and may not exist\n  {}').format(refet_ratios_path))
-            return False
+            sys.exit()
         except:
             logging.error(('  Unknown error reading ETo ratios static ' +
                            'file\n {}').format(refet_ratios_path))
-            return False
+            sys.exit()
 
         # Remove duplicates
         # If there are duplicate station IDs, for now only use first instance
