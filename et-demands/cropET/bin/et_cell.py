@@ -564,10 +564,10 @@ class ETCell():
         logging.debug('  Columns: {0}'.format(
             ', '.join(list(self.weather_pd.columns.values))))
 
-        # Check fields
+        # Check that fields are in data table
         for field_key, field_name in weather['fields'].items():
             if (field_name is not None and
-                field_name not in self.weather_pd.columns):
+                    field_name not in self.weather_pd.columns):
                 logging.error(
                     ('\n  ERROR: Field "{0}" was not found in {1}\n' +
                      '    Check the {2}_field value in the INI file').format(
@@ -576,6 +576,7 @@ class ETCell():
             # Rename the dataframe fields
             self.weather_pd = self.weather_pd.rename(
                 columns={field_name: field_key})
+
         # Check/modify units
         for field_key, field_units in weather['units'].items():
             if field_units is None:
@@ -622,30 +623,35 @@ class ETCell():
         # Calculate Tdew from specific humidity
         # Convert station elevation from feet to meters
         if ('tdew' not in self.weather_pd.columns and
-            'q' in self.weather_pd.columns):
+                'q' in self.weather_pd.columns):
             self.weather_pd['tdew'] = util.tdew_from_ea(util.ea_from_q(
                 self.air_pressure, self.weather_pd['q'].values))
 
         # Compute RH from Tdew and Tmax
         if ('rh_min' not in self.weather_pd.columns and
-            'tdew' in self.weather_pd.columns and
-            'tmax' in self.weather_pd.columns):
+                'tdew' in self.weather_pd.columns and
+                'tmax' in self.weather_pd.columns):
             # For now do not consider SVP over ice
             # (it was not used in ETr or ETo computations, anyway)
             self.weather_pd['rh_min'] = 100 * np.clip(
                 util.es_from_t(self.weather_pd['tdew'].values) /
                 util.es_from_t(self.weather_pd['tmax'].values), 0, 1)
 
-        # Set CO2 correction values to 1 if they are not in the data
-        if 'co2_grass' not in self.weather_pd.columns:
-            logging.info('  Grass CO2 factor not in weather data, setting co2_grass = 1')
-            self.weather_pd['co2_grass'] = 1
-        if 'co2_trees' not in self.weather_pd.columns:
-            logging.info('  Tree CO2 factor not in weather data, setting co2_trees = 1')
-            self.weather_pd['co2_trees'] = 1
-        if 'co2_c4' not in self.weather_pd.columns:
-            logging.info('  C4 CO2 factor not in weather data, setting co2_c4 = 1')
-            self.weather_pd['co2_c4'] = 1
+        # DEADBBEF
+        # Don't default CO2 correction values to 1 if they aren't in the data
+        # The CO2 corrections must be in the weather file
+
+        # # Set CO2 correction values to 1 if they are not in the data
+        # if 'co2_grass' not in self.weather_pd.columns:
+        #     logging.info('  Grass CO2 field not in weather data, setting co2_grass = 1')
+        #     self.weather_pd['co2_grass'] = 1
+        # if 'co2_tree' not in self.weather_pd.columns:
+        #     logging.info('  Tree CO2 field not in weather data, setting co2_tree = 1')
+        #     self.weather_pd['co2_tree'] = 1
+        # if 'co2_c4' not in self.weather_pd.columns:
+        #     logging.info('  C4 CO2 field not in weather data, setting co2_c4 = 1')
+        #     self.weather_pd['co2_c4'] = 1
+
         return True
 
     def process_climate(self):
