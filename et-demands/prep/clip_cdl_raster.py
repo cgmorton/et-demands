@@ -2,7 +2,7 @@
 # Name:         clip_cdl_raster.py
 # Purpose:      Clip CDL rasters in order to build agland rasters
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -15,8 +15,8 @@ import sys
 
 from osgeo import gdal
 
-import gdal_common as gdc
-import util
+import _gdal_common as gdc
+import _util as util
 
 
 def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,

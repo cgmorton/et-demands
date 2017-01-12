@@ -15,7 +15,7 @@ import sys
 
 import arcpy
 
-import util
+import _util as util
 
 
 def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
@@ -490,7 +490,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         for row in arcpy.da.SearchCursor(zone_raster_path, fields)}
 
     # Calculate zonal stats
-    logging.info('\nProcessing DEM and soil rasters')
+    logging.info('\nProcessing soil rasters')
     for field_name, stat, raster_path in raster_list:
         logging.info('  {0} {1}'.format(field_name, stat))
         table_path = os.path.join(

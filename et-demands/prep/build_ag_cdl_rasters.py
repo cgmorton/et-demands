@@ -2,7 +2,7 @@
 # Name:         build_ag_cdl_rasters.py
 # Purpose:      Build agricultural land and mask rasters from CDL rasters
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -16,8 +16,8 @@ import sys
 import numpy as np
 from osgeo import gdal
 
-import gdal_common as gdc
-import util
+import _gdal_common as gdc
+import _util as util
 
 
 def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False,

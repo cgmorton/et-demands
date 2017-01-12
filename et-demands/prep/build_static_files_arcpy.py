@@ -17,7 +17,7 @@ import sys
 
 import arcpy
 
-import util
+import _util as util
 
 
 def main(ini_path, zone_type='huc8', area_threshold=10,

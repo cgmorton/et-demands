@@ -2,7 +2,7 @@
 # Name:         download_dem_rasters.py
 # Purpose:      Download NED tiles
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -16,8 +16,8 @@ import zipfile
 
 from osgeo import gdal, ogr
 
-import gdal_common as gdc
-import util
+import _gdal_common as gdc
+import _util as util
 
 
 def main(gis_ws, tile_ws, dem_cs, mask_flag=False, overwrite_flag=False):

@@ -2,7 +2,7 @@
 # Name:         build_ag_soil_rasters.py
 # Purpose:      Extract soils data for agricultural CDL pixels
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -15,8 +15,8 @@ import sys
 
 import numpy as np
 
-import gdal_common as gdc
-import util
+import _gdal_common as gdc
+import _util as util
 
 
 def main(gis_ws, input_soil_ws, cdl_year='', prop_list=['all'],

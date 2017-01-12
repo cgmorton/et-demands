@@ -1,8 +1,8 @@
 #--------------------------------
-# Name:         download_cdl.py
+# Name:         download_cdl_raster.py
 # Purpose:      Download national CDL zips
 # Author:       Charles Morton
-# Created       2016-10-20
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -14,11 +14,11 @@ import sys
 import urllib
 import zipfile
 
-import util
+import _util as util
 
 
 def main(cdl_ws, cdl_year='', overwrite_flag=False):
-    """Download national CDL zips
+    """Download CONUS CDL zips
 
     Args:
         cdl_ws (str): Folder/workspace path of the GIS data for the project
