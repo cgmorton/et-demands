@@ -1,7 +1,7 @@
-Folder Structure
-================
+ET-Demands Folder Structure
+===========================
 
-The ET-Demands scripts and tools are assuming that the user will use a folder structure similar to the one below.  The exact folder paths can generally be adjusted by either changing the INI file or explicitly setting the folder using the script command line arguments.  Most of the GIS sub-folders can be built and populated using the :doc:`prep scripts<prep?`::
+The ET-Demands scripts and tools are assuming that the user will use a folder structure similar to the one below.  The exact folder paths can generally be adjusted by either changing the INI file or explicitly setting the folder using the script command line arguments.  Most of the GIS sub-folders can be built and populated using the :doc:`CropET prep tools<prep_tools>`::
 
     et-demands
     |
@@ -9,12 +9,10 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
     |   +---cdl
     |   |       2010_30m_cdls.img
     |   |       2010_30m_cdls.zip
-    |   +---dem
-    |   |   +---tiles
     |   +---huc8
     |   |       wbdhu8_albers.shp
     |   +---nldas_4km
-    |   \---statsgo
+    |   \---soils
     |       +---gsmsoil_awc
     |       |       gsmsoilmu_a_us_awc_albers.shp
     |       +---gsmsoil_clay
@@ -45,7 +43,6 @@ The ET-Demands scripts and tools are assuming that the user will use a folder st
         +---daily_stats
         +---gis
         |   +---cdl
-        |   +---dem
         |   +---huc8
         |   |       wbdhu8_albers.shp
         |   +---soils

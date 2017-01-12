@@ -10,8 +10,8 @@ Table of Contents:
    static
    structure
    data
-   prep
-   example
+   prep_tools
+   prep_example
    spatial
    run_basin
    tools
