@@ -339,11 +339,6 @@ class ETCell():
     def init_properties_from_row(self, data):
         """ Parse a row of data from the ET cell properties file
 
-        Order of the values:
-            ETCellIDs, ETCellNames, RefETIDs, station_lat, station_long,
-            station_elevft, station_WHC, station_soildepth, station_HydroGroup,
-            aridity_rating, refet_path
-
         Args:
             data (list): row values
 
@@ -358,29 +353,13 @@ class ETCell():
         self.stn_whc = float(data[7])
         self.stn_soildepth = float(data[8])
         self.stn_hydrogroup_str = data[9]
-        # [140822] changed for RioGrande
-        #self.stn_hydrogroup = int(data[10])
         self.stn_hydrogroup = int(eval(data[10]))
         self.aridity_rating = float(data[11])
-        # DEADBEEF - RefET path will be build from the ID and format
+        # DEADBEEF - RefET path will be built from the ID and format
         # self.refet_path = data[12]
-        # if len(data) == 14:       # CVP
-        #     .area = data[13]
-        # elif len(data) == 15:     # truckee
-        #     .huc = data[13]
-        #     .huc_name = data[14]
-        # elif len(data) > 13:
-        #     .cell_lat = float(data[13])
-        #     .cell_lon = float(data[14])
-        #     .cell_elev = float(data[15])
-        # DEADBEEF - For now assume station and cell have the same lat/lon/elev
-        # self.cell_lat = float(data[13])
-        # self.cell_lon = float(data[14])
-        # self.cell_elev = float(data[15])
 
         # Compute air pressure of the station/cell
         self.air_pressure = util.pair_from_elev(0.3048 * self.stn_elev)
-        # self.air_pressure = util.pair_from_elev(0.3048 * self.cell_elev)
 
     def init_crops_from_row(self, data, crop_numbers):
         """Parse the row of data

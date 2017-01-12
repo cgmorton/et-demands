@@ -2,7 +2,7 @@
 # Name:         build_static_files.py
 # Purpose:      Build static files for ET-Demands from zonal stats ETCells
 # Author:       Charles Morton
-# Created       2016-09-14
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -40,7 +40,6 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     logging.info('\nBuilding ET-Demands Static Files')
 
     # Input units
-    cell_elev_units = 'FEET'
     station_elev_units = 'FEET'
 
     # Default values
@@ -123,11 +122,6 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     # Field names
     cell_lat_field = 'LAT'
     # cell_lon_field = 'LON'
-    if cell_elev_units.upper() in ['FT', 'FEET']:
-        cell_elev_field = 'ELEV_FT'
-    elif cell_elev_units.upper() in ['M', 'METERS']:
-        cell_elev_field = 'ELEV_M'
-    # cell_elev_field = 'ELEV_FT'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     met_id_field = 'STATION_ID'
@@ -137,6 +131,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     awc_in_ft_field = 'AWC_IN_FT'
     hydgrp_num_field = 'HYDGRP_NUM'
     hydgrp_field = 'HYDGRP'
+
     # huc_field = 'HUC{}'.format(huc)
     # permeability_field = 'PERMEABILITY'
     # soil_depth_field = 'SOIL_DEPTH'
@@ -191,12 +186,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     logging.debug('Stations Path: {0}'.format(stations_path))
 
     # Check units
-    if cell_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
-        logging.error(
-            ('\nERROR: ET Cell elevation units {} are invalid\n' +
-             '  Units must be METERS or FEET').format(cell_elev_units))
-        sys.exit()
-    elif station_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
+    if station_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
         logging.error(
             ('\nERROR: Station elevation units {} are invalid\n' +
              '  Units must be METERS or FEET').format(station_elev_units))
@@ -227,7 +217,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     crop_field_list = sorted([
         f.name for f in arcpy.ListFields(et_cells_path)
         if re.match('CROP_\d{2}', f.name)])
-    fields = [cell_id_field, cell_name_field, cell_lat_field, cell_elev_field,
+    fields = [cell_id_field, cell_name_field, cell_lat_field,
               awc_in_ft_field, clay_field, sand_field,
               hydgrp_num_field, hydgrp_field]
     fields = fields + crop_field_list
@@ -254,10 +244,6 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         logging.debug('  Convert station elevation from meters to feet')
         for k in station_data_dict.iterkeys():
             station_data_dict[k][station_elev_field] /= 0.3048
-    if cell_elev_units.upper() in ['METERS', 'M']:
-        logging.debug('  Convert et cell elevation from meters to feet')
-        for k in cell_data_dict.iterkeys():
-            cell_data_dict[k][cell_elev_field] /= 0.3048
 
     logging.info('\nCopying template static files')
     for static_name in static_list:

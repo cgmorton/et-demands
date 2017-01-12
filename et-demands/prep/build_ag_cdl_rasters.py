@@ -51,9 +51,9 @@ def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False,
 
     # Ag landuses are 1, all others in state are 0, outside state is nodata
     # Crop 61 is fallow/idle and was excluded from analysis
-    # Crops 176 is Grassland/Pasture in the new national CDL rasters
-    # Crops 181 was Pasture/Hay in the old state CDL rasters
-    # Crops 182 was Cultivated Crop in the old state CDL rasters
+    # Crop 176 is Grassland/Pasture in the new national CDL rasters
+    # Crop 181 was Pasture/Hay in the old state CDL rasters
+    # Crop 182 was Cultivated Crop in the old state CDL rasters
     agmask_remap = [
         [1, 60, 1], [61, 65, 0],
         # [1, 61, 1], [62, 65, 0],
