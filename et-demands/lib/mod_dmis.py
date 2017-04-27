@@ -101,7 +101,23 @@ def make_dt_index(time_step, ts_quantity, start_dt, end_dt, wyem = 12):
         else:
             dt_index = pd.date_range(start_dt, end_dt, freq = str(ts_quantity) + "T", name = "date")
     elif time_step == 'week':
-        dt_index = pd.date_range(start_dt, end_dt, freq = "W", name = "date")
+        dow = start_dt.dayofweek
+        if dow == 0:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-MON", name = "date")
+        elif dow == 1:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-TUE", name = "date")
+        elif dow == 2:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-WED", name = "date")
+        elif dow == 3:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-THU", name = "date")
+        elif dow == 4:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-FRI", name = "date")
+        elif dow == 5:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-SAT", name = "date")
+        elif dow == 6:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-SUN", name = "date")
+        else:
+            dt_index = pd.date_range(start_dt, end_dt, freq = "W-SUN", name = "date")
     else:
         logging.error('\nERROR: Timestep {} and ts quantity {} are an invalid combination', format(time_step, ts_quantity))
     return dt_index
@@ -137,10 +153,38 @@ def make_ts_dataframe(time_step, ts_quantity, start_dt, end_dt, wyem = 12):
         else:
             ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = str(ts_quantity) + "T", name = "date"))
     elif time_step == 'week':
-        ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W", name = "date"))
+        dow = start_dt.dayofweek
+        if dow == 0:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-MON", name = "date"))
+        elif dow == 1:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-TUE", name = "date"))
+        elif dow == 2:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-WED", name = "date"))
+        elif dow == 3:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-THU", name = "date"))
+        elif dow == 4:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-FRI", name = "date"))
+        elif dow == 5:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-SAT", name = "date"))
+        elif dow == 6:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-SUN", name = "date"))
+        else:
+            ts_dataframe = pd.DataFrame(index = pd.date_range(start_dt, end_dt, freq = "W-SUN", name = "date"))
     else:
         logging.error('\nERROR: Timestep {} and ts quantity {} are an invalid combination', format(time_step, ts_quantity))
     return ts_dataframe
+
+def char_to_numeric_month(cmonth):
+    """converts 3 character month to numberic month
+    
+    Args:
+        cmonth: 3 character month
+    Return:
+        nmonth: numeric month
+    """
+    cmonths = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+    nmonth = cmonths.index(cmonth.upper()) + 1
+    return nmonth
 
 def ReadOneColumnSlot(file_path, header_lines, names_line, stationToRead, 
         parameterToRead, units, scaleFactor, time_step, ts_quantity, 
@@ -1677,21 +1721,3 @@ def wb_output_via_df_dict_openpyxl(wb_path, ws_names, new_data_dict,
     except:
         logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred posting workbook data from dictionary')
         sys.exit()
-
-def merge_values(existing, new):
-    """ merge existing and new values with precedence to new
-    This code does not work.  It produces message:
-    "FutureWarning: elementwise comparison failed..."
-
-    Args:
-        existing: existing values
-        new: new values
-
-    Returns:
-        merged: merged values
-    """
-    if new is not None and new <> 'NaN':
-        merged = new
-    else:
-        merged = existing
-    return merged

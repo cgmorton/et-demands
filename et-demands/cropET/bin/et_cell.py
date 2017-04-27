@@ -737,8 +737,8 @@ class ETCell():
             logging.error('ERROR:  unable to read {}'.format(refet_path))
             return False
         else:
-            # self.refet_df = util.make_ts_dataframe(cfg.time_step, data.ts_quantity, data.start_dt, data.end_dt)
-            self.refet_df = util.make_ts_dataframe('day', 1, data.start_dt, data.end_dt)
+            # self.refet_df = mod_dmis.make_ts_dataframe(cfg.time_step, data.ts_quantity, data.start_dt, data.end_dt)
+            self.refet_df = mod_dmis.make_ts_dataframe('day', 1, data.start_dt, data.end_dt)
             self.refet_df['etref'] = param_df[[0]].values
         return True
 
@@ -1058,7 +1058,7 @@ class ETCell():
 
         # pull et cell's data from parameter data frames
         
-        self.weather_df = util.make_ts_dataframe('day', 1, data.start_dt, data.end_dt)
+        self.weather_df = mod_dmis.make_ts_dataframe('day', 1, data.start_dt, data.end_dt)
         for field_key, param_df in cells.et_cells_weather_data.items():
             self.weather_df[field_key] = mod_dmis.ReadOneDataframeColumn(param_df, self.refet_id, 
                     data.weather['fields'][field_key], data.weather['units'][field_key], 1,
@@ -1251,7 +1251,7 @@ class ETCell():
 
         # pull et cell's data from parameter data frames
         
-        self.hist_temps_df = util.make_ts_dataframe('day', 1, data.start_dt, data.end_dt)
+        self.hist_temps_df = mod_dmis.make_ts_dataframe('day', 1, data.start_dt, data.end_dt)
         for field_key, param_df in cells.et_cells_historic_data.items():
             self.hist_temps_df[field_key] = mod_dmis.ReadOneDataframeColumn(param_df, self.refet_id, 
                     data.hist_temps['fields'][field_key], data.hist_temps['units'][field_key], 1,

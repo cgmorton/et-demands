@@ -560,7 +560,7 @@ class MetNode():
         
         # pull met node's data from parameter data frames
         
-        self.input_met_df = ret_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+        self.input_met_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
         for field_key, param_df in mnd.met_nodes_input_met_data.items():
             self.input_met_df[field_key] = mod_dmis.ReadOneDataframeColumn(param_df, self.source_met_id, 
                     cfg.input_met['fields'][field_key], cfg.input_met['units'][field_key], 1,
@@ -582,10 +582,10 @@ class MetNode():
             # construct ref et object and set up output
             
 	    retObj = refET.refET(cfg.input_met['TR_b0'], cfg.input_met['TR_b1'], cfg.input_met['TR_b2'])
-            ret_df = ret_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+            ret_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
             for fn in cfg.refet_out['refet_out_fields']: ret_df[fn] = np.nan
             if cfg.output_met_flag:
-                self.ref_et_df = ret_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                self.ref_et_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                 self.ref_et_df['ref_et'] = np.nan
             for dt, row in self.input_met_df.iterrows():
                 HargreavesSamani = retObj.ComputeHargreavesSamaniRefET(dt.dayofyear, row['tmax'],

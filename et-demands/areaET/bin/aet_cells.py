@@ -10,8 +10,10 @@ import numpy as np
 import pandas as pd
 import xlrd
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../lib')))
 import aet_config
 import aet_utils
+import mod_dmis
 
 mmHaPerDay_to_cms = 0.001 * 10000 / 86400    # 0.001 (mm/m) * 10000 (m2/hectare) / 86400 (seconds/day)
 
@@ -237,7 +239,7 @@ class ETCell():
                 if ctCount == 0:
                     # store ET Cell reference ET and precip if first crop
 
-                    self.etcData_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                    self.etcData_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                     self.etcData_df['refet'] = crop_df['refet']
                     self.etcData_df['ppt'] = crop_df['ppt']
                 
@@ -362,7 +364,7 @@ class ETCell():
                 if ctCount == 0:
                     # store ET Cell reference ET and precip if first crop
 
-                    self.etcData_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                    self.etcData_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                     self.etcData_df['refet'] = crop_df['refet']
                     self.etcData_df['ppt'] = crop_df['ppt']
                 
@@ -401,7 +403,7 @@ class ETCell():
                 unAdjCrop_df = self.crops_df.xs(self.usedCropTypes[ctCount], level = 0, drop_level = False)
                 unAdjCrop_df.reset_index(inplace = True)
                 unAdjCrop_df.set_index('date', inplace = True)
-                adjCrop_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                adjCrop_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                 adjCrop_df['season'] = np.nan
                 adjCrop_df['cet'] = np.nan
                 adjCrop_df['effprcp'] = np.nan
@@ -428,7 +430,7 @@ class ETCell():
 
                             # set non growing season values to 0.0
     
-                            for tdt in aet_utils.make_dt_index(cfg.time_step, cfg.ts_quantity, ngsSD, ngsED):
+                            for tdt in mod_dmis.make_dt_index(cfg.time_step, cfg.ts_quantity, ngsSD, ngsED):
                                 adjCrop_df.at[tdt, 'cir'] = 0.0
                                 adjCrop_df.at[tdt, 'cet'] = 0.0
                                 adjCrop_df.at[tdt, 'effprcp'] = 0.0
@@ -439,7 +441,7 @@ class ETCell():
                             if gDays > 0:
                                 cirAdj = ngsCIR / gDays
                                 etAdj = ngsET / gDays
-                                for tdt in aet_utils.make_dt_index(cfg.time_step, cfg.ts_quantity, gsSD, gsED):
+                                for tdt in mod_dmis.make_dt_index(cfg.time_step, cfg.ts_quantity, gsSD, gsED):
                                     adjCrop_df.at[tdt, 'cir'] = unAdjCrop_df.at[tdt, 'cir'] + cirAdj
                                     adjCrop_df.at[tdt, 'cet'] = unAdjCrop_df.at[tdt, 'cet'] + etAdj
                                     adjCrop_df.at[tdt, 'effprcp'] = adjCrop_df.at[tdt, 'cet'] - adjCrop_df.at[tdt, 'cir']
@@ -467,13 +469,13 @@ class ETCell():
                     if gDays > 0:
                         cirAdj = ngsCIR / gDays
                         etAdj = ngsET / gDays
-                        for tdt in aet_utils.make_dt_index(cfg.time_step, cfg.ts_quantity, gsSD, gsED):
+                        for tdt in mod_dmis.make_dt_index(cfg.time_step, cfg.ts_quantity, gsSD, gsED):
                             adjCrop_df.at[tdt, 'cir'] = unAdjCrop_df.at[tdt, 'cir'] + cirAdj
                             adjCrop_df.at[tdt, 'cet'] = unAdjCrop_df.at[tdt, 'cet'] + etAdj
                             adjCrop_df.at[tdt, 'effprcp'] = adjCrop_df.at[tdt, 'cet'] - adjCrop_df.at[tdt, 'cir']
                 else:
                     ngsED = dt
-                    for tdt in aet_utils.make_dt_index(cfg.time_step, cfg.ts_quantity, ngsSD, ngsED):
+                    for tdt in mod_dmis.make_dt_index(cfg.time_step, cfg.ts_quantity, ngsSD, ngsED):
                         adjCrop_df.at[tdt, 'cir'] = 0.0
                         adjCrop_df.at[tdt, 'cet'] = 0.0
                         adjCrop_df.at[tdt, 'effprcp'] = 0.0
@@ -583,7 +585,7 @@ class ETCell():
             input_df[input_df.columns[6]] = input_df[[input_df.columns[6]]].apply(lambda s: str(*s), axis = 1, raw = True, reduce = True)
             input_df[input_df.columns[7]] = input_df[[input_df.columns[7]]].apply(lambda s: str(*s), axis = 1, raw = True, reduce = True)
             input_df['UserBegDate'] = input_df[['year', input_df.columns[4], input_df.columns[5]]].apply(lambda s : user_begin_date(*s),axis = 1)
-            input_df['UserEndDate'] = input_df[['year', input_df.columns[6], input_df.columns[7]]].apply(lambda s : user_end_dt(*s),axis = 1)
+            input_df['UserEndDate'] = input_df[['year', input_df.columns[6], input_df.columns[7]]].apply(lambda s : user_end_date(*s),axis = 1)
             input_df[input_df.columns[1]] = input_df[[input_df.columns[1]]].apply(lambda s: str(*s), axis = 1, raw = True, reduce = True)
             input_df.rename(columns = {input_df.columns[1]:'UserCropName'}, inplace = True)
             input_df.rename(columns = {input_df.columns[3]:'CropNumber'}, inplace = True)
@@ -679,8 +681,8 @@ class ETCell():
             self.etcData_df['nir'] = np.zeros((cfg.number_days), dtype = float)
             self.etcData_df['effprcp'] = np.zeros((cfg.number_days), dtype = float)
             self.etcData_df['season'] = np.zeros((cfg.number_days), dtype = int)
-            self.etcCropIRs_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
-            self.etcCropETs_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+            self.etcCropIRs_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+            self.etcCropETs_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
             
             # loop thru ET Cell's (user) crops
 
@@ -727,7 +729,7 @@ class ETCell():
             
             # cfg.neg_nirs_toggle = 2    # debug
             if cfg.neg_nirs_toggle == 2 or cfg.neg_nirs_toggle == 3:
-                adj_daily_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                adj_daily_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                 col_names = list(self.etcCropIRs_df.columns)
             
                 # compute non negative values and set up aggregations
@@ -754,7 +756,7 @@ class ETCell():
                 # apply annual ratios to retain annual totals
 
                 del self.etcCropIRs_df
-                self.etcCropIRs_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                self.etcCropIRs_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                 for col_name in col_names:
                     self.etcCropIRs_df[col_name] = apply_annual_ratios(cfg.start_dt, adj_daily_df.index, adj_daily_df[col_name].values, ann_adj_ratios_df[col_name].values)
                     self.etcCropIRs_df[col_name] = np.maximum(self.etcCropIRs_df[col_name].values, 0.0)
@@ -777,7 +779,7 @@ class ETCell():
             if cfg.et_smoothing_days > 1:
                 # compute running averages
                 
-                daily_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                daily_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                 daily_df['straight'] = self.etcData_df['et']
                 daily_df['smoothed'] = pd.rolling_mean(daily_df['straight'], window = cfg.et_smoothing_days, center = True, min_periods = 1)
                 
@@ -823,7 +825,7 @@ class ETCell():
             
             # cfg.neg_nirs_toggle = 1    # debug
             if cfg.neg_nirs_toggle == 1 or cfg.neg_nirs_toggle == 3:
-                daily_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                daily_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                 daily_df['unadjusted'] = self.etcData_df['nir']
                 daily_df['adjusted'] = np.maximum(daily_df['unadjusted'].values, 0.0)
                 
@@ -851,7 +853,7 @@ class ETCell():
             if cfg.nir_smoothing_days > 1:
                 # compute running averages
                 
-                daily_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+                daily_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
                 daily_df['straight'] = self.etcData_df['nir']
                 daily_df['smoothed'] = pd.rolling_mean(daily_df['straight'], window = cfg.nir_smoothing_days, center = True, min_periods = 1)
                 
@@ -874,7 +876,7 @@ class ETCell():
 
             # compute nir disaggregation fractions
 
-            daily_df = aet_utils.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
+            daily_df = mod_dmis.make_ts_dataframe(cfg.time_step, cfg.ts_quantity, cfg.start_dt, cfg.end_dt)
             daily_df['nir'] = self.etcData_df['nir']
             aggregation_func = {}
             for col_name in list(daily_df.columns):
@@ -1920,7 +1922,7 @@ def user_begin_date(year_to_use, ibm, ibd):
     begin_date = datetime.datetime(year_to_use, begMonth, begDay)
     return begin_date
 
-def user_end_dt(year_to_use, iem, ied):
+def user_end_date(year_to_use, iem, ied):
     """computes user end date
 
     Args:
