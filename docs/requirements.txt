@@ -1,5 +1,1 @@
-bokeh>=0.12.0
-gdal>=2.0
-numpy
-pandas
-openpyxl>=2.4.0-a1
+# No requirements for docs

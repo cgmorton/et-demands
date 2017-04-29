@@ -92,22 +92,22 @@ Please see requirements.txt file for details on versioning requirements.  Older 
 #### RefET
 + [NumPy](http://www.numpy.org)
 + [Pandas](http://pandas.pydata.org)
-+ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.0-a1)
++ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.7)
 
 #### CropET
 + [NumPy](http://www.numpy.org)
 + [Pandas](http://pandas.pydata.org)
-+ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.0-a1)
++ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.7)
 
 #### AreaET
 + [NumPy](http://www.numpy.org)
 + [Pandas](http://pandas.pydata.org)
-+ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.0-a1)
++ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.7)
 
 #### Lib
 + [NumPy](http://www.numpy.org)
 + [Pandas](http://pandas.pydata.org)
-+ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.0-a1)
++ [openpyxl](https://pypi.python.org/pypi/openpyxl/2.4.7)
 
 #### Prep tools
 A combination of GDAL and ArcPy are currently used in data prep scripts.  Eventually all of ArcPy/ArcGIS dependent scripts will be converted to GDAL.
@@ -178,9 +178,9 @@ or one at a time:
 
 #### Out of date module
 
-Required openpylx (at least 2.4.0-a1) is not yet installed with Anaconda. Install it as:
+Required openpylx (at least 2.4.7) is not yet installed with Anaconda. Install it as:
 ```
-> pip install --upgrade openpyxl==2.4.0-a1
+> pip install --upgrade openpyxl>=2.4.7
 ```
 
 #### GDAL_DATA

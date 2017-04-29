@@ -1190,55 +1190,93 @@ class CropETData():
                 self.weather['units']['q'] = 'kg/kg'
                 self.weather['fnspec']['q'] = 'Unused'
 
-        # CO2 correction factors are optional
-
-        try:
-            self.weather['fields']['co2_grass'] = config.get(weather_sec, 'co2_grass_field')
-        except:
-            self.weather['fields']['co2_grass'] = None
-        try:
-            self.weather['fields']['co2_trees'] = config.get(weather_sec, 'co2_trees_field')
-        except:
-            self.weather['fields']['co2_trees'] = None
-        try:
-            self.weather['fields']['co2_c4'] = config.get(weather_sec, 'co2_c4_field')
-        except:
-            self.weather['fields']['co2_c4'] = None
-
-        # For now, assume values are always 0-1
-        # Eventually let user change this?
-
+        # CO2 correction factors are optional (default to None)
+        
+        self.weather['fields']['co2_grass'] = None
+        self.weather['fields']['co2_tree'] = None
+        self.weather['fields']['co2_c4'] = None
         self.weather['units']['co2_grass'] = None
-        self.weather['units']['co2_trees'] = None
+        self.weather['units']['co2_tree'] = None
         self.weather['units']['co2_c4'] = None
+
         if self.co2_flag:
             logging.info('  CO2 correction')
+
+            # For now, CO2 values in table will not be error checked
+
+            # Get CO2 fields
+
+            try:
+                self.weather['fields']['co2_grass'] = config.get(weather_sec, 'co2_grass_field')
+            except:
+                self.weather['fields']['co2_grass'] = None
+            try:
+                self.weather['fields']['co2_tree'] = config.get(weather_sec, 'co2_tree_field')
+            except:
+                self.weather['fields']['co2_tree'] = None
+            try:
+                self.weather['fields']['co2_c4'] = config.get(weather_sec, 'co2_c4_field')
+            except:
+                self.weather['fields']['co2_c4'] = None
+
+            # Check that at least one CO2 field was set in INI
+            if (not self.weather['fields']['co2_grass'] and
+                    not self.weather['fields']['co2_tree'] and
+                    not self.weather['fields']['co2_c4']):
+                logging.error(
+                    '  ERROR: WEATHER CO2 field names must be set in ' +
+                    'the INI if co2_flag = True')
+                sys.exit()
+
+            # Get crop lists for each CO2 class
+            
             try:
                 self.co2_grass_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_grass_list'))))
+                    config.get(crop_et_sec, 'co2_grass_list'))))
             except:
                 self.co2_grass_crops = []
-                # # DEADBEEF - Make these defaults????
+                # # DEADBEEF - Make these the defaults?
                 # self.co2_grass_crops = (
                 #     1,6+1) + range(9,18+1) + range(21,67+1) +
                 #     69,71,72,73,75,79,80,81,83,84,85])
             try:
-                self.co2_trees_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_trees_list'))))
+                self.co2_tree_crops = sorted(list(util.parse_int_set(
+                    config.get(crop_et_sec, 'co2_tree_list'))))
             except:
-                self.co2_trees_crops = []
-                # # DEADBEEF - Make these defaults????
-                # self.co2_trees_crops = [19, 20, 70, 74, 82]
+                self.co2_tree_crops = []
+                # # DEADBEEF - Make these the defaults?
+                # self.co2_tree_crops = [19, 20, 70, 74, 82]
             try:
                 self.co2_c4_crops = sorted(list(util.parse_int_set(
-                        config.get(crop_et_sec, 'co2_c4_list'))))
+                    config.get(crop_et_sec, 'co2_c4_list'))))
             except:
                 self.co2_c4_crops = []
-                # # DEADBEEF - Make these defaults????
+                # # DEADBEEF - Make these the defaults?
                 # self.co2_c4_crops = [7, 8, 68, 76-78]
             logging.info('    Grass (C3): {}'.format(self.co2_grass_crops))
-            logging.info('    Trees (C3): {}'.format(self.co2_trees_crops))
+            logging.info('    Trees (C3): {}'.format(self.co2_tree_crops))
             logging.info('    C4: {}'.format(self.co2_c4_crops))
+
+            # Check if data fields are present for all CO2 classes with crops
+
+            if (self.co2_grass_crops and
+                    not self.weather['fields']['co2_grass']):
+                logging.error(
+                    '  ERROR: WEATHER CO2 grass field name is not set in ' +
+                    ' INI file but CO2 grass crops are listed')
+                sys.exit()
+            elif (self.co2_tree_crops and
+                    not self.weather['fields']['co2_tree']):
+                logging.error(
+                    '  ERROR: WEATHER CO2 tree field name is not set in ' +
+                    ' INI file but CO2 tree crops are listed')
+                sys.exit()
+            elif (self.co2_c4_crops and
+                    not self.weather['fields']['co2_c4']):
+                logging.error(
+                    '  ERROR: WEATHER CO2 C4 field name is not set in ' +
+                    ' INI file but CO2 C4 crops are listed')
+                sys.exit()
 
         # Wind speeds measured at heights other than 2 meters will be scaled
         
@@ -1463,7 +1501,7 @@ class CropETData():
             elif self.co2_grass_crops and crop_num in self.co2_grass_crops:
                 crop_param.co2_type = 'GRASS'
             elif self.co2_trees_crops and crop_num in self.co2_trees_crops:
-                crop_param.co2_type = 'TREES'
+                crop_param.co2_type = 'TREE'
             elif self.co2_c4_crops and crop_num in self.co2_c4_crops:
                 crop_param.co2_type = 'C4'
             else:

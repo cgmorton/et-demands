@@ -550,8 +550,8 @@ class InitializeCropCycle:
         """
         if crop.co2_type == 'GRASS':
             self.co2 = et_cell.weather_pd['co2_grass']
-        elif crop.co2_type == 'TREES':
-            self.co2 = et_cell.weather_pd['co2_trees']
+        elif crop.co2_type == 'TREE':
+            self.co2 = et_cell.weather_pd['co2_tree']
         elif crop.co2_type == 'C4':
             self.co2 = et_cell.weather_pd['co2_c4']
         return True

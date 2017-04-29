@@ -8,6 +8,7 @@ __pycache__/
 
 common
 docs/_build
+et_volumes
 example/*_plots*
 example/*_stats
 example/static

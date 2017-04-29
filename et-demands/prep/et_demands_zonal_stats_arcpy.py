@@ -2,7 +2,7 @@
 # Name:         et_demands_zonal_stats_arcpy.py
 # Purpose:      Calculate zonal stats for all rasters
 # Author:       Charles Morton
-# Created       2016-09-14
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -15,7 +15,7 @@ import sys
 
 import arcpy
 
-import util
+import _util as util
 
 
 def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
@@ -34,11 +34,6 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         None
     """
     logging.info('\nCalculating ET-Demands Zonal Stats')
-
-    # Input elevation units
-    dem_elev_units = 'METERS'
-    # Output elevation units
-    cell_elev_units = 'FEET'
 
     # DEADBEEF - Hard code for now
     if zone_type == 'huc10':
@@ -65,7 +60,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #     _name_field = 'NLDAS_ID'
     #     _name_str = 'NLDAS_4km_'
 
-    station_id_field = 'NLDAS_ID'
+    # station_id_field = 'NLDAS_ID'
 
     et_cells_path = os.path.join(gis_ws, 'ETCells.shp')
     # if gdb_flag:
@@ -76,7 +71,6 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #     _cells_path = os.path.join(gis_ws, 'ETCells.shp')
 
     cdl_ws = os.path.join(gis_ws, 'cdl')
-    dem_ws = os.path.join(gis_ws, 'dem')
     soil_ws = os.path.join(gis_ws, 'soils')
     zone_ws = os.path.dirname(zone_path)
 
@@ -89,7 +83,6 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # Field names
     cell_lat_field = 'LAT'
     cell_lon_field = 'LON'
-    cell_elev_field = 'ELEV_FT'
     cell_id_field = 'CELL_ID'
     cell_name_field = 'CELL_NAME'
     met_id_field = 'STATION_ID'
@@ -123,7 +116,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
 
     #
     snap_raster = os.path.join(cdl_ws, '{}_30m_cdls.img'.format(cdl_year))
-    snap_cs = 30
+    # snap_cs = 30
     sqm_2_acres = 0.000247105381        # From google
 
     # Link ET demands crop number (1-84) with CDL values (1-255)
@@ -248,10 +241,6 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         logging.error(('\nERROR: The CDL workspace {0} ' +
                        'does not exist\n').format(cdl_ws))
         sys.exit()
-    elif not os.path.isdir(dem_ws):
-        logging.error(('\nERROR: The DEM workspace {0} ' +
-                       'does not exist\n').format(dem_ws))
-        sys.exit()
     elif not os.path.isdir(soil_ws):
         logging.error(('\nERROR: The soil workspace {0} ' +
                        'does not exist\n').format(soil_ws))
@@ -266,7 +255,6 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         sys.exit()
     logging.info('\nGIS Workspace:   {0}'.format(gis_ws))
     logging.info('CDL Workspace:   {0}'.format(cdl_ws))
-    logging.info('DEM Workspace:   {0}'.format(dem_ws))
     logging.info('Soil Workspace:  {0}'.format(soil_ws))
     if input_soil_ws != soil_ws:
         logging.info('Soil Workspace:  {0}'.format(input_soil_ws))
@@ -290,19 +278,6 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
                       'does not exist\n'.format(zone_path))
         sys.exit()
 
-    # Check units
-    if dem_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
-        logging.error(
-            ('\nERROR: DEM elevation units {} are invalid\n' +
-             '  Units must be METERS or FEET').format(dem_elev_units))
-        sys.exit()
-    elif cell_elev_units.upper() not in ['FEET', 'FT', 'METERS', 'M']:
-        logging.error(
-            ('\nERROR: ET Cell elevation units {} are invalid\n' +
-             '  Units must be METERS or FEET').format(cell_elev_units))
-        sys.exit()
-
-    #
     arcpy.CheckOutExtension('Spatial')
     arcpy.env.pyramid = 'NONE 0'
     arcpy.env.overwriteOutput = overwrite_flag
@@ -315,8 +290,8 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #     os.makedirs(os.path.dirname(gdb_path))
 
     # Remove existing data if overwrite
-    if overwrite_flag and arcpy.Exists(et_cells_path):
-        arcpy.Delete_management(et_cells_path)
+    # if overwrite_flag and arcpy.Exists(et_cells_path):
+    #     arcpy.Delete_management(et_cells_path)
     # if overwrite_flag and gdb_flag and arcpy.Exists(gdb_path):
     #     shutil.rmtree(gdb_path)
 
@@ -326,14 +301,11 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #         os.path.dirname(gdb_path), os.path.basename(gdb_path))
 
     raster_list = [
-        [cell_elev_field, 'MEAN', os.path.join(dem_ws, 'ned_30m_albers.img')],
         [awc_field, 'MEAN', os.path.join(input_soil_ws, 'awc_30m_albers.img')],
         [clay_field, 'MEAN', os.path.join(input_soil_ws, 'clay_30m_albers.img')],
         [sand_field, 'MEAN', os.path.join(input_soil_ws, 'sand_30m_albers.img')],
         ['AG_COUNT', 'SUM', agmask_path],
         ['AG_ACRES', 'SUM', agmask_path],
-        ['AG_' + cell_elev_field, 'MEAN', os.path.join(
-            dem_ws, 'dem_{}_30m_cdls.img'.format(cdl_year))],
         ['AG_' + awc_field, 'MEAN', os.path.join(
             soil_ws, 'awc_{}_30m_cdls.img'.format(cdl_year))],
         ['AG_' + clay_field, 'MEAN', os.path.join(
@@ -388,8 +360,10 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # Get spatial reference
     output_sr = arcpy.Describe(et_cells_path).spatialReference
     snap_sr = arcpy.Raster(snap_raster).spatialReference
+    snap_cs = arcpy.Raster(snap_raster).meanCellHeight
     logging.debug('  Zone SR: {0}'.format(output_sr.name))
     logging.debug('  Snap SR: {0}'.format(snap_sr.name))
+    logging.debug('  Snap Cellsize: {0}'.format(snap_cs))
 
     # Add lat/lon fields
     logging.info('Adding Fields')
@@ -516,7 +490,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         for row in arcpy.da.SearchCursor(zone_raster_path, fields)}
 
     # Calculate zonal stats
-    logging.info('\nProcessing DEM and soil rasters')
+    logging.info('\nProcessing soil rasters')
     for field_name, stat, raster_path in raster_list:
         logging.info('  {0} {1}'.format(field_name, stat))
         table_path = os.path.join(
@@ -558,26 +532,6 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     arcpy.CalculateField_management(
         et_cells_path, awc_in_ft_field,
         '!{0}! * 12'.format(awc_field), 'PYTHON')
-
-    # Convert elevation units
-    if (dem_elev_units.upper() in ['METERS', 'M'] and
-        cell_elev_units.upper() in ['FEET', 'FT']):
-        logging.info('Converting elevation to feet')
-        arcpy.CalculateField_management(
-            et_cells_path, cell_elev_field,
-            '!{0}! / 0.3048'.format(cell_elev_field), 'PYTHON')
-        arcpy.CalculateField_management(
-            et_cells_path, 'AG_' + cell_elev_field,
-            '!{0}! / 0.3048'.format('AG_' + cell_elev_field), 'PYTHON')
-    elif (dem_elev_units.upper() in ['FEET', 'FT'] and
-          cell_elev_units.upper() in ['METERS', 'M']):
-        logging.info('Converting elevation to meters')
-        arcpy.CalculateField_management(
-            et_cells_path, cell_elev_field,
-            '!{0}! * 0.3048'.format(cell_elev_field), 'PYTHON')
-        arcpy.CalculateField_management(
-            et_cells_path, 'AG_' + cell_elev_field,
-            '!{0}! * 0.3048'.format('AG_' + cell_elev_field), 'PYTHON')
 
     # Calculate hydrologic group
     logging.info('Calculating hydrologic group')

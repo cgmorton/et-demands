@@ -2,7 +2,7 @@
 # Name:         build_study_area_raster.py
 # Purpose:      Build study area raster
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -14,8 +14,8 @@ import os
 import subprocess
 import sys
 
-import gdal_common as gdc
-import util
+import _gdal_common as gdc
+import _util as util
 
 
 def main(gis_ws, cdl_ws, cdl_year, study_area_path, study_area_buffer=None,

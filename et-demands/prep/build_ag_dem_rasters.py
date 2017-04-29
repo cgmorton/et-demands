@@ -2,7 +2,7 @@
 # Name:         build_ag_dem_rasters.py
 # Purpose:      Extract DEM data for agricultural CDL pixels
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -15,8 +15,8 @@ import sys
 
 import numpy as np
 
-import gdal_common as gdc
-import util
+import _gdal_common as gdc
+import _util as util
 
 
 def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False,

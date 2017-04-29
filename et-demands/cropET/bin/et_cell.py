@@ -70,7 +70,8 @@ class ETCellData():
                 row_list = row.tolist()
                 cell = ETCell()
                 if not(cell.read_cell_properties_from_row(row.tolist(), columns, 
-                        data.elev_units)): sys.exit()
+                        data.elev_units)): 
+                    sys.exit()
                 self.et_cells_dict[cell.cell_id] = cell
         except: 
             logging.error('Unable to read ET Cells Properties from ' + data.cell_properties_path)
@@ -442,13 +443,7 @@ class ETCell():
             self.cell_id, self.cell_name, self.refet_id)
 
     def read_cell_properties_from_row(self, row, columns, elev_units = 'feet'):
-        """ Parse row of row from ET Cells properties file
-
-        Order of columns:
-            ET Cell ID, ET Cell Name, Ref ET MET ID, Met Latitude, Met Longitude, Met Elevation, 
-            Area Weighted Averarge Permeability, Area Weighted Average WHC, Average Soil Depth,
-            Hydrologic Group (A-C), Hydrologic Group (1-3), Aridity Rating, 
-            RefET row Path (optional), Source RefET Id (optional)    # futrue
+        """ Parse row of data from ET Cells properties file
 
         Args:
             row (list): one row of ET Cells Properties
@@ -490,6 +485,9 @@ class ETCell():
             logging.error('Unable to read elevation')
             return False
 	if elev_units == 'feet' or elev_units == 'ft': self.elevation *= 0.3048
+	
+        # Compute air pressure of station/cell
+        
         self.air_pressure = util.pair_from_elev(0.3048 * self.elevation)
         if 'area weighted average permeability' in columns:
             self.permeability = float(row[columns.index('area weighted average permeability')])
@@ -522,9 +520,10 @@ class ETCell():
             logging.error('Unable to read elevation')
             return False
         """
-        # possible future implementation to be consistent with original vb functionality
-        
-        # additional optional meta row
+        # Additional optional meta row
+        # These items were in vb.net version to support previous vb6 versions.
+        # Not yet used in python but could be useful for specifying
+        # an alternative source of data.
 
         self.refet_row_path = None
         if 'refet row path' in columns:
@@ -540,10 +539,10 @@ class ETCell():
         return True
 
     def init_crops_from_row(self, data, crop_numbers):
-        """Parserow of data
+        """Parse row of data
 
-        Code exists in kcb_daily to adjust cgdd_term usingcrop flag as a multiplier
-        This code is currently commented out and crop_flags are being read in as booleans
+        Code exists in kcb_daily to adjust cgdd_term using crop flag as a multiplier.
+        This code is currently commented out and crop_flags are being read in as booleans.
 
         """
         self.irrigation_flag = int(data[3])
@@ -658,11 +657,11 @@ class ETCell():
             sys.exit()
         logging.debug('  Columns: {}'.format(', '.join(list(self.refet_df.columns))))
 
-        # Check fields
+        # Check that fields exist in data table
         
         for field_key, field_name in data.refet['fields'].items():
             if (field_name is not None and
-                field_name not in self.refet_df.columns):
+                    field_name not in self.refet_df.columns):
                 logging.error(
                     ('\n  ERROR: Field "{0}" was not found in {1}\n' +
                      '    Check{2}_field value inINI file').format(
@@ -761,7 +760,7 @@ class ETCell():
         except:
             logging.error(('  Unknown error reading ETo ratios static ' +
                            'file\n {}').format(refet_ratios_path))
-            return False
+            sys.exit()
 
         # Remove duplicates
         # If there are duplicate station IDs, for now only use first instance
@@ -837,7 +836,7 @@ class ETCell():
         for field_key, field_units in data.weather['units'].items():
             if field_units is None:
                 continue
-            elif field_units.lower() in ['c', 'mm', 'mm/day', 'kg/kg', 'mps', 'm/s']:
+            elif field_units.lower() in ['c', 'mm', 'mm/day', 'm/s', 'mps', 'mj/m2', 'mj/m^2', 'kg/kg']:
                 continue
             elif field_units.lower() == 'k':
                 self.weather_df[field_key] -= 273.15
@@ -869,6 +868,7 @@ class ETCell():
         # set date attributes
         
         self.weather_df['doy'] = [int(ts.strftime('%j')) for ts in self.weather_df.index]
+
         # Scale wind height to 2m if necessary
         
         if data.weather['wind_height'] != 2:
@@ -902,17 +902,24 @@ class ETCell():
                 util.es_from_t(self.weather_df['tdew'].values) /
                 util.es_from_t(self.weather_df['tmax'].values), 0, 1)
 
+        # DEADBEEF
+        # Don't default CO2 correction values to 1 if they aren't in the data
+        # CO2 corrections must be in the weather file
+        # Is this going for work for all BOR data sets?
+
+        """
         # Set CO2 correction values to 1 if they are not in data
-        
+
         if 'co2_grass' not in self.weather_df.columns:
             logging.info('  Grass CO2 factor not in weather data, setting co2_grass = 1')
             self.weather_df['co2_grass'] = 1
-        if 'co2_trees' not in self.weather_df.columns:
+        if 'co2_tree' not in self.weather_df.columns:
             logging.info('  Tree CO2 factor not in weather data, setting co2_trees = 1')
             self.weather_df['co2_trees'] = 1
         if 'co2_c4' not in self.weather_df.columns:
             logging.info('  C4 CO2 factor not in weather data, setting co2_c4 = 1')
             self.weather_df['co2_c4'] = 1
+        """
         return True
 
     def SF_P_weather_data(self, data):
@@ -939,10 +946,12 @@ class ETCell():
             logging.error(('  IOError: Weather data file could not be read ' +
                            'and may not exist\n  {}').format(weather_path))
             return False
+            # sys.exit()
         except:
             logging.error(('  Unknown error reading Weather data ' +
                            'file\n {}').format(weather_path))
             return False
+            # sys.exit()
         logging.debug('  Columns: {0}'.format(
             ', '.join(list(self.weather_df.columns))))
 

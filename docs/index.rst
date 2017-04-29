@@ -12,9 +12,11 @@ Table of Contents:
 .. toctree::
    :maxdepth: 2
 
-   example
-   prep
    static
+   structure
+   data
+   prep_tools
+   prep_example
    spatial
    run_ret
    run_cet

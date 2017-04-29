@@ -2,7 +2,7 @@
 # Name:         rasterize_soil_polygons.py
 # Purpose:      Convert soil polygons to raster
 # Author:       Charles Morton
-# Created       2016-07-22
+# Created       2017-01-11
 # Python:       2.7
 #--------------------------------
 
@@ -16,8 +16,8 @@ import sys
 import numpy as np
 from osgeo import gdal
 
-import gdal_common as gdc
-import util
+import _gdal_common as gdc
+import _util as util
 
 
 def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
