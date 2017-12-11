@@ -45,7 +45,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         zone_path = os.path.join(gis_ws, 'huc8', 'wbdhu8_albers.shp')
         zone_id_field = 'HUC8'
         zone_name_field = 'HUC8'
-        zone_name_str = 'HUC8 '
+        zone_name_str = 'HUC8 '    
     elif zone_type == 'county':
         zone_path = os.path.join(
             gis_ws, 'counties', 'county_nrcs_a_mbr_albers.shp')
@@ -53,6 +53,11 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         # zone_id_field = 'FIPSCO'
         zone_name_field = 'COUNTYNAME'
         zone_name_str = ''
+    elif zone_type == 'gridmet':
+        zone_path = os.path.join(gis_ws, 'gridmet', 'gridmet_4km_cells_albers.shp')
+        zone_id_field = 'GRIDMET_ID'
+        zone_name_field = 'GRIDMET_ID'
+        zone_name_str = 'GRIDMET_ID '    
     # elif zone_type == 'nldas':
     #     _path = os.path.join(
     #        gis_ws, 'counties', 'county_nrcs_a_mbr_albers.shp')
@@ -389,10 +394,10 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         logging.debug('  {0}'.format(met_id_field))
         arcpy.AddField_management(
             et_cells_path, met_id_field, 'TEXT', '', '', 24)
-    # if zone_id_field not in field_list:
-    #     logging.debug('  {0}'.format(zone_id_field))
-    #     arcpy.AddField_management(
-    #         et_cells_path, zone_id_field, 'TEXT', '', '', 8)
+    if zone_id_field not in field_list:
+        logging.debug('  {0}'.format(zone_id_field))
+        arcpy.AddField_management(
+            et_cells_path, zone_id_field, 'TEXT', '', '', 8)
 
     # Status flags
     # if active_flag_field not in field_list:
@@ -482,13 +487,11 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
             zone_proj_path, zone_id_field, zone_raster_path, snap_cs)
         arcpy.ClearEnvironment('snapRaster')
         # arcpy.ClearEnvironment('extent')
-
     # Link zone raster Value to zone field
     fields = ('Value', zone_id_field)
     zone_value_dict = {
         row[0]: row[1]
         for row in arcpy.da.SearchCursor(zone_raster_path, fields)}
-
     # Calculate zonal stats
     logging.info('\nProcessing soil rasters')
     for field_name, stat, raster_path in raster_list:
@@ -669,8 +672,8 @@ def arg_parse():
         help='GIS workspace/folder', metavar='FOLDER')
     parser.add_argument(
         '--zone', default='huc8', metavar='', type=str,
-        choices=('huc8', 'huc10', 'county'),
-        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county'])))
+        choices=('huc8', 'huc10', 'county','gridmet'),
+        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county','gridmet'])))
     parser.add_argument(
         '-y', '--year', metavar='YEAR', required=True, type=int,
         help='CDL year')
