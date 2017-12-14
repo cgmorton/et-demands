@@ -99,7 +99,7 @@ def main(gis_ws, input_soil_ws, cdl_year='', prop_list=['all'],
 
         logging.info('Soil Property:   {}'.format(', '.join(prop_list)))
         if prop_list == ['all']:
-            prop_list = ['awc', 'clay', 'sand']
+            prop_list = ['AWC', 'CLAY', 'SAND']
 
         # Process existing soil rasters (from rasterize script)
         for prop_str in prop_list:

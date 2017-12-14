@@ -448,8 +448,8 @@ def arg_parse():
         type=lambda x: util.is_valid_file(parser, x), help='Input file')
     parser.add_argument(
         '--zone', default='county', metavar='', type=str,
-        choices=('huc8', 'huc10', 'county'),
-        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county'])))
+        choices=('huc8', 'huc10', 'county', 'gridmet'),
+        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county', 'gridmet'])))
     parser.add_argument(
         '--area', default=10, type=float,
         help='Crop area threshold [acres]')

@@ -1,25 +1,21 @@
 # Name:         gridmet_ee_pull.py
-# Purpose:      Pulls Daily GRIDMET data for ETDemands model input (input file with Lat, Lon, SCENE_ID? required)
+# Purpose:      Pulls Daily GRIDMET data and calculated ETr for ETDemands model input
 # Author:       Chris Pearson
 # Created       2017-12-04
 # Python:       2.7
 #--------------------------------
-#import csv
+
 import pandas as pd
 import datetime as dt
 import os
 import ee
 import numpy as np
-#import math
-#import logging
 from time import sleep
 import timeit
 
 ee.Initialize()
 
-system_properties = ['system:index', 'system:time_start', 'system:time_end']
-
-# Change working directory
+#Specify working directory
 os.chdir('D:\et-demands\upper_co\climate')
 
 #Run RefET on imported dataset
@@ -27,7 +23,8 @@ RefET_flag=True
 if RefET_flag: 
     import RefET
     
-#Input .csv containing Lat, Lon, and 
+#Input .csv containing GRIDMET_ID, LAT, LON,ELEV_M
+#Create input .csv from: GIS-DATA\Shapefiles\gridmet_4km\gridmet_4km_dd_pts_full.shp 
 input_df = pd.read_csv('gridmet_4km_20sites.csv')
 
 #Specify column order for output .csv Variables: 'Date','Year','Month','Day','Tmax','Tmin','Srad','Ws_10m','q','Prcp','ETo'
@@ -55,24 +52,8 @@ met_bands = ['tmmx', 'tmmn', 'srad', 'vs', 'sph', 'pr','pet']
 #fm100: 100-hour dead fuel moisture (%)
 #fm1000: 1000-hour dead fuel moisture (%)
 
-#Rename GRIDMENT variables
+#Rename GRIDMENT variables during ee export
 met_names= ['Tmax', 'Tmin', 'Srad', 'Ws_10m', 'q', 'Prcp','ETo']
-
-class flushfile():
-    def __init__(self, f):
-        self.f = f
-
-    def __getattr__(self, name):
-        return object.__getattribute__(self.f, name)
-
-    def write(self, x):
-        self.f.write(x)
-        self.f.flush()
-
-    def flush(self):
-        self.f.flush()
-flushfile = flushfile
-
 
 #Exponential getinfo call from ee-tools/utils.py
 def ee_getinfo(ee_obj, n=30):
@@ -120,15 +101,14 @@ for index, row in input_df.iterrows():
                 .filterDate(start_date, end_date) \
                 .filter(ee.Filter.calendarRange(iter_year, iter_year, 'year')) \
                 .select(met_bands,met_names)
-    
-    
+       
         def get_values(image):
             #Pull out Date from Image
             dateStr = image.date();
             dateNum = ee.Image.constant(ee.Number.parse(dateStr.format("YYYYMMdd"))).rename(['Date'])
-            #Add Desired Date Band to Image
+            #Add DateNum Band to Image
             image = image.addBands([dateNum])      
-            #Reduce image taking mean of all pixels in polygon#
+            #Reduce image taking mean of all pixels in geometry (4km resolution)
             input_mean = ee.Image(image) \
                 .reduceRegion(
                         reducer = ee.Reducer.mean(), geometry=point, scale = 4000)
@@ -149,7 +129,6 @@ for index, row in input_df.iterrows():
                 export_df=export_df.append(export_df2)    
     #Reset Index
     export_df=export_df.reset_index(drop=False)
-#    break
 
     #Convert dateNum to datetime and create Year, Month, Day, DOY variables
     export_df.Date = pd.to_datetime(export_df.Date.astype(str), format='%Y%m%d')
@@ -183,6 +162,7 @@ for index, row in input_df.iterrows():
 #        P= 101.3*((293.15-0.0065*row.ELEV_M)/293.15)**5.26
 #        P= 101.3 * (((293 - 0.0065 * row.ELEV_M) / 293) ** (9.8 / (0.0065 * 286.9)))
         P= 101.3 * (((293.15 - 0.0065 * row.ELEV_M) / 293.15) ** (9.80665 / (0.0065 * 286.9)))         
+        
         #Specific Humidity and elevation to Vapor Pressure
         ref_df['ea']=export_df.q*P/(0.622+0.378*export_df.q)      
               
@@ -205,15 +185,13 @@ for index, row in input_df.iterrows():
         #Run RefET code on ref_df dataframe
         ref_df['ETr']= RefET.daily(ref_df.Tmin, ref_df.Tmax, ref_df.ea, ref_df.Srad_MJ, ref_df.Ws_10m, ref_df.Sensor_Ht, ref_df.ELEV_M, ref_df.LAT_rad, ref_df.DOY, ref_type='etr',
               rso_type='full', rso=None)
-        ref_df['ETo_py']= RefET.daily(ref_df.Tmin, ref_df.Tmax, ref_df.ea, ref_df.Srad_MJ, ref_df.Ws_10m, ref_df.Sensor_Ht, ref_df.ELEV_M, ref_df.LAT_rad, ref_df.DOY, ref_type='eto',
-              rso_type='full', rso=None)
-        
-#        ref_df['Eto_daily']=daily.daily(  ref_df.Tmin, ref_df.Tmax, ref_df.ea, ref_df.Srad_MJ, ref_df.Ws_10m, ref_df.Sensor_Ht, ref_df.ELEV_M, ref_df.LAT_rad, ref_df.DOY, ref_type='eto',
-#              rso_type='full', rso=None, asce_flag=True)
-#        
-        #Copy Relevant ETr/Eto data to export_df
+#        ref_df['ETo_py']= RefET.daily(ref_df.Tmin, ref_df.Tmax, ref_df.ea, ref_df.Srad_MJ, ref_df.Ws_10m, ref_df.Sensor_Ht, ref_df.ELEV_M, ref_df.LAT_rad, ref_df.DOY, ref_type='eto',
+#              rso_type='full', rso=None)
+        #Remove all negative evaporation estimates
+        ref_df.ETr=ref_df.ETr.clip(lower=0)
+        #Copy ETr/Eto data to export_df
         export_df['ETr']=ref_df.ETr
-        
+        #RefET Flag Output Order
         output_order=['Date','Year','Month','Day','Tmax_C','Tmin_C','Srad','Ws_2m','q','Prcp','ETo','ETr']
     
     #Output Filename with GRIDMET ID
@@ -223,28 +201,5 @@ for index, row in input_df.iterrows():
     export_df.to_csv(output_name[0],columns=output_order)
 
     elapsed=timeit.default_timer() - start_time
-    print(elapsed)
-    
-    #%% Test Plotting ETo Comparison    
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    sns.set(font_scale=2.5)
-    g = sns.jointplot(x=export_df.ETo, y=ref_df.Eto_daily)
-  
-    export_df.set_index('Date', inplace=True)
-    ref_df.set_index('Date', inplace=True)
-    
-    export_df['ETo'].plot(color='b')
-    ref_df['ETo_py'].plot(color='r')
-    ref_df['Eto_daily'].plot(color='r')
-    plt.xlabel('', fontsize=20)
-    plt.ylabel('E (mm)', fontsize=20)
-    plt.legend(['GRIDMET ETo', 'Python ETo'],fontsize=20)
-
-    export_df['ETr'].plot(color='b')
-    plt.xlabel('', fontsize=20)
-    plt.ylabel('E (mm)', fontsize=20)
-    plt.legend(['ETr'],fontsize=20)
-
-    
+    print(elapsed)   
    

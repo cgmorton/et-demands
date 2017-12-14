@@ -306,17 +306,17 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #         os.path.dirname(gdb_path), os.path.basename(gdb_path))
 
     raster_list = [
-        [awc_field, 'MEAN', os.path.join(input_soil_ws, 'awc_30m_albers.img')],
-        [clay_field, 'MEAN', os.path.join(input_soil_ws, 'clay_30m_albers.img')],
-        [sand_field, 'MEAN', os.path.join(input_soil_ws, 'sand_30m_albers.img')],
+        [awc_field, 'MEAN', os.path.join(input_soil_ws, 'AWC_30m_albers.img')],
+        [clay_field, 'MEAN', os.path.join(input_soil_ws, 'CLAY_30m_albers.img')],
+        [sand_field, 'MEAN', os.path.join(input_soil_ws, 'SAND_30m_albers.img')],
         ['AG_COUNT', 'SUM', agmask_path],
         ['AG_ACRES', 'SUM', agmask_path],
         ['AG_' + awc_field, 'MEAN', os.path.join(
-            soil_ws, 'awc_{}_30m_cdls.img'.format(cdl_year))],
+            soil_ws, 'AWC_{}_30m_cdls.img'.format(cdl_year))],
         ['AG_' + clay_field, 'MEAN', os.path.join(
-            soil_ws, 'clay_{}_30m_cdls.img'.format(cdl_year))],
+            soil_ws, 'CLAY_{}_30m_cdls.img'.format(cdl_year))],
         ['AG_' + sand_field, 'MEAN', os.path.join(
-            soil_ws, 'sand_{}_30m_cdls.img'.format(cdl_year))]
+            soil_ws, 'SAND_{}_30m_cdls.img'.format(cdl_year))]
     ]
 
     # The zone field must be defined
@@ -454,6 +454,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     cell_lat_lon_func(et_cells_path, 'LAT', 'LON', output_sr.GCS)
 
     # Set CELL_ID and CELL_NAME
+    #zone_id_field must be a string
     arcpy.CalculateField_management(
         et_cells_path, cell_id_field,
         'str(!{0}!)'.format(zone_id_field), 'PYTHON')
@@ -484,11 +485,14 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         arcpy.env.snapRaster = snap_raster
         # arcpy.env.extent = arcpy.Describe(snap_raster).extent
         arcpy.FeatureToRaster_conversion(
-            zone_proj_path, zone_id_field, zone_raster_path, snap_cs)
+            zone_proj_path, cell_id_field, zone_raster_path, snap_cs)
         arcpy.ClearEnvironment('snapRaster')
         # arcpy.ClearEnvironment('extent')
     # Link zone raster Value to zone field
-    fields = ('Value', zone_id_field)
+    #zone_id_field must be a string
+    fields = ('Value', cell_id_field)
+    print(fields)
+    print(zone_raster_path)
     zone_value_dict = {
         row[0]: row[1]
         for row in arcpy.da.SearchCursor(zone_raster_path, fields)}
@@ -518,7 +522,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         #        zs_dict[row[0]] = row[1]
 
         # Write zonal stats values to zone polygon shapefile
-        fields = (zone_id_field, field_name)
+        fields = (cell_id_field, field_name)
         with arcpy.da.UpdateCursor(et_cells_path, fields) as u_cursor:
             for row in u_cursor:
                 row[1] = zs_dict.pop(row[0], 0)
@@ -635,7 +639,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # Write zonal stats values to zone polygon shapefile
     # DEADBEEF - This is intenionally writing every cell
     #   0's are written for cells with nodata
-    fields = crop_field_list + [zone_id_field]
+    fields = crop_field_list + [cell_id_field]
     with arcpy.da.UpdateCursor(et_cells_path, fields) as u_cursor:
         for row in u_cursor:
             crop_dict = zone_crop_dict.pop(row[-1], dict())
