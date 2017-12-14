@@ -195,8 +195,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         daily_df = pd.read_table(file_path, header=0, comment='#', sep=sep)
         
         
-        daily_df = pd.read_table('D:\et-demands\upper_co\daily_stats\\387089_daily_crop_03.csv', header=0, comment='#', sep=',')
-        
         logging.debug('    Fields: {0}'.format(
             ', '.join(daily_df.columns.values)))
         daily_df[date_field] = pd.to_datetime(daily_df[date_field])
