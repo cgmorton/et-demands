@@ -15,7 +15,7 @@ import os
 import re
 import sys
 
-
+from bokeh.models.formatters import DatetimeTickFormatter
 from bokeh.plotting import figure, output_file, save, show
 from bokeh.layouts import column
 from bokeh.models import Range1d
@@ -294,23 +294,23 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
    
         # groupby stats
         doy_mean= doy_df[0].groupby(doy_df[0]).mean().as_matrix()
-        season_mean= season_df[0].groupby(doy_df[0]).mean().as_matrix()
+        season_median= season_df[0].groupby(doy_df[0]).median().as_matrix()
         kc_median=kc_df[0].groupby(doy_df[0]).median().as_matrix()
         kcb_median=kcb_df[0].groupby(doy_df[0]).median().as_matrix()
         etbas_median=etbas_df[0].groupby(doy_df[0]).median().as_matrix()
         etpot_median=etpot_df[0].groupby(doy_df[0]).median().as_matrix()
         etact_median=etact_df[0].groupby(doy_df[0]).median().as_matrix()
-        # 5% and 95% Percentiles of all years
-        kc_q05=kc_df[0].groupby(doy_df[0]).quantile(0.05).as_matrix()
-        kcb_q05=kcb_df[0].groupby(doy_df[0]).quantile(0.05).as_matrix()
-        etbas_q05=etbas_df[0].groupby(doy_df[0]).quantile(0.05).as_matrix()
-        etpot_q05=etpot_df[0].groupby(doy_df[0]).quantile(0.05).as_matrix()
-        etact_q05=etact_df[0].groupby(doy_df[0]).quantile(0.05).as_matrix()
-        kc_q95=kc_df[0].groupby(doy_df[0]).quantile(0.95).as_matrix()
-        kcb_q95=kcb_df[0].groupby(doy_df[0]).quantile(0.95).as_matrix()
-        etbas_q95=etbas_df[0].groupby(doy_df[0]).quantile(0.95).as_matrix()
-        etpot_q95=etpot_df[0].groupby(doy_df[0]).quantile(0.95).as_matrix()
-        etact_q95=etact_df[0].groupby(doy_df[0]).quantile(0.95).as_matrix()
+        # 25% and 75% Percentiles of all years
+        kc_q25=kc_df[0].groupby(doy_df[0]).quantile(0.25).as_matrix()
+        kcb_q25=kcb_df[0].groupby(doy_df[0]).quantile(0.25).as_matrix()
+        etbas_q25=etbas_df[0].groupby(doy_df[0]).quantile(0.25).as_matrix()
+        etpot_q25=etpot_df[0].groupby(doy_df[0]).quantile(0.25).as_matrix()
+        etact_q25=etact_df[0].groupby(doy_df[0]).quantile(0.25).as_matrix()
+        kc_q75=kc_df[0].groupby(doy_df[0]).quantile(0.75).as_matrix()
+        kcb_q75=kcb_df[0].groupby(doy_df[0]).quantile(0.75).as_matrix()
+        etbas_q75=etbas_df[0].groupby(doy_df[0]).quantile(0.75).as_matrix()
+        etpot_q75=etpot_df[0].groupby(doy_df[0]).quantile(0.75).as_matrix()
+        etact_q75=etact_df[0].groupby(doy_df[0]).quantile(0.75).as_matrix()
         
         
         
@@ -323,6 +323,9 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # Remove leap days
         # etact_sub_array = np.delete(etact_array, np.where(leap_array)[0])
         # niwr_sub_array = np.delete(niwr_array, np.where(leap_array)[0])
+        
+        x_range = Range1d(dt.datetime(2000,1,1), dt.datetime(2000,12,31))
+        np_x_range= np.arange(dt.datetime(2000,1,1), dt.datetime(2001,1,1), dt.timedelta(days=1)).astype(dt.datetime)
 
         # Timeseries figures of daily data
         output_name = '{0}_crop_{1:02d}_avg'.format(
@@ -333,49 +336,51 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         f = output_file(output_path, title=output_name)
         TOOLS = 'xpan,xwheel_zoom,box_zoom,reset,save'
 
-        f1 = figure(
+        f1 = figure(x_axis_type='datetime',x_range=x_range,
             width=figure_size[0], height=figure_size[1],
             tools=TOOLS, toolbar_location="right",
             active_scroll="xwheel_zoom")
             # title='Evapotranspiration', x_axis_type='datetime',
-        f1.line(doy_mean, etbas_median, color='blue', legend='ETbas Median')
-        f1.line(doy_mean, etbas_q95, color='green', legend='ETbas 95th percentile')
-        f1.line(doy_mean, etpot_q05, color='black', legend='ETos 5th percentile',
-                line_dash="dotted")
+        f1.line(np_x_range, etbas_median, color='blue', legend='ETbas Median')
+        f1.line(np_x_range, etbas_q75, color='red', legend='ETbas 75th percentile')
+        f1.line(np_x_range, etpot_q25, color='green', legend='ETos 25th percentile')
                 # line_dash="dashdot")
         # f1.title = 'Evapotranspiration [mm]'
         f1.grid.grid_line_alpha = 0.3
         f1.yaxis.axis_label = 'Evapotranspiration [mm]'
         f1.yaxis.axis_label_text_font_size = figure_ylabel_size
+        f1.xaxis.formatter=DatetimeTickFormatter(years=['%m/%d'], months=['%m/%d'], days=['%m/%d'])
         # f1.xaxis.bounds = x_bounds
 
-        f2 = figure(
+        f2 = figure(x_axis_type='datetime',x_range=x_range,
             width=figure_size[0], height=figure_size[1],
             tools=TOOLS, toolbar_location="right",
             active_scroll="xwheel_zoom")
-        f2.line(doy_mean, kc_median, color='blue', legend='Kc Median')
-        f2.line(doy_mean, kc_q95, color='red', legend='Kc 95th percentile')
-        f2.line(doy_mean, kc_q05, color='green', legend='Kc 5th percentile')
-        f2.line(doy_mean, season_mean, color='black', legend='Season',
+        f2.line(np_x_range, kc_median, color='blue', legend='Kc Median')
+        f2.line(np_x_range, kc_q75, color='red', legend='Kc 75th percentile')
+        f2.line(np_x_range, kc_q25, color='green', legend='Kc 25th percentile')
+        f2.line(np_x_range, season_median, color='black', legend='Season Median',
                 line_dash="dashed")
 #         f2.title = 'Kc and Kcb (dimensionless)'
         f2.grid.grid_line_alpha = 0.3
         f2.yaxis.axis_label = 'Kc (dimensionless)'
         f2.yaxis.axis_label_text_font_size = figure_ylabel_size
+        f2.xaxis.formatter=DatetimeTickFormatter(years=['%m/%d'], months=['%m/%d'], days=['%m/%d'])
 
-        f3 = figure(
+        f3 = figure(x_axis_type='datetime',x_range=x_range,
             width=figure_size[0], height=figure_size[1],
             tools=TOOLS, toolbar_location="right",
             active_scroll="xwheel_zoom")
-        f3.line(doy_mean, kcb_median, color='blue', legend='Kcb Median')
-        f3.line(doy_mean, kcb_q95, color='red', legend='Kcb 95th percentile')
-        f3.line(doy_mean, kcb_q05, color='green', legend='Kcb 5th percentile')
+        f3.line(np_x_range, kcb_median, color='blue', legend='Kcb Median')
+        f3.line(np_x_range, kcb_q75, color='red', legend='Kcb 75th percentile')
+        f3.line(np_x_range, kcb_q25, color='green', legend='Kcb 25th percentile')
         # f3.title = 'PPT and Irrigation [mm]'
         f3.grid.grid_line_alpha = 0.3
-        f3.xaxis.axis_label = 'Day of Year'
+#        f3.xaxis.axis_label = 'Day of Year'
         f3.xaxis.axis_label_text_font_size = figure_ylabel_size
         f3.yaxis.axis_label = 'Kcb (dimensionless)'
         f3.yaxis.axis_label_text_font_size = figure_ylabel_size
+        f3.xaxis.formatter=DatetimeTickFormatter(years=['%m/%d'], months=['%m/%d'], days=['%m/%d'])
 
         if figure_show_flag:
             # Open in a browser
