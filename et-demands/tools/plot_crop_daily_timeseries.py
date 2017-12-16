@@ -26,7 +26,7 @@ import util
 
 def main(ini_path, figure_show_flag=False, figure_save_flag=True,
          figure_size=(1000, 300), start_date=None, end_date=None,
-         crop_str='', overwrite_flag=False):
+         crop_str=''):
     """Plot full daily data by crop
 
     Args:
@@ -37,7 +37,6 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         start_date (str): ISO format date string (YYYY-MM-DD)
         end_date (str): ISO format date string (YYYY-MM-DD)
         crop_str (str): comma separate list or range of crops to compare
-        overwrite_flag (bool): If True, overwrite existing files
 
     Returns:
         None
@@ -58,7 +57,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
     year_field = 'Year'
     # month_field = 'Month'
     # day_field = 'Day'
-    pmeto_field = 'PMETo'
+#    pmeto_field = 'PMETo'
     precip_field = 'PPT'
     # t30_field = 'T30'
 
@@ -198,6 +197,15 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         daily_df.set_index(date_field, inplace=True)
         daily_df[year_field] = daily_df.index.year
         # daily_df[year_field] = daily_df[date_field].map(lambda x: x.year)
+        
+
+        #Get PMET type from fieldnames in daily .csv
+        field_names=daily_df.columns
+        PMET_str=field_names[4]
+#        if 'PMETr' in field_names:
+#            PMET_str='PMETr'
+#        else:
+#            PMET_str='PMETo'
 
         # Build list of unique years
         year_array = np.sort(np.unique(
@@ -258,7 +266,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # Build separate arrays for each field of non-crop specific data
         dt_array = daily_df.index.date
         doy_array = daily_df[doy_field].values.astype(np.int)
-        pmeto_array = daily_df[pmeto_field].values
+        pmet_array = daily_df[PMET_str].values
         precip_array = daily_df[precip_field].values
 
         # Remove leap days
@@ -273,8 +281,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         season_array = daily_df[season_field].values
         runoff_array = daily_df[runoff_field].values
         dperc_array = daily_df[dperc_field].values
-        kc_array = etact_array / pmeto_array
-        kcb_array = etbas_array / pmeto_array
+        kc_array = etact_array / pmet_array
+        kcb_array = etbas_array / pmet_array
 
         # NIWR is ET - precip + runoff + deep percolation
         # Don't include deep percolation when irrigating
@@ -289,8 +297,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         output_name = '{0}_crop_{1:02d}_{2}-{3}'.format(
             station, int(crop_num), crop_year_start, crop_year_end)
         output_path = os.path.join(output_ws, output_name + '.html')
-        if overwrite_flag and os.path.isfile(output_path):
-            os.remove(output_path)
+
         f = output_file(output_path, title=output_name)
         TOOLS = 'xpan,xwheel_zoom,box_zoom,reset,save'
 
@@ -302,7 +309,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
             # title='Evapotranspiration', x_axis_type='datetime',
         f1.line(dt_array, etact_array, color='blue', legend='ETact')
         f1.line(dt_array, etbas_array, color='green', legend='ETbas')
-        f1.line(dt_array, pmeto_array, color='black', legend='ETos',
+        f1.line(dt_array, pmet_array, color='black', legend=PMET_str,
                 line_dash="dotted")
                 # line_dash="dashdot")
         # f1.title = 'Evapotranspiration [mm]'
@@ -359,7 +366,7 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         # Cleanup
         del file_path, daily_df
         del dt_array, year_array, year_sub_array, doy_array
-        del pmeto_array
+        del pmet_array
         del precip_array
         gc.collect()
 
@@ -391,9 +398,6 @@ def parse_args():
     parser.add_argument(
         '-c', '--crops', default='', type=str,
         help='Comma separate list or range of crops to compare')
-    parser.add_argument(
-        '-o', '--overwrite', default=None, action="store_true",
-        help='Force overwrite of existing files')
     parser.add_argument(
         '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action="store_const", dest="loglevel")
@@ -434,5 +438,4 @@ if __name__ == '__main__':
 
     main(ini_path, figure_show_flag=args.show,
          figure_save_flag=args.no_save, figure_size=args.size,
-         start_date=args.start, end_date=args.end, crop_str=args.crops,
-         overwrite_flag=args.overwrite)
+         start_date=args.start, end_date=args.end, crop_str=args.crops)
