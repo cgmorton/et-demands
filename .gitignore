@@ -14,3 +14,15 @@ example/*_stats
 example/static
 example
 OLD_Upper_Colorado
+upper_co/annual_stats
+upper_co/calibration
+upper_co/climate
+upper_co/daily_maps
+upper_co/daily_plots
+upper_co/daily_stats
+upper_co/gis
+upper_co/growing_season_stats
+upper_co/monthly_stats
+
+
+

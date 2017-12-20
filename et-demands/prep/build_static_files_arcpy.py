@@ -110,7 +110,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         station_zone_field = 'HUC10'
     elif zone_type == 'county':
         station_zone_field = 'COUNTYNAME'
-    elif zone_type == 'GRIDMET':
+    elif zone_type == 'gridmet':
         station_zone_field = 'GRIDMET_ID'
         station_id_field = 'GRIDMET_ID'    
         # station_zone_field = 'FIPS_C'
@@ -358,8 +358,8 @@ def arg_parse():
         type=lambda x: util.is_valid_file(parser, x), help='Input file')
     parser.add_argument(
         '--zone', default='huc8', metavar='STR', type=str,
-        choices=('huc8', 'huc10', 'county', 'GRIDMET'),
-        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county','GRIDMET'])))
+        choices=('huc8', 'huc10', 'county', 'gridmet'),
+        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county','gridmet'])))
     parser.add_argument(
         '--acres', default=10, type=float,
         help='Crop area threshold')
