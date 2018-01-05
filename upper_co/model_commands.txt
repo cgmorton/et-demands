@@ -1,0 +1,44 @@
+
+#PREP
+python ..\et-demands\prep\build_study_area_raster.py -shp gis\stations\gridmet_4km_dd_pts_all.shp --cdl ..\common\cdl --year 2015 --buffer 2000 --stats -o
+-Warning 1: Value XXXX.XXXXXXXXXXXX of field ELEV_FT of feature XX not successfully written. Possibly due too larger number with respect to field width.
+DON'T INPUT STATIONS PT DATA!!!! INPUT SHAPEFILE OF GRIDMET CELLS!!!
+
+
+python ..\et-demands\prep\build_study_area_raster.py -shp gis\gridmet\gridmet_4km_cells_albers.shp --cdl ..\common\cdl --year 2015 --buffer 30 --stats -o
+-Warning 1: Value XXXX.XXXXXXXXXXXX of field ELEV_FT of feature XX not successfully written. Possibly due too larger number with respect to field width.
+
+python ..\et-demands\prep\clip_cdl_raster.py --cdl ..\common\cdl --years 2015 --stats -o
+
+python ..\et-demands\prep\build_ag_cdl_rasters.py --years 2015 --mask -o --stats
+
+python ..\et-demands\prep\rasterize_soil_polygons.py --soil ..\common\soils -o --stats
+-Warning 1: Feature id not preserved.
+More than 1000 errors or warnings have been reported.
+
+python ..\et-demands\prep\build_ag_soil_rasters.py --years 2015 --mask -o --stats
+
+python ..\et-demands\prep\et_demands_zonal_stats_arcpy.py --year 2015 -o --zone gridmet
+
+python ..\et-demands\prep\build_static_files_arcpy.py --ini upper_co.ini --zone gridmet --acres 10 -o
+
+#MODEL RUN
+
+#python run_basin.py -i upper_co.ini -v -d
+
+python run_basin.py -i upper_co.ini -mp
+-FurutreWarning: set_value is depreceated and will be removed in a future release. Please use .at[] or .iat[] accessors instead
+-int(sum(group[season_field].values)))
+
+
+#Tool Functions
+
+python ..//et-demands/tools/plot_crop_daily_timeseries.py -i upper_co.ini
+
+python ..//et-demands/tools/plot_crop_daily_groupstats.py -i upper_co.ini
+
+python ..//et-demands/tools/compute_growing_season.py -i upper_co.ini
+
+python ..\et-demands\prep\build_spatial_crop_params_arcpy.py -i upper_co.ini --zone gridmet --area 0
+
+

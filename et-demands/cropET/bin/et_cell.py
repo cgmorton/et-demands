@@ -223,6 +223,21 @@ class ETCellData():
             for item in os.listdir(calibration_ws)
             if crop_dbf_re.match(item)])
 
+        #Check to see if crop_dbf_dict is empty
+        if not crop_dbf_dict:
+            logging.error('Spatially Varying Calibration Files Do Not Exist. Run build_spaital_crop_params_arcpy.py')
+            sys.exit()
+            # return False
+            
+
+        #Check to see that all "active" crops have shapefiles in spatially varying calibration folder
+        if self.crop_num_list not in crop_dbf_dict.keys():
+            logging.error(('Missing Crop Shapefile In Calibration Folder. Re-Run build_spaital_crop_params_arcpy.py'))
+            sys.exit()
+            # return False
+            
+
+
         # Filter the file list based on the "active" crops
         for crop_num in crop_dbf_dict.keys():
             if crop_num not in self.crop_num_list:

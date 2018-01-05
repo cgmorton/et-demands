@@ -28,7 +28,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
 
     Args:
         ini_path (str): file path of the project INI file
-        zone_type (str): Zone type (huc8, huc10, county)
+        zone_type (str): Zone type (huc8, huc10, county, gridmet)
         area_threshold (float): CDL area threshold [acres]
         dairy_cuttings (int): Initial number of dairy hay cuttings
         beef_cuttings (int): Initial number of beef hay cuttings

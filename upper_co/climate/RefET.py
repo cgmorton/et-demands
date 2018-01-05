@@ -73,6 +73,10 @@ def daily(tmin, tmax, ea, rs, uz, zw, elev, lat, doy,
     elev = np.array(elev, copy=True, ndmin=1)
     lat = np.array(lat, copy=True, ndmin=1)
 
+    # Check that latitudes are in radians
+    if np.any(np.fabs(lat) > (0.5 * math.pi)):
+        raise ValueError('latitudes must be in radians [-pi/2, pi/2]')
+
     if ref_type.lower() in ['eto', 'grass', 'short']:
         # Tall reference crop parameters
         cn, cd = 900, 0.34
@@ -219,6 +223,12 @@ def hourly(tmean, ea, rs, uz, zw, elev, lat, lon, doy, time, ref_type='etr'):
     doy = np.array(doy, copy=True, ndmin=1)
     time = np.array(time, copy=True, ndmin=1)
     time_mid = time + 0.5
+
+    # Check that latitude & longitude are in radians
+    if np.any(np.fabs(lat) > (0.5 * math.pi)):
+        raise ValueError('latitudes must be in radians [-pi/2, pi/2]')
+    elif np.any(np.fabs(lon) > math.pi):
+        raise ValueError('longitudes must be in radians [-pi, pi]')
 
     if ref_type.lower() in ['eto', 'grass', 'short']:
         # Short reference crop parameters

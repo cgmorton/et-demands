@@ -280,11 +280,8 @@ def write_crop_output(data, et_cell, crop, foo):
 
     #Build PMET type fieldname from input data (Eto or ETr)
     et_type=data.refet['fields']['etref']
-    # print(et_type)
     pmet_field='PM'+et_type
-    print(pmet_field)
-    # raw_input('PRESS ENTER TO CONTINUE')
-    # sys.exit()
+
     precip_field = 'PPT'
     etact_field = 'ETact'
     etpot_field = 'ETpot'
