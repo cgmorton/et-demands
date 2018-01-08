@@ -595,6 +595,15 @@ class CropETData():
                      'currently supported').format(k, v))
                 sys.exit()
 
+        #Check if refet_type matches crop_coefs_name
+        if self.refet['type'] not in self.crop_coefs_path:
+            logging.warning('\nRefET Type does not match crop_coefs file name. Check the ini')
+            logging.info('  refet_type = {}'.format(self.refet['type']))
+            logging.info('  crop_coefs_name = {}'.format(self.crop_coefs_path))
+            raw_input('ENTER')     
+
+
+
     def set_crop_params(self):
         """ List of <CropParameter> instances """
         logging.info('  Reading crop parameters')

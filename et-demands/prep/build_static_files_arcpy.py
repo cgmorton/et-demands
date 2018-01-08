@@ -148,9 +148,12 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     cell_cuttings_name = 'MeanCuttings.txt'
     crop_params_name = 'CropParams.txt'
     crop_coefs_name = 'CropCoefs.txt'
+    crop_coefs_eto = 'CropCoefs_eto.txt'
+    crop_coefs_etr = 'CropCoefs_etr.txt'
     eto_ratio_name = 'EToRatiosMon.txt'
-    static_list = [crop_params_name, crop_coefs_name, cell_props_name,
-                   cell_crops_name, cell_cuttings_name, eto_ratio_name]
+    static_list = [crop_params_name, crop_coefs_name, crop_coefs_eto,
+                   crop_coefs_etr, cell_props_name, cell_crops_name,
+                   cell_cuttings_name, eto_ratio_name]
 
     # Check input folders
     if not os.path.isdir(crop_et_ws):

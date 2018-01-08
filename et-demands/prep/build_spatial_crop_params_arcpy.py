@@ -32,7 +32,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         area_threshold (float): CDL area threshold [acres]
         dairy_cuttings (int): Initial number of dairy hay cuttings
         beef_cuttings (int): Initial number of beef hay cuttings
-        crop_str (str): comma separate list or range of crops to compare
+        crop_str (str): comma separated list or range of crops to compare
         overwrite_flag (bool): If True, overwrite existing output rasters
         cleanup_flag (bool): If True, remove temporary files
 
@@ -224,48 +224,20 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     #        # ['CN_Fine_Soil', 'cn_fine_soil', 'LONG']
     #    ]
 
-    # Allow user to subset crops and cells from INI
-    try:
-        crop_skip_list = sorted(list(util.parse_int_set(
-            config.get(crop_et_sec, 'crop_skip_list'))))
-    except:
-        crop_skip_list = []
-    try:
-        crop_test_list = sorted(list(util.parse_int_set(
-            config.get(crop_et_sec, 'crop_test_list'))))
-    except:
-        crop_test_list = []
-    try:
-        cell_skip_list = config.get(crop_et_sec, 'cell_skip_list').split(',')
-        cell_skip_list = sorted([c.strip() for c in cell_skip_list])
-    except:
-        cell_skip_list = []
-    try:
-        cell_test_list = config.get(crop_et_sec, 'cell_test_list').split(',')
-        cell_test_list = sorted([c.strip() for c in cell_test_list])
-    except:
-        cell_test_list = []
-
-    # Overwrite INI crop list with user defined values
-    # Could also append to the INI crop list
+    crop_add_list = []
     if crop_str:
         try:
-            crop_test_list = sorted(list(util.parse_int_set(crop_str)))
+            crop_add_list = sorted(list(util.parse_int_set(crop_str)))
         # try:
         #     crop_test_list = sorted(list(set(
         #         crop_test_list + list(util.parse_int_set(crop_str)))
         except:
             pass
     # Don't build crop parameter files for non-crops
-    crop_skip_list = sorted(list(set(
-        crop_skip_list + [44, 45, 46, 55, 56, 57])))
+    crop_skip_list = sorted(list(set([44, 45, 46, 55, 56, 57])))
 
     # crop_test_list = sorted(list(set(crop_test_list + [46])))
-    logging.debug('\ncrop_test_list = {0}'.format(crop_test_list))
-    logging.debug('crop_skip_list = {0}'.format(crop_skip_list))
-    logging.debug('cell_test_list = {0}'.format(cell_test_list))
-    logging.debug('cell_test_list = {0}'.format(cell_test_list))
-
+    logging.info('\ncrop_add_list = {0}'.format(crop_add_list))
 
     # Read crop parameters using ET Demands functions/methods
     logging.info('\nReading Default Crop Parameters')
@@ -287,20 +259,28 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     logging.debug('Cell crop fields: {}'.format(', '.join(crop_field_list)))
     crop_number_list = [
         int(f_name.split('_')[1]) for f_name in crop_field_list]
+    
     crop_number_list = [
         crop_num for crop_num in crop_number_list
-        if not ((crop_test_list and crop_num not in crop_test_list) or
-                (crop_skip_list and crop_num in crop_skip_list))]
+        if not (crop_skip_list and crop_num in crop_skip_list)]
     logging.info('Cell crop numbers: {}'.format(
         ', '.join(list(util.ranges(crop_number_list)))))
 
     # Get crop acreages for each cell
     crop_acreage_dict = defaultdict(dict)
+
     field_list = [cell_id_field] + crop_field_list
     with arcpy.da.SearchCursor(cells_path, field_list) as cursor:
         for row in cursor:
             for i, crop_num in enumerate(crop_number_list):
-                crop_acreage_dict[crop_num][row[0]] = row[i + 1]
+                print(crop_num, i)
+                if crop_num in crop_add_list:
+                    crop_acreage_dict[crop_num][row[0]] = 0
+                else:    
+                    crop_acreage_dict[crop_num][row[0]] = row[i + 1]
+
+    crop_number_list = sorted(list(set(crop_number_list) | set(crop_add_list)))  
+
 
     # Make an empty template crop feature class
     logging.info('')
@@ -370,8 +350,11 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
             crop_num, crop_name, ext))
         crop_field = 'CROP_{0:02d}'.format(crop_num)
 
+        # Don't check crops in add list
+        if crop_num in crop_add_list:
+            pass
         # Skip if all zone crop areas are below threshold
-        if all([v < area_threshold for v in crop_acreage_dict[crop_num].values()]):
+        elif all([v < area_threshold for v in crop_acreage_dict[crop_num].values()]):
             logging.info('  All crop acreaeges below threshold, skipping crop')
             continue
 
@@ -419,8 +402,11 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         field_list = [p[0] for p in param_list] + [cell_id_field, crop_acres_field]
         with arcpy.da.UpdateCursor(crop_path, field_list) as cursor:
             for row in cursor:
-                # Skip and/or remove zones without crop acreage
-                if crop_acreage_dict[crop_num][row[-2]] < area_threshold:
+                # Don't remove zero acreage crops if in add list
+                if crop_num in crop_add_list:
+                    pass
+                # Skip and/or remove zones without crop acreage    
+                elif crop_acreage_dict[crop_num][row[-2]] < area_threshold:
                     if remove_empty_flag:
                         cursor.deleteRow()
                     continue
@@ -428,7 +414,8 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
                 for i, (param_field, param_method, param_type) in enumerate(param_list):
                     row[i] = getattr(crop_param, param_method)
                 # Write crop acreage
-                row[-1] = crop_acreage_dict[crop_num][row[-2]]
+                if crop_num not in crop_add_list:
+                    row[-1] = crop_acreage_dict[crop_num][row[-2]]
                 cursor.updateRow(row)
 
     # Cleanup
@@ -464,7 +451,7 @@ def arg_parse():
         help='Remove empty features')
     parser.add_argument(
         '-c', '--crops', default='', type=str,
-        help='Comma separate list or range of crops to compare')
+        help='Comma separated list or range of crops to compare')
     parser.add_argument(
         '-o', '--overwrite', default=False, action='store_true',
         help='Overwrite existing file')
