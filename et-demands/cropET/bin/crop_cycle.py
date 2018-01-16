@@ -368,7 +368,7 @@ def write_crop_output(data, et_cell, crop, foo):
                     start_i = np.where(season_diff == 1)[0][0] + 1
                     gs_output_pd.set_value(
                         group.index[0], gs_start_doy_field,
-                        int(group.ix[start_i, doy_field]))
+                        int(group.iat[start_i, doy_field]))
                 except:
                     gs_output_pd.set_value(
                         group.index[0], gs_start_doy_field,
@@ -377,7 +377,7 @@ def write_crop_output(data, et_cell, crop, foo):
                     end_i = np.where(season_diff == -1)[0][0] + 1
                     gs_output_pd.set_value(
                         group.index[0], gs_end_doy_field,
-                        int(group.ix[end_i, doy_field]))
+                        int(group.iat[end_i, doy_field]))
                 except:
                     gs_output_pd.set_value(
                         group.index[0], gs_end_doy_field,

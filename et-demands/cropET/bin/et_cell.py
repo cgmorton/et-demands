@@ -228,22 +228,28 @@ class ETCellData():
             logging.error('\nSpatially Varying Calibration Files Do Not Exist. Run build_spatial_crop_params_arcpy.py')
             sys.exit()
             # return False
-            
-        #Check to see that all "active" crops have shapefiles in spatially varying calibration folder
-        if self.crop_num_list not in crop_dbf_dict.keys():
-            logging.error(('\nMissing Crop Shapefile In Calibration Folder. Re-Run build_spatial_crop_params_arcpy.py'))
-            sys.exit()
-            # return False
-            
-
-
-        # Filter the file list based on the "active" crops
+  
+          # Filter the file list based on the "active" crops
         for crop_num in crop_dbf_dict.keys():
             if crop_num not in self.crop_num_list:
                 try:
                     del crop_dbf_dict[crop_num]
                 except:
                     pass
+
+        #Check to see that all "active" crops have shapefiles in spatially varying calibration folder
+        missing_set=set(self.crop_num_list)-set(crop_dbf_dict.keys())
+        # if self.crop_num_list not in crop_dbf_dict.keys(): ###WHY DOESN't THIS WORK (Data Type Issue???)
+        if len(missing_set) > 0:
+            logging.error(('\nMissing Crop Shapefiles In Calibration Folder. Re-Run build_spatial_crop_params_arcpy.py'))
+            missing_set_str=', '.join(str(s) for s in missing_set)
+            logging.error(('Missing Crops: ' + missing_set_str))
+            sys.exit()
+            # return False  
+            
+
+
+
 
         # DEADBEEF - This really shouldn't be hard coded here
         # Dictionary to convert shapefile field names to crop parameters

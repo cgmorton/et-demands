@@ -24,6 +24,8 @@ upper_co/gis
 upper_co/growing_season_stats
 upper_co/monthly_stats
 upper_co/static
+venv
+.idea
 
 
 
