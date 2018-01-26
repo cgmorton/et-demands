@@ -248,9 +248,6 @@ class ETCellData():
             # return False  
             
 
-
-
-
         # DEADBEEF - This really shouldn't be hard coded here
         # Dictionary to convert shapefile field names to crop parameters
         param_field_dict = {

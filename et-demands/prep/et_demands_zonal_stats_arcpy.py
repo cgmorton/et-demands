@@ -235,6 +235,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     crop_num_dict[249] = [21]    # Gourds -> Garden Vegetables  - general
     crop_num_dict[250] = [75]    # Cranberries -> Cranberries
     crop_num_dict[254] = [11, 85]    # Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
+    crop_num_dict[99] = [20]    #Empty CDL Placeholder for Orchards without Cover
 
 
     # Check input folders
