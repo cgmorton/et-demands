@@ -42,3 +42,26 @@ python ..//et-demands/tools/compute_growing_season.py -i upper_co.ini
 python ..\et-demands\prep\build_spatial_crop_params_arcpy.py -i upper_co.ini --zone gridmet --area 0
 
 
+################################################################################
+#Attempt to Run with USBR CDL Layer 
+python ..\et-demands\prep\build_study_area_raster.py -shp gis\stations\gridmet_4km_dd_pts_all.shp --cdl ..\common\cdl --year 2018 --stats -o
+Warning 1: Value 2145.52 of field ELEV_M of feature 25 not successfully written.
+ Possibly due to too larger number with respect to field width
+ 
+ python ..\et-demands\prep\clip_cdl_raster.py --cdl ..\common\cdl --years 2018 --stats -o
+ ERROR 1: No identifiable driver for D:\et-demands\upper_co\gis\cdl\2018_30m_cdls.img.
+ ##Error happened during first run. No errors during second run.
+ 
+ python ..\et-demands\prep\build_ag_cdl_rasters.py --years 2018 --mask -o --stats
+ 2018
+Reading CDL color table
+Traceback (most recent call last):
+  File "..\et-demands\prep\build_ag_cdl_rasters.py", line 294, in <module>
+    agland_nodata=args.agland_nodata, agmask_nodata=args.agmask_nodata)
+  File "..\et-demands\prep\build_ag_cdl_rasters.py", line 111, in main
+    cdl_rat = cdl_band.GetDefaultRAT()
+  File "C:\Miniconda2\lib\site-packages\osgeo\gdal.py", line 2273, in GetDefault
+RAT
+    return _gdal.Band_GetDefaultRAT(self, *args)
+RuntimeError: Invalid nMaxNumChars = 0 for column Class_Names
+ 

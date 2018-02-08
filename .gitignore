@@ -23,7 +23,9 @@ upper_co/daily_stats
 upper_co/gis
 upper_co/growing_season_stats
 upper_co/monthly_stats
-upper_co/static
+upper_co/static/Modified_ETCellsCrops
+upper_co/static/Original_Files
+upper_co/static/utah_cropparams
 docs
 venv
 .idea

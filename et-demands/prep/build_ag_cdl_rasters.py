@@ -10,6 +10,7 @@ import argparse
 import datetime as dt
 import logging
 import os
+import shutil
 import subprocess
 import sys
 
@@ -105,16 +106,16 @@ def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False,
         cdl_extent = gdc.geo_extent(cdl_geo, cdl_rows, cdl_cols)
         cdl_proj = gdc.raster_ds_proj(cdl_raster_ds)
         # DEADBEEF - Why is this hardcoded?
-        cdl_cellsize = 30
-        # cdl_cellsize = gdc.raster_ds_cellsize(cdl_raster_ds)[0]
-        cdl_band = cdl_raster_ds.GetRasterBand(1)
-        cdl_rat = cdl_band.GetDefaultRAT()
-        cdl_classname_dict = dict()
-        for row_i in range(cdl_rat.GetRowCount()):
-            cdl_classname_dict[row_i] = cdl_rat.GetValueAsString(
-                row_i, cdl_rat.GetColOfUsage(2))
-        cdl_raster_ds = None
-        del cdl_raster_ds, cdl_band, cdl_rat
+        # cdl_cellsize = 30
+        cdl_cellsize = gdc.raster_ds_cellsize(cdl_raster_ds)[0]
+        # cdl_band = cdl_raster_ds.GetRasterBand(1)
+        # cdl_rat = cdl_band.GetDefaultRAT()
+        # cdl_classname_dict = dict()
+        # for row_i in range(cdl_rat.GetRowCount()):
+        #     cdl_classname_dict[row_i] = cdl_rat.GetValueAsString(
+        #         row_i, cdl_rat.GetColOfUsage(2))
+        # cdl_raster_ds = None
+        # del cdl_raster_ds, cdl_band, cdl_rat
 
         # Copy the input raster to hold the ag data
         logging.debug('{}'.format(agland_path))
@@ -128,30 +129,37 @@ def main(gis_ws, cdl_year='', block_size=16384, mask_flag=False,
                  cdl_path, agland_path])
                 # '-a_nodata', agland_nodata
 
+            if os.path.isfile(cdl_path.replace('.img', '.img.vat.dbf')):
+                shutil.copyfile(
+                    cdl_path.replace('.img', '.img.vat.dbf'),
+                    agland_path.replace('.img', '.img.vat.dbf')
+                )
+
             # Set the nodata value after copying
             agland_ds = gdal.Open(agland_path, 1)
             agland_band = agland_ds.GetRasterBand(1)
             agland_band.SetNoDataValue(agland_nodata)
             agland_ds = None
 
-            # Get the colormap from the input CDL raster
-            logging.debug('Re-building raster attribute tables')
-            agland_ds = gdal.Open(agland_path, 1)
-            agland_band = agland_ds.GetRasterBand(1)
-            agland_rat = agland_band.GetDefaultRAT()
-            agland_usage_list = [
-                agland_rat.GetUsageOfCol(col_i)
-                for col_i in range(agland_rat.GetColumnCount())]
-            # if 1 not in agland_usage_list:
-            #     _rat.CreateColumn('Count', 1, 1)
-            if 2 not in agland_usage_list:
-                agland_rat.CreateColumn('Class_Name', 2, 2)
-            for row_i in range(agland_rat.GetRowCount()):
-                agland_rat.SetValueAsString(
-                    row_i, agland_rat.GetColOfUsage(2),
-                    cdl_classname_dict[row_i])
-            agland_band.SetDefaultRAT(agland_rat)
-            agland_ds = None
+            # # Get the colormap from the input CDL raster
+            # logging.debug('Re-building raster attribute tables')
+            # agland_ds = gdal.Open(agland_path, 1)
+            # agland_band = agland_ds.GetRasterBand(1)
+            # agland_rat = agland_band.GetDefaultRAT()
+            # agland_usage_list = [
+            #     agland_rat.GetUsageOfCol(col_i)
+            #     for col_i in range(agland_rat.GetColumnCount())]
+            # # if 1 not in agland_usage_list:
+            # #     _rat.CreateColumn('Count', 1, 1)
+            # # WHY IS THE LOOKING AT Class_Name??? -CHRIS
+            # if 2 not in agland_usage_list:
+            #     agland_rat.CreateColumn('Class_Name', 2, 2)
+            # for row_i in range(agland_rat.GetRowCount()):
+            #     agland_rat.SetValueAsString(
+            #         row_i, agland_rat.GetColOfUsage(2),
+            #         cdl_classname_dict[row_i])
+            # agland_band.SetDefaultRAT(agland_rat)
+            # agland_ds = None
 
         # Build an empty output raster to hold the ag mask
         logging.info('\nBuilding empty ag mask raster')

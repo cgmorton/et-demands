@@ -10,6 +10,7 @@ import argparse
 import datetime as dt
 import logging
 import os
+import shutil
 import subprocess
 import sys
 
@@ -104,6 +105,8 @@ def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,
                 ['-projwin'] + str(output_ullr).split() +
                 ['-a_ullr'] + str(output_ullr).split() +
                 [cdl_input_path, cdl_output_path])
+                shutil.copyfile(
+                )
             # , '-a_srs', 'output_proj'
             # subprocess.call(
             #     'gdalwarp', '-overwrite', '-of', 'HFA']+
@@ -111,40 +114,55 @@ def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,
             #     '-tr', '{}'.format(input_cs), '{}'.format(input_cs),
             #     _cdl_path, cdl_output_path])
 
-            # Get class names from CDL raster
-            logging.info('Read RAT')
-            input_ds = gdal.Open(cdl_input_path, 0)
-            input_band = input_ds.GetRasterBand(1)
-            input_rat = input_band.GetDefaultRAT()
-            classname_dict = dict()
-            for row_i in range(input_rat.GetRowCount()):
-                classname_dict[row_i] = input_rat.GetValueAsString(
-                    row_i, input_rat.GetColOfUsage(2))
-            input_ds = None
-            del input_ds, input_band, input_rat
-
-            # Set class names in the clipped CDL raster
-            logging.info('Write RAT',)
-            clip_ds = gdal.Open(cdl_output_path, 1)
-            clip_band = clip_ds.GetRasterBand(1)
-            clip_rat = clip_band.GetDefaultRAT()
-            clip_usage_list = [
-                clip_rat.GetUsageOfCol(col_i)
-                for col_i in range(clip_rat.GetColumnCount())]
-            logging.debug(clip_usage_list)
-            # if 1 not in clip_usage_list:
-            #     _rat.CreateColumn('Count', 1, 1)
-            if 2 not in clip_usage_list:
-                clip_rat.CreateColumn('Class_Name', 2, 2)
-            for row_i in range(clip_rat.GetRowCount()):
-                clip_rat.SetValueAsString(
-                    row_i, clip_rat.GetColOfUsage(2), classname_dict[row_i])
-            clip_band.SetDefaultRAT(clip_rat)
-            # Check that they were written to the RAT
+            #Trying copying vat.dbf file from original cdl instead of copying class names during clip
+            # # Get class names from CDL raster
+            # logging.info('Read RAT')
+            # input_ds = gdal.Open(cdl_input_path, 0)
+            # input_band = input_ds.GetRasterBand(1)
+            # input_rat = input_band.GetDefaultRAT()
+            # classname_dict = dict()
+            #
+            # # input_name_list = [
+            # #     input_rat.GetNameOfCol(col_i)
+            # #     for col_i in range(input_rat.GetColumnCount())]
+            # input_usage_list = [
+            #     input_rat.GetUsageOfCol(col_i)
+            #     for col_i in range(input_rat.GetColumnCount())]
+            # logging.debug(input_usage_list)
+            # #if 1 not in clip_usage_list:
+            # #     _rat.CreateColumn('Count', 1, 1)
+            # if 2 in input_usage_list:
+            #     for row_i in range(input_rat.GetRowCount()):
+            #         try:
+            #             classname_dict[row_i] = input_rat.GetValueAsString(
+            #                 row_i, input_rat.GetColOfUsage(2))
+            #         except:
+            #             pass
+            # input_ds = None
+            # del input_ds, input_band, input_rat
+            #
+            # # Set class names in the clipped CDL raster
+            # logging.info('Write RAT',)
+            # clip_ds = gdal.Open(cdl_output_path, 1)
+            # clip_band = clip_ds.GetRasterBand(1)
             # clip_rat = clip_band.GetDefaultRAT()
+            # clip_usage_list = [
+            #     clip_rat.GetUsageOfCol(col_i)
+            #     for col_i in range(clip_rat.GetColumnCount())]
+            # logging.debug(clip_usage_list)
+            # # if 1 not in clip_usage_list:
+            # #     _rat.CreateColumn('Count', 1, 1)
+            # if 2 not in clip_usage_list:
+            #     clip_rat.CreateColumn('Class_Name', 2, 2)
             # for row_i in range(clip_rat.GetRowCount()):
-            #      clip_rat.GetValueAsString(row_i, clip_rat.GetColOfUsage(2))
-            clip_ds = None
+            #     clip_rat.SetValueAsString(
+            #         row_i, clip_rat.GetColOfUsage(2), classname_dict[row_i])
+            # clip_band.SetDefaultRAT(clip_rat)
+            # # Check that they were written to the RAT
+            # # clip_rat = clip_band.GetDefaultRAT()
+            # # for row_i in range(clip_rat.GetRowCount()):
+            # #      clip_rat.GetValueAsString(row_i, clip_rat.GetColOfUsage(2))
+            # clip_ds = None
 
         # Statistics
         if stats_flag and os.path.isfile(cdl_output_path):

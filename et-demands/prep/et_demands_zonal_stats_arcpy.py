@@ -14,6 +14,7 @@ import os
 import sys
 
 import arcpy
+import pandas as pd
 
 import _util as util
 
@@ -126,118 +127,133 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
 
     # Link ET demands crop number (1-84) with CDL values (1-255)
     # Key is CDL number, value is crop number, comment is CDL class name
+    # Crosswalk values are coming from cdl_crosswalk.csv and being upacked into a dictionary
+    # Allows user to modify crosswalk in excel
+    # Pass in crosswalk file as an input argument
+    crosswalk_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cdl_crosswalk_usbrmod.csv')
+    cross = pd.read_csv(crosswalk_file)
+
+    # Add Try and Except for header names, unique crop numbers, etc.
     crop_num_dict = dict()
-    crop_num_dict[1] = [7]     # Corn -> Field Corn
-    crop_num_dict[2] = [58]    # Cotton -> Cotton
-    crop_num_dict[3] = [65]    # Rice -> Rice
-    crop_num_dict[4] = [60]    # Sorghum -> Sorghum
-    crop_num_dict[5] = [66]    # Soybeans -> Soybeans
-    crop_num_dict[6] = [36]    # Sunflower -> Sunflower -irrigated
-    crop_num_dict[10] = [67]   ## Peanuts -> Peanuts
-    crop_num_dict[11] = [36]   ## Tobacco -> Sunflower -irrigated
-    crop_num_dict[12] = [9]    # Sweet Corn -> Sweet Corn Early Plant
-    crop_num_dict[13] = [7]     # Pop or Orn Corn -> Field Corn
-    crop_num_dict[14] = [33]    # Mint -> Mint
-    crop_num_dict[21] = [11]    # Barley -> Spring Grain - irrigated
-    crop_num_dict[22] = [11]    # Durum Wheat -> Spring Grain - irrigated
-    crop_num_dict[23] = [11]    # Spring Wheat -> Spring Grain - irrigated
-    crop_num_dict[24] = [13]    # Winter Wheat -> Winter Grain - irrigated
-    crop_num_dict[25] = [11]    # Other Small Grains -> Spring Grain - irrigated
-    crop_num_dict[26] = [13, 85]    # Dbl Crop WinWht/Soybeans -> Soybeans After Another Crop
-    crop_num_dict[27] = [11]    # Rye -> Spring Grain - irrigated
-    crop_num_dict[28] = [11]    # Oats -> Spring Grain - irrigated
-    crop_num_dict[29] = [68]    # Millet -> Millet
-    crop_num_dict[30] = [11]    # Speltz -> Spring Grain - irrigated
-    crop_num_dict[31] = [40]    # Canola -> Canola
-    crop_num_dict[32] = [11]    # Flaxseed -> Spring Grain - irrigated
-    crop_num_dict[33] = [38]    # Safflower -> Safflower -irrigated
-    crop_num_dict[34] = [41]    # Rape Seed -> Mustard
-    crop_num_dict[35] = [41]    # Mustard -> Mustard
-    crop_num_dict[36] = [3]     # Alfalfa -> Alfalfa - Beef Style
-    crop_num_dict[37] = [4]     # Other Hay/Non Alfalfa -> Grass Hay
-    crop_num_dict[38] = [41]    # Camelina -> Mustard
-    crop_num_dict[39] = [41]    # Buckwheat -> Mustard
-    crop_num_dict[41] = [31]    # Sugarbeets -> Sugar beets
-    crop_num_dict[42] = [5]     # Dry Beans -> Snap and Dry Beans - fresh
-    crop_num_dict[43] = [30]    # Potatoes -> Potatoes
-    crop_num_dict[44] = [11]    # Other Crops -> Spring Grain - irrigated
-    crop_num_dict[45] = [76]    # Sugarcane -> Sugarcane
-    crop_num_dict[46] = [30]    # Sweet Potatoes -> Potatoes
-    crop_num_dict[47] = [21]    # Misc Vegs & Fruits -> Garden Vegetables  - general
-    crop_num_dict[48] = [24]    # Watermelons -> Melons
-    crop_num_dict[49] = [23]    # Onions -> Onions
-    crop_num_dict[50] = [21]    # Cucumbers -> Garden Vegetables  - general
-    crop_num_dict[51] = [5]     # Chick Peas -> Snap and Dry Beans - fresh
-    crop_num_dict[52] = [5]     # Lentils -> Snap and Dry Beans - fresh
-    crop_num_dict[53] = [27]    # Peas -> Peas--fresh
-    crop_num_dict[54] = [69]    # Tomatoes -> Tomatoes
-    crop_num_dict[55] = [75]    # Caneberries -> Cranberries
-    crop_num_dict[56] = [32]    # Hops -> Hops
-    crop_num_dict[57] = [21]    # Herbs -> Garden Vegetables  - general
-    crop_num_dict[58] = [41]    # Clover/Wildflowers -> Mustard
-    crop_num_dict[59] = [17]    # Sod/Grass Seed -> Grass - Turf (lawns) -irrigated
-    crop_num_dict[60] = [81]    # Switchgrass -> Sudan
-    crop_num_dict[66] = [19]    # Cherries -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[67] = [19]    # Peaches -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[68] = [19]    # Apples -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[69] = [25]    # Grapes -> Grapes
-    crop_num_dict[70] = [82]    # Christmas Trees -> Christmas Trees
-    crop_num_dict[71] = [19]    # Other Tree Crops -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[72] = [70]    # Citrus -> Oranges
-    crop_num_dict[74] = [74]    # Pecans -> Nuts
-    crop_num_dict[75] = [74]    # Almonds -> Nuts
-    crop_num_dict[76] = [74]    # Walnuts -> Nuts
-    crop_num_dict[77] = [19]    # Pears -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[176] = [15]    # Grassland/Pasture -> Grass Pasture - high management
-    crop_num_dict[204] = [74]    # Pistachios -> Nuts
-    crop_num_dict[205] = [11]    # Triticale -> Spring Grain - irrigated
-    crop_num_dict[206] = [22]    # Carrots -> Carrots
-    crop_num_dict[207] = [21]    # Asparagus -> Aparagus
-    crop_num_dict[208] = [43]    # Garlic -> Garlic
-    crop_num_dict[209] = [24]    # Cantaloupes -> Melons
-    crop_num_dict[210] = [19]    # Prunes -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[211] = [61]    # Olives -> Olives
-    crop_num_dict[212] = [70]    # Oranges -> Oranges
-    crop_num_dict[213] = [24]    # Honeydew Melons -> Melons
-    crop_num_dict[214] = [21]    # Broccoli -> Garden Vegetables  - general
-    crop_num_dict[216] = [59]    # Peppers -> Peppers
-    crop_num_dict[217] = [19]    # Pomegranates -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[218] = [19]    # Nectarines -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[219] = [21]    # Greens -> Garden Vegetables  - general
-    crop_num_dict[220] = [19]    # Plums -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[221] = [62]    # Strawberries -> Strawberries
-    crop_num_dict[222] = [21]    # Squash -> Garden Vegetables  - general
-    crop_num_dict[223] = [19]    # Apricots -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[224] = [6]     # Vetch -> Snap and Dry Beans - seed
-    crop_num_dict[225] = [77]    # Dbl Crop WinWht/Corn -> Field Corn After Another Crop
-    crop_num_dict[226] = [77]    # Dbl Crop Oats/Corn -> Field Corn After Another Crop
-    crop_num_dict[227] = [71]    # Lettuce -> Lettuce (Single Crop)
-    crop_num_dict[229] = [21]    # Pumpkins -> Garden Vegetables  - general
-    crop_num_dict[230] = [71, 84]    # Dbl Crop Lettuce/Durum Wht -> Grain After Another Crop
-    crop_num_dict[231] = [71, 83]    # Dbl Crop Lettuce/Cantaloupe -> Melons After Another Crop
-    crop_num_dict[232] = [71, 79]    # Dbl Crop Lettuce/Cotton -> Cotton After Another Crop
-    crop_num_dict[233] = [71, 84]    # Dbl Crop Lettuce/Barley -> Grain After Another Crop
-    crop_num_dict[234] = [71, 78]    # Dbl Crop Durum Wht/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[235] = [71, 78]    # Dbl Crop Barley/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[236] = [13, 78]    # Dbl Crop WinWht/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[237] = [11, 77]    # Dbl Crop Barley/Corn -> Field Corn After Another Crop
-    crop_num_dict[238] = [13, 79]    # Dbl Crop WinWht/Cotton -> Cotton After Another Crop
-    crop_num_dict[239] = [66, 79]    # Dbl Crop Soybeans/Cotton -> Cotton After Another Crop
-    crop_num_dict[240] = [66, 84]    # Dbl Crop Soybeans/Oats -> Grain After Another Crop
-    crop_num_dict[241] = [7, 85]    # Dbl Crop Corn/Soybeans -> Soybeans After Another Crop
-    crop_num_dict[242] = [63]    # Blueberries -> Blueberries
-    crop_num_dict[243] = [80]    # Cabbage -> Cabbage
-    crop_num_dict[244] = [21]    # Cauliflower -> Garden Vegetables  - general
-    crop_num_dict[245] = [21]    # Celery -> Garden Vegetables  - general
-    crop_num_dict[246] = [21]    # Radishes -> Garden Vegetables  - general
-    crop_num_dict[247] = [21]    # Turnips -> Garden Vegetables  - general
-    crop_num_dict[248] = [21]    # Eggplants -> Garden Vegetables  - general
-    crop_num_dict[249] = [21]    # Gourds -> Garden Vegetables  - general
-    crop_num_dict[250] = [75]    # Cranberries -> Cranberries
-    crop_num_dict[254] = [11, 85]    # Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
-    crop_num_dict[99] = [20]    #Empty CDL Placeholder for Orchards without Cover
-    crop_num_dict[98] = [85]    #Empty CDL Placeholder for AgriMet based "Grass Pasture- Mid Management"
-    crop_num_dict[97] = [16]    #Empty CDL Placeholder for "Grass Pasture- Low Management"
+    for index, row in cross.iterrows():
+        crop_num_dict[int(row.cdl_no)] = map(int, str(row.etd_no).split(','))
+    logging.debug(crop_num_dict)
+
+    # REMOVE LATER AFTER TESTING ABOVE
+    # Link ET demands crop number (1-84) with CDL values (1-255)
+    # Key is CDL number, value is crop number, comment is CDL class name
+    # crop_num_dict = dict()
+    # crop_num_dict[1] = [7]     # Corn -> Field Corn
+    # crop_num_dict[2] = [58]    # Cotton -> Cotton
+    # crop_num_dict[3] = [65]    # Rice -> Rice
+    # crop_num_dict[4] = [60]    # Sorghum -> Sorghum
+    # crop_num_dict[5] = [66]    # Soybeans -> Soybeans
+    # crop_num_dict[6] = [36]    # Sunflower -> Sunflower -irrigated
+    # crop_num_dict[10] = [67]   ## Peanuts -> Peanuts
+    # crop_num_dict[11] = [36]   ## Tobacco -> Sunflower -irrigated
+    # crop_num_dict[12] = [9]    # Sweet Corn -> Sweet Corn Early Plant
+    # crop_num_dict[13] = [7]     # Pop or Orn Corn -> Field Corn
+    # crop_num_dict[14] = [33]    # Mint -> Mint
+    # crop_num_dict[21] = [11]    # Barley -> Spring Grain - irrigated
+    # crop_num_dict[22] = [11]    # Durum Wheat -> Spring Grain - irrigated
+    # crop_num_dict[23] = [11]    # Spring Wheat -> Spring Grain - irrigated
+    # crop_num_dict[24] = [13]    # Winter Wheat -> Winter Grain - irrigated
+    # crop_num_dict[25] = [11]    # Other Small Grains -> Spring Grain - irrigated
+    # crop_num_dict[26] = [13, 85]    # Dbl Crop WinWht/Soybeans -> Soybeans After Another Crop
+    # crop_num_dict[27] = [11]    # Rye -> Spring Grain - irrigated
+    # crop_num_dict[28] = [11]    # Oats -> Spring Grain - irrigated
+    # crop_num_dict[29] = [68]    # Millet -> Millet
+    # crop_num_dict[30] = [11]    # Speltz -> Spring Grain - irrigated
+    # crop_num_dict[31] = [40]    # Canola -> Canola
+    # crop_num_dict[32] = [11]    # Flaxseed -> Spring Grain - irrigated
+    # crop_num_dict[33] = [38]    # Safflower -> Safflower -irrigated
+    # crop_num_dict[34] = [41]    # Rape Seed -> Mustard
+    # crop_num_dict[35] = [41]    # Mustard -> Mustard
+    # crop_num_dict[36] = [3]     # Alfalfa -> Alfalfa - Beef Style
+    # crop_num_dict[37] = [4]     # Other Hay/Non Alfalfa -> Grass Hay
+    # crop_num_dict[38] = [41]    # Camelina -> Mustard
+    # crop_num_dict[39] = [41]    # Buckwheat -> Mustard
+    # crop_num_dict[41] = [31]    # Sugarbeets -> Sugar beets
+    # crop_num_dict[42] = [5]     # Dry Beans -> Snap and Dry Beans - fresh
+    # crop_num_dict[43] = [30]    # Potatoes -> Potatoes
+    # crop_num_dict[44] = [11]    # Other Crops -> Spring Grain - irrigated
+    # crop_num_dict[45] = [76]    # Sugarcane -> Sugarcane
+    # crop_num_dict[46] = [30]    # Sweet Potatoes -> Potatoes
+    # crop_num_dict[47] = [21]    # Misc Vegs & Fruits -> Garden Vegetables  - general
+    # crop_num_dict[48] = [24]    # Watermelons -> Melons
+    # crop_num_dict[49] = [23]    # Onions -> Onions
+    # crop_num_dict[50] = [21]    # Cucumbers -> Garden Vegetables  - general
+    # crop_num_dict[51] = [5]     # Chick Peas -> Snap and Dry Beans - fresh
+    # crop_num_dict[52] = [5]     # Lentils -> Snap and Dry Beans - fresh
+    # crop_num_dict[53] = [27]    # Peas -> Peas--fresh
+    # crop_num_dict[54] = [69]    # Tomatoes -> Tomatoes
+    # crop_num_dict[55] = [75]    # Caneberries -> Cranberries
+    # crop_num_dict[56] = [32]    # Hops -> Hops
+    # crop_num_dict[57] = [21]    # Herbs -> Garden Vegetables  - general
+    # crop_num_dict[58] = [41]    # Clover/Wildflowers -> Mustard
+    # crop_num_dict[59] = [17]    # Sod/Grass Seed -> Grass - Turf (lawns) -irrigated
+    # crop_num_dict[60] = [81]    # Switchgrass -> Sudan
+    # crop_num_dict[66] = [19]    # Cherries -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[67] = [19]    # Peaches -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[68] = [19]    # Apples -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[69] = [25]    # Grapes -> Grapes
+    # crop_num_dict[70] = [82]    # Christmas Trees -> Christmas Trees
+    # crop_num_dict[71] = [19]    # Other Tree Crops -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[72] = [70]    # Citrus -> Oranges
+    # crop_num_dict[74] = [74]    # Pecans -> Nuts
+    # crop_num_dict[75] = [74]    # Almonds -> Nuts
+    # crop_num_dict[76] = [74]    # Walnuts -> Nuts
+    # crop_num_dict[77] = [19]    # Pears -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[176] = [15]    # Grassland/Pasture -> Grass Pasture - high management
+    # crop_num_dict[204] = [74]    # Pistachios -> Nuts
+    # crop_num_dict[205] = [11]    # Triticale -> Spring Grain - irrigated
+    # crop_num_dict[206] = [22]    # Carrots -> Carrots
+    # crop_num_dict[207] = [21]    # Asparagus -> Aparagus
+    # crop_num_dict[208] = [43]    # Garlic -> Garlic
+    # crop_num_dict[209] = [24]    # Cantaloupes -> Melons
+    # crop_num_dict[210] = [19]    # Prunes -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[211] = [61]    # Olives -> Olives
+    # crop_num_dict[212] = [70]    # Oranges -> Oranges
+    # crop_num_dict[213] = [24]    # Honeydew Melons -> Melons
+    # crop_num_dict[214] = [21]    # Broccoli -> Garden Vegetables  - general
+    # crop_num_dict[216] = [59]    # Peppers -> Peppers
+    # crop_num_dict[217] = [19]    # Pomegranates -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[218] = [19]    # Nectarines -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[219] = [21]    # Greens -> Garden Vegetables  - general
+    # crop_num_dict[220] = [19]    # Plums -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[221] = [62]    # Strawberries -> Strawberries
+    # crop_num_dict[222] = [21]    # Squash -> Garden Vegetables  - general
+    # crop_num_dict[223] = [19]    # Apricots -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[224] = [6]     # Vetch -> Snap and Dry Beans - seed
+    # crop_num_dict[225] = [77]    # Dbl Crop WinWht/Corn -> Field Corn After Another Crop
+    # crop_num_dict[226] = [77]    # Dbl Crop Oats/Corn -> Field Corn After Another Crop
+    # crop_num_dict[227] = [71]    # Lettuce -> Lettuce (Single Crop)
+    # crop_num_dict[229] = [21]    # Pumpkins -> Garden Vegetables  - general
+    # crop_num_dict[230] = [71, 84]    # Dbl Crop Lettuce/Durum Wht -> Grain After Another Crop
+    # crop_num_dict[231] = [71, 83]    # Dbl Crop Lettuce/Cantaloupe -> Melons After Another Crop
+    # crop_num_dict[232] = [71, 79]    # Dbl Crop Lettuce/Cotton -> Cotton After Another Crop
+    # crop_num_dict[233] = [71, 84]    # Dbl Crop Lettuce/Barley -> Grain After Another Crop
+    # crop_num_dict[234] = [71, 78]    # Dbl Crop Durum Wht/Sorghum -> Sorghum After Another Crop
+    # crop_num_dict[235] = [71, 78]    # Dbl Crop Barley/Sorghum -> Sorghum After Another Crop
+    # crop_num_dict[236] = [13, 78]    # Dbl Crop WinWht/Sorghum -> Sorghum After Another Crop
+    # crop_num_dict[237] = [11, 77]    # Dbl Crop Barley/Corn -> Field Corn After Another Crop
+    # crop_num_dict[238] = [13, 79]    # Dbl Crop WinWht/Cotton -> Cotton After Another Crop
+    # crop_num_dict[239] = [66, 79]    # Dbl Crop Soybeans/Cotton -> Cotton After Another Crop
+    # crop_num_dict[240] = [66, 84]    # Dbl Crop Soybeans/Oats -> Grain After Another Crop
+    # crop_num_dict[241] = [7, 85]    # Dbl Crop Corn/Soybeans -> Soybeans After Another Crop
+    # crop_num_dict[242] = [63]    # Blueberries -> Blueberries
+    # crop_num_dict[243] = [80]    # Cabbage -> Cabbage
+    # crop_num_dict[244] = [21]    # Cauliflower -> Garden Vegetables  - general
+    # crop_num_dict[245] = [21]    # Celery -> Garden Vegetables  - general
+    # crop_num_dict[246] = [21]    # Radishes -> Garden Vegetables  - general
+    # crop_num_dict[247] = [21]    # Turnips -> Garden Vegetables  - general
+    # crop_num_dict[248] = [21]    # Eggplants -> Garden Vegetables  - general
+    # crop_num_dict[249] = [21]    # Gourds -> Garden Vegetables  - general
+    # crop_num_dict[250] = [75]    # Cranberries -> Cranberries
+    # crop_num_dict[254] = [11, 85]    # Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
+    # crop_num_dict[99] = [20]    #Empty CDL Placeholder for Orchards without Cover
+    # crop_num_dict[98] = [85]    #Empty CDL Placeholder for AgriMet based "Grass Pasture- Mid Management"
+    # crop_num_dict[97] = [16]    #Empty CDL Placeholder for "Grass Pasture- Low Management"
 
     # Check input folders
     if not os.path.isdir(gis_ws):
