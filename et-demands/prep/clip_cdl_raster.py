@@ -105,7 +105,10 @@ def main(gis_ws, cdl_input_ws, cdl_year='', overwrite_flag=False,
                 ['-projwin'] + str(output_ullr).split() +
                 ['-a_ullr'] + str(output_ullr).split() +
                 [cdl_input_path, cdl_output_path])
+            if os.path.isfile(cdl_input_path.replace('.img', '.img.vat.dbf')):
                 shutil.copyfile(
+                    cdl_input_path.replace('.img', '.img.vat.dbf'),
+                    cdl_output_path.replace('.img', '.img.vat.dbf')
                 )
             # , '-a_srs', 'output_proj'
             # subprocess.call(

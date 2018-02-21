@@ -12,6 +12,7 @@ import datetime as dt
 import logging
 import os
 import sys
+import time
 
 import arcpy
 import pandas as pd
@@ -419,11 +420,11 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
 
     # Status flags
     # if active_flag_field not in field_list:
-    #     .debug('  {0}'.format(active_flag_field))
-    #     .AddField_management(et_cells_path, active_flag_field, 'SHORT')
+    #     logging.debug('  {0}'.format(active_flag_field))
+    #     arcpy.AddField_management(et_cells_path, active_flag_field, 'SHORT')
     # if irrig_flag_field not in field_list:
-    #     .debug('  {0}'.format(irrig_flag_field))
-    #     .AddField_management(et_cells_path, irrig_flag_field, 'SHORT')
+    #     logging.debug('  {0}'.format(irrig_flag_field))
+    #     arcpy.AddField_management(et_cells_path, irrig_flag_field, 'SHORT')
     # Add zonal stats fields
     for field_name, stat, raster_path in raster_list:
         if field_name not in field_list:
@@ -506,14 +507,18 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
             zone_proj_path, cell_id_field, zone_raster_path, snap_cs)
         arcpy.ClearEnvironment('snapRaster')
         # arcpy.ClearEnvironment('extent')
-    # Link zone raster Value to zone field
-    #zone_id_field must be a string
+
+    # # Link zone raster Value to zone field
+    # #zone_id_field must be a string
     fields = ('Value', cell_id_field)
     print(fields)
     print(zone_raster_path)
     zone_value_dict = {
         row[0]: row[1]
         for row in arcpy.da.SearchCursor(zone_raster_path, fields)}
+
+
+
     # Calculate zonal stats
     logging.info('\nProcessing soil rasters')
     for field_name, stat, raster_path in raster_list:
@@ -571,7 +576,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
                 row[2], row[3] = 2, 'B'
             u_cursor.updateRow(row)
 
-    # Calculate default values
+    # # Calculate default values
     # logging.info('\nCalculating default values')
     # logging.info('  {0:10s}: {1}'.format(active_flag_field, active_flag_default))
     # arcpy.CalculateField_management(
@@ -579,7 +584,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # logging.info('  {0:10s}: {1}'.format(irrig_flag_field, irrig_flag_default))
     # arcpy.CalculateField_management(
     #     _cells_path, irrig_flag_field, irrig_flag_default, 'PYTHON')
-
+    #
     # logging.info('  {0:10s}: {1}'.format(permeability_field, permeability_default))
     # arcpy.CalculateField_management(
     #     _cells_path, permeability_field, permeability_default, 'PYTHON')
@@ -589,7 +594,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # logging.info('  {0:10s}: {1}'.format(aridity_field, aridity_default))
     # arcpy.CalculateField_management(
     #     _cells_path, aridity_field, aridity_default, 'PYTHON')
-
+    #
     # logging.info('  {0:10s}: {1}'.format(dairy_cutting_field, dairy_cutting_default))
     # arcpy.CalculateField_management(
     #     _cells_path, dairy_cutting_field, dairy_cutting_default, 'PYTHON')
@@ -598,45 +603,69 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #     _cells_path, beef_cutting_field, beef_cutting_default, 'PYTHON')
 
     # Calculate crop zonal stats
+
+    # Copied from above for testing
+    zone_raster_path = os.path.join(table_ws, zone_raster_name)
+
     logging.info('\nCalculating crop zonal stats')
-    table_path = os.path.join(table_ws, 'crops_table')
-    if arcpy.Exists(table_path):
-        arcpy.Delete_management(table_path)
-    table_obj = arcpy.sa.ZonalHistogram(
-        zone_raster_path, 'VALUE', agland_path, table_path)
-    del table_obj
+    temp_table_ws = os.path.join(table_ws, 'crop_tables')
+
+    # #Create folder if it doesn't exist
+    if not os.path.isdir(temp_table_ws):
+        os.makedirs(temp_table_ws)
+
+    # Loop through zones one by one (ZonalHistrogram takes a max of 255 zones)
+    temp_list = []
+    step_size = 250
+    zone_raster_obj = arcpy.Raster(zone_raster_path)
+    for i in range(1, zone_count+1, step_size):
+        start = time.clock()
+        logging.info('Zones: {} to {}'.format(i, i+step_size-1))
+        # Create temporary path for each zone in memory
+        temp_table_path = os.path.join(temp_table_ws, 'crop_table_{}_{}.dbf').format(i, (i+step_size-1))
+        # Add temporary paths to list for merge
+        temp_list.append(temp_table_path)
+        # Run Zonal Histogram on single zone
+        single_zone = arcpy.sa.Con((zone_raster_obj >= i) & (zone_raster_obj < (i + step_size)), zone_raster_obj)
+        table_obj = arcpy.sa.ZonalHistogram(
+            single_zone, 'VALUE', agland_path, temp_table_path)
+        del table_obj
+        print("Runtime: {}".format(time.clock() - start))
+    del zone_raster_obj
 
     # Read in zonal stats values from table
     logging.info('Reading crop zonal stats')
     zone_crop_dict = defaultdict(dict)
-    field_name_list = [f.name for f in arcpy.ListFields(table_path)]
-    value_list = [f.split('_')[-1] for f in field_name_list]
-    logging.debug('  Crop histogram field list:\n    {0}'.format(
-        ', '.join(field_name_list)))
-    with arcpy.da.SearchCursor(table_path, '*') as s_cursor:
-        for i, row in enumerate(s_cursor):
-            # Row id is 1 based, but FID/CDL is 0 based?
-            cdl_number = int(row[0] - 1)
-            # Only 'crops' have a crop number (no shrub, water, urban, etc.)
-            if cdl_number not in crop_num_dict.keys():
-                logging.debug('  Skipping CDL {}'.format(cdl_number))
-                continue
-            # Crop number can be an integer or list of integers (double crops)
-            crop_number = crop_num_dict[cdl_number]
-            # Crop numbers of -1 are for crops that haven't been linked
-            #   to a CDL number
-            if not crop_number or crop_number == -1:
-                logging.warning('  Missing CDL {}'.format(cdl_number))
-                continue
-            # Get values
-            for j, cell in enumerate(row):
-                if j > 0 and row[j] != 0:
-                    # Save acreage twice for double crops
-                    for c in crop_number:
-                        zone_str = zone_value_dict[int(value_list[j])]
-                        zone_crop_dict[zone_str][c] = row[j]
-    if cleanup_flag and arcpy.Exists(table_path):
-        arcpy.Delete_management(table_path)
+    for temp_table_path in temp_list:
+        logging.info(temp_table_path)
+        field_name_list = [f.name for f in arcpy.ListFields(temp_table_path)]
+        value_list = [f.split('_')[-1] for f in field_name_list]
+        logging.debug('  Crop histogram field list:\n    {0}'.format(
+            ', '.join(field_name_list)))
+        with arcpy.da.SearchCursor(temp_table_path, '*') as s_cursor:
+            for i, row in enumerate(s_cursor):
+                # Row id is 1 based, but FID/CDL is 0 based?
+                cdl_number = int(row[0] - 1)
+                # Only 'crops' have a crop number (no shrub, water, urban, etc.)
+                if cdl_number not in crop_num_dict.keys():
+                    logging.debug('  Skipping CDL {}'.format(cdl_number))
+                    continue
+                # Crop number can be an integer or list of integers (double crops)
+                crop_number = crop_num_dict[cdl_number]
+                # Crop numbers of -1 are for crops that haven't been linked
+                #   to a CDL number
+                if not crop_number or crop_number == -1:
+                    logging.warning('  Missing CDL {}'.format(cdl_number))
+                    continue
+                # Get values
+                for j, cell in enumerate(row):
+                    if j > 0 and row[j] != 0:
+                        # Save acreage twice for double crops
+                        for c in crop_number:
+                            zone_str = zone_value_dict[int(value_list[j])]
+                            zone_crop_dict[zone_str][c] = row[j]
+        # if cleanup_flag and arcpy.Exists(temp_table_path):
+        #     arcpy.Delete_management(temp_table_path)
 
     # Get unique crop number values and field names
     crop_number_list = sorted(list(set([
@@ -655,7 +684,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
             arcpy.AddField_management(et_cells_path, field_name, 'FLOAT')
 
     # Write zonal stats values to zone polygon shapefile
-    # DEADBEEF - This is intenionally writing every cell
+    # DEADBEEF - This is intentionally writing every cell
     #   0's are written for cells with nodata
     fields = crop_field_list + [cell_id_field]
     with arcpy.da.UpdateCursor(et_cells_path, fields) as u_cursor:
