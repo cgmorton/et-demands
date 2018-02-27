@@ -372,7 +372,7 @@ def write_crop_output(data, et_cell, crop, foo):
                 except:
                     gs_output_pd.set_value(
                         group.index[0], gs_start_doy_field,
-                        int(min(group[doy_field].values)))
+                        int(min(group.at[doy_field].values)))
                 try:
                     end_i = np.where(season_diff == -1)[0][0] + 1
                     gs_output_pd.set_value(
@@ -381,11 +381,11 @@ def write_crop_output(data, et_cell, crop, foo):
                 except:
                     gs_output_pd.set_value(
                         group.index[0], gs_end_doy_field,
-                        int(max(group[doy_field].values)))
+                        int(max(group.at[doy_field].values)))
                 del season_diff
             gs_output_pd.set_value(
                 group.index[0], gs_length_field,
-                int(sum(group[season_field].values)))
+                int(sum(group.at[season_field].values)))
 
 
     # # Write daily output

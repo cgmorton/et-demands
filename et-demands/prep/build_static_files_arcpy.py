@@ -47,7 +47,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     soil_depth = 60         # inches
     aridity = 50
     irrigation = 1
-    crops = 85
+    crops = 86
 
     # Input paths
     # DEADBEEF - For now, get cropET folder from INI file
