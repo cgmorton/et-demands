@@ -16,7 +16,7 @@ import time
 
 import arcpy
 import pandas as pd
-
+import numpy as np
 import _util as util
 
 
@@ -615,22 +615,36 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         os.makedirs(temp_table_ws)
 
     # Loop through zones one by one (ZonalHistrogram takes a max of 255 zones)
+    # Broke ZonalHistogram call down into 250 zone steps and check that all zones exist in output table
     temp_list = []
     step_size = 250
     zone_raster_obj = arcpy.Raster(zone_raster_path)
     for i in range(1, zone_count+1, step_size):
+    # for i in range(3251, zone_count + 1, step_size):
         start = time.clock()
         logging.info('Zones: {} to {}'.format(i, i+step_size-1))
         # Create temporary path for each zone in memory
         temp_table_path = os.path.join(temp_table_ws, 'crop_table_{}_{}.dbf').format(i, (i+step_size-1))
         # Add temporary paths to list for merge
         temp_list.append(temp_table_path)
-        # Run Zonal Histogram on single zone
+        # Run ZonalHistogram on group of zone
         single_zone = arcpy.sa.Con((zone_raster_obj >= i) & (zone_raster_obj < (i + step_size)), zone_raster_obj)
         table_obj = arcpy.sa.ZonalHistogram(
             single_zone, 'VALUE', agland_path, temp_table_path)
+
+        # Look for missing zones in output table
+        field_name_list = [f.name for f in arcpy.ListFields(temp_table_path)]
+        value_list = [f.split('_')[-1] for f in field_name_list]
+        value_list.remove('OID')
+        value_list = map(int, value_list)
+
+        # if not set((range(i, i+step_size))) & set(value_list):
+        if len(set(range(i, np.clip(i+step_size, 1, zone_count+1))).difference(set(value_list))) > 0:
+            print('Output Table Missing Zones (Check Input Station and CDL Files):')
+            print(sorted(set(range(i, np.clip(i+step_size, 1, zone_count+1))).difference(set(value_list))))
+            # sys.exit()
         del table_obj
-        print("Runtime: {}".format(time.clock() - start))
+        print("ZonalHistogram Runtime: {}".format(time.clock() - start))
     del zone_raster_obj
 
     # Read in zonal stats values from table
@@ -644,8 +658,10 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
             ', '.join(field_name_list)))
         with arcpy.da.SearchCursor(temp_table_path, '*') as s_cursor:
             for i, row in enumerate(s_cursor):
-                # Row id is 1 based, but FID/CDL is 0 based?
-                cdl_number = int(row[0] - 1)
+                # Row id is 1 based, but FID/CDL is 0 based? THIS IS WRONG FOR DBFs? vs INFO
+                # cdl_number set to i after modifying ZonalHistogram to write to DBF not memory
+                # cdl_number = int(row[0] - 1)
+                cdl_number = i
                 # Only 'crops' have a crop number (no shrub, water, urban, etc.)
                 if cdl_number not in crop_num_dict.keys():
                     logging.debug('  Skipping CDL {}'.format(cdl_number))
