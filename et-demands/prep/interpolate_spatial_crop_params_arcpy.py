@@ -20,7 +20,7 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
     Returns:
         None
     """
-    logging.info('\nInterpolating Calibration Data from Subset')
+    logging.info('\nInterpolating Calibration Data from Subset Point Data')
     #  INI path
     config = util.read_ini(ini_path, section='CROP_ET')
     try:
@@ -55,7 +55,7 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
 
     # Check input folders
     if not os.path.exists(calibration_ws):
-        logging.critical('ERROR: The static folder does not exist. Please run build_spatial_crop_params_arcpy.py')
+        logging.critical('ERROR: The calibration folder does not exist. Run build_spatial_crop_params_arcpy.py, exiting')
         sys.exit()
 
     # Check input folders
@@ -75,7 +75,7 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
         station_zone_field = 'GRIDMET_ID'
         station_id_field = 'GRIDMET_ID'
     else: 
-        print('FUNCTION DOES ONLY SUPPORTS GRIDMET ZONE TYPE')
+        print('FUNCTION ONLY SUPPORTS GRIDMET ZONE TYPE AT THIS TIME')
         sys.exit()
 
     arcpy.env.overwriteOutput = overwrite_flag
@@ -104,8 +104,7 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
     crop_number_list = [
         int(f_name.split('_')[1]) for f_name in crop_field_list]
 
-    crop_number_list = [
-        crop_num for crop_num in crop_number_list]
+    crop_number_list = [crop_num for crop_num in crop_number_list]
     logging.info('Cell crop numbers: {}'.format(
         ', '.join(list(util.ranges(crop_number_list)))))
 
@@ -124,7 +123,6 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
         crop_name_list.append(crop_name)
 
     # Set arcpy environmental parameters
-    arcpy.env.overwriteOutput = overwrite_flag
     arcpy.env.extent = cells_dd_path
     arcpy.env.outputCoordinateSystem = cells_dd_path
     
@@ -135,21 +133,20 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
     prelim_calibration_ws = os.path.join(calibration_ws, 'preliminary_calibration')
 
     for crop_num, crop_name in zip(crop_number_list, crop_name_list):
-
-        # Preliminary calibration shapefile
+        # Preliminary calibration .shp
         subset_cal_file = os.path.join(prelim_calibration_ws, 'crop_{0:02d}_{1}{2}').format(crop_num, crop_name, '.shp')
         final_cal_file = os.path.join(calibration_ws, 'crop_{0:02d}_{1}{2}').format(crop_num, crop_name, '.shp')
 
         if not arcpy.Exists(subset_cal_file):
-            print('\nCrop No: {} Preliminary Calibration File Not Found. Skipping').format(crop_num)
+            print('\nCrop No: {} Preliminary Calibration File Not Found. Skipping.').format(crop_num)
             continue
         print('\nInterpolating Crop: {0:02d}').format(crop_num)
         # Polygon to Point
         arcpy.FeatureToPoint_management(subset_cal_file, temp_pt_file, "CENTROID")
 
         # Change Processing Extent to match final calibration file
-        arcpy.env.extent = cells_dd_path
-        arcpy.env.outputCoordinateSystem = cells_dd_path
+        # arcpy.env.extent = cells_dd_path
+        # arcpy.env.outputCoordinateSystem = cells_dd_path
         arcpy.env.snapRaster = cells_ras_path
         cell_size = arcpy.Raster(cells_ras_path).meanCellHeight
 
@@ -174,7 +171,7 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
             outIDW_ras.save(outIDW_ras_path)
             ras_list.append(outIDW_ras_path)
 
-        # Extract all raster values
+        # Extract all idw raster values to point .shp
         arcpy.sa.ExtractMultiValuesToPoints(final_pt_path, ras_list, 'NONE')
 
         # Read Interpolated Point Attribute table into dictionary ('GRID_CODE' is key)
@@ -201,7 +198,7 @@ def main(ini_path, zone_type='gridmet', overwrite_flag=False, cleanup_flag=True)
         with arcpy.da.UpdateCursor(final_cal_file, fields) as cursor:
             for row in cursor:
                 for param_i, param in enumerate(param_list):
-                    row[param_i+1] = round(cal_dict[int(row[0])][fields[param_i+1]],1)
+                    row[param_i+1] = round(cal_dict[int(row[0])][fields[param_i+1]], 1)
                 cursor.updateRow(row)
 
 def arg_parse():
