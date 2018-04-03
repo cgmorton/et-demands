@@ -16,13 +16,6 @@ docs/_build
 # Common Data
 common
 
-# Virtual Environment
-venv
-et-demands/Include
-et-demands/Lib
-et-demands/tcl
-et-demands/Scripts
-
 # Example
 example/*_plots*
 example/*_stats
