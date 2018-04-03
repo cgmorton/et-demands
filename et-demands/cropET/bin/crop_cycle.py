@@ -366,27 +366,36 @@ def write_crop_output(data, et_cell, crop, foo):
                 season_diff = np.diff(group[season_field].values)
                 try:
                     start_i = np.where(season_diff == 1)[0][0] + 1
-                    gs_output_pd.set_value(
-                        group.index[0], gs_start_doy_field,
-                        int(group.iat[start_i, doy_field]))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_start_doy_field,
+                    #     int(group.ix[start_i, doy_field]))
+                    # Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_start_doy_field] = int(group.ix[start_i, doy_field])
                 except:
-                    gs_output_pd.set_value(
-                        group.index[0], gs_start_doy_field,
-                        int(min(group.at[doy_field].values)))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_start_doy_field,
+                    #     int(min(group[doy_field].values)))
+                    #Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_start_doy_field] = int(min(group[doy_field].values))
                 try:
                     end_i = np.where(season_diff == -1)[0][0] + 1
-                    gs_output_pd.set_value(
-                        group.index[0], gs_end_doy_field,
-                        int(group.iat[end_i, doy_field]))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_end_doy_field,
+                    #     int(group.ix[end_i, doy_field]))
+                    # Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_end_doy_field] = int(group.ix[end_i, doy_field])
                 except:
-                    gs_output_pd.set_value(
-                        group.index[0], gs_end_doy_field,
-                        int(max(group.at[doy_field].values)))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_end_doy_field,
+                    #     int(max(group[doy_field].values)))
+                    # Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_end_doy_field] = int(max(group[doy_field].values))
                 del season_diff
-            gs_output_pd.set_value(
-                group.index[0], gs_length_field,
-                int(sum(group.at[season_field].values)))
-
+            # gs_output_pd.set_value(
+            #     group.index[0], gs_length_field,
+            #     int(sum(group[season_field].values)))
+            # Replacement for set_value Future Warning
+            gs_output_pd.at[group.index[0], gs_length_field] = int(sum(group[season_field].values))
 
     # # Write daily output
     if data.daily_output_flag:
