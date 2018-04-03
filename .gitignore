@@ -6,29 +6,25 @@ __pycache__/
 # Temporary microsoft files
 ~$*
 
-common
+# PyCharm
+.idea
+
+# Docs
+docs
 docs/_build
-et_volumes
+
+# Common Data
+common
+
+# Virtual Environment
+venv
+et-demands/Include
+et-demands/Lib
+et-demands/tcl
+et-demands/Scripts
+
+# Example
 example/*_plots*
 example/*_stats
 example/static
 example
-OLD_Upper_Colorado
-upper_co/annual_stats
-upper_co/calibration
-upper_co/climate
-upper_co/daily_maps
-upper_co/daily_plots
-upper_co/daily_stats
-upper_co/gis
-upper_co/growing_season_stats
-upper_co/monthly_stats
-upper_co/static/Modified_ETCellsCrops
-upper_co/static/Original_Files
-upper_co/static/utah_cropparams
-docs
-venv
-.idea
-
-
-
