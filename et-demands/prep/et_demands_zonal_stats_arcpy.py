@@ -615,7 +615,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         os.makedirs(temp_table_ws)
 
     # Loop through zones one by one (ZonalHistrogram takes a max of 255 zones)
-    # Broke ZonalHistogram call down into 250 zone steps and check that all zones exist in output table
+    # Break ZonalHistogram call down into 250 zone steps and check that all zones exist in output table
     temp_list = []
     step_size = 250
     zone_raster_obj = arcpy.Raster(zone_raster_path)
