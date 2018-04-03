@@ -1,4 +1,7 @@
 <PAMDataset>
+  <Metadata domain="Esri">
+    <MDI key="PyramidResamplingType">NEAREST</MDI>
+  </Metadata>
   <PAMRasterBand band="1">
     <Description>Layer_1</Description>
     <Metadata domain="IMAGE_STRUCTURE">

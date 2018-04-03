@@ -47,7 +47,7 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     soil_depth = 60         # inches
     aridity = 50
     irrigation = 1
-    crops = 85
+    crops = 86
 
     # Input paths
     # DEADBEEF - For now, get cropET folder from INI file
@@ -110,6 +110,9 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
         station_zone_field = 'HUC10'
     elif zone_type == 'county':
         station_zone_field = 'COUNTYNAME'
+    elif zone_type == 'gridmet':
+        station_zone_field = 'GRIDMET_ID'
+        station_id_field = 'GRIDMET_ID'    
         # station_zone_field = 'FIPS_C'
     station_lat_field = 'LAT'
     station_lon_field = 'LON'
@@ -145,9 +148,12 @@ def main(ini_path, zone_type='huc8', area_threshold=10,
     cell_cuttings_name = 'MeanCuttings.txt'
     crop_params_name = 'CropParams.txt'
     crop_coefs_name = 'CropCoefs.txt'
+    crop_coefs_eto = 'CropCoefs_eto.txt'
+    crop_coefs_etr = 'CropCoefs_etr.txt'
     eto_ratio_name = 'EToRatiosMon.txt'
-    static_list = [crop_params_name, crop_coefs_name, cell_props_name,
-                   cell_crops_name, cell_cuttings_name, eto_ratio_name]
+    static_list = [crop_params_name, crop_coefs_name, crop_coefs_eto,
+                   crop_coefs_etr, cell_props_name, cell_crops_name,
+                   cell_cuttings_name, eto_ratio_name]
 
     # Check input folders
     if not os.path.isdir(crop_et_ws):
@@ -355,8 +361,8 @@ def arg_parse():
         type=lambda x: util.is_valid_file(parser, x), help='Input file')
     parser.add_argument(
         '--zone', default='huc8', metavar='STR', type=str,
-        choices=('huc8', 'huc10', 'county'),
-        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county'])))
+        choices=('huc8', 'huc10', 'county', 'gridmet'),
+        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county','gridmet'])))
     parser.add_argument(
         '--acres', default=10, type=float,
         help='Crop area threshold')

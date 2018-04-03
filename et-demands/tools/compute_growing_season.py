@@ -145,6 +145,7 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
     # Initialize output data arrays and open bad data log file
     gs_summary_data = []
     gs_mean_annual_data = []
+    all_cuttings=pd.DataFrame()
     baddata_file = open(baddata_path, 'w')
 
     # Regular expressions
@@ -250,12 +251,38 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
             year_crop_str = "Crop: {0:2d} {1:32s}  Year: {2}".format(
                 crop_num, crop_name, year)
             logging.debug(year_crop_str)
-
+            # print(year_crop_str)
+            # print(year)    
             # Extract data for target year
             year_mask = (year_array == year)
             date_sub_array = date_array[year_mask]
             doy_sub_array = doy_array[year_mask]
             season_sub_mask = season_array[year_mask]
+            field_names=list(daily_df.columns.values)
+            # print(field_names)
+            # sys.exit()
+            #Only Run if Cutting in field_names else fill with blanks (max of 6 cuttings?)
+            #Initial arrays with nans (is np.full better?)
+            if 'Cutting' in field_names :
+                cutting_dates=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+                cutting_dates_doy=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+                cutting_sub_array=daily_df.Cutting[year_mask]
+                cutting_number=len(cutting_sub_array[cutting_sub_array>0])
+                cutting_dates[0:cutting_number]=date_sub_array[cutting_sub_array>0]
+                cutting_dates_doy[0:cutting_number]=doy_sub_array[cutting_sub_array>0]
+            else:
+                cutting_dates=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+                cutting_number=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+                cutting_sub_array=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+                cutting_dates_doy=[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+            #Track all cutting doy for mean annual by crop (each column is different cutting 1-6)
+            cutting_dates_temp=pd.DataFrame(cutting_dates_doy).transpose()
+            all_cuttings=all_cuttings.append(cutting_dates_temp)
+
+            
+            # print(cutting_dates)
+            # print('Break Line 269')
+            # sys.exit()
 
             # Look for transitions in season value
             # Start transitions up the day before the actual start
@@ -312,7 +339,13 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
             # Append data to list
             gs_summary_data.append(
                 [station, crop_num, crop_name, year,
-                 start_doy, end_doy, start_date, end_date, gs_length])
+                 start_doy, end_doy, start_date, end_date, gs_length,
+                 cutting_dates[0],
+                 cutting_dates[1],
+                 cutting_dates[2],
+                 cutting_dates[3],
+                 cutting_dates[4],
+                 cutting_dates[5]])
 
             # Cleanup
             del year_mask, doy_sub_array, season_sub_mask
@@ -329,11 +362,20 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
             mean_start_doy, mean_end_doy, mean_length = 0, 0, 0
             mean_start_date, mean_end_date = "", ""
 
+        #Take mean of all doy cuttings columns
+        mean_cuttings=all_cuttings.mean(skipna=True) 
+        
         # Append mean annual growing season data to list
         gs_mean_annual_data.append(
             [station, crop_num, crop_name,
              mean_start_doy, mean_end_doy,
-             mean_start_date, mean_end_date, mean_length])
+             mean_start_date, mean_end_date, mean_length,
+             round(mean_cuttings[0]),
+             round(mean_cuttings[1]),
+             round(mean_cuttings[2]),
+             round(mean_cuttings[3]),
+             round(mean_cuttings[4]),
+             round(mean_cuttings[5])])
 
         # Cleanup
         del season_array
@@ -344,6 +386,9 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
         del mean_start_date, mean_end_date
         del year_array, year_sub_array, doy_array
         del daily_df
+        del cutting_dates, cutting_number, cutting_sub_array
+        del all_cuttings, mean_cuttings
+        all_cuttings=pd.DataFrame()
         logging.debug("")
 
     # Close bad data file log
@@ -353,14 +398,16 @@ def main(ini_path, start_date=None, end_date=None, crop_str='',
     gs_summary_csv = csv.writer(open(gs_summary_path, 'wb'))
     gs_summary_csv.writerow(
         ['STATION', 'CROP_NUM', 'CROP_NAME', 'YEAR',
-         'START_DOY', 'END_DOY', 'START_DATE', 'END_DATE', 'GS_LENGTH'])
+         'START_DOY', 'END_DOY', 'START_DATE', 'END_DATE', 'GS_LENGTH',
+         'CUTTING_1','CUTTING_2','CUTTING_3','CUTTING_4','CUTTING_5','CUTTING_6'])
     gs_summary_csv.writerows(gs_summary_data)
 
     # Build output record array file
     gs_mean_annual_csv = csv.writer(open(gs_mean_annual_path, 'wb'))
     gs_mean_annual_csv.writerow(
         ['STATION', 'CROP_NUM', 'CROP_NAME', 'MEAN_START_DOY', 'MEAN_END_DOY',
-         'MEAN_START_DATE', 'MEAN_END_DATE', 'MEAN_GS_LENGTH'])
+         'MEAN_START_DATE', 'MEAN_END_DATE', 'MEAN_GS_LENGTH',
+         'MEAN_CUTTING_1','MEAN_CUTTING_2','MEAN_CUTTING_3','MEAN_CUTTING_4','MEAN_CUTTING_5','MEAN_CUTTING_6'])
     gs_mean_annual_csv.writerows(gs_mean_annual_data)
 
     # Cleanup

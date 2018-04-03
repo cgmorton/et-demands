@@ -41,8 +41,8 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
     """
     logging.info('\nRasterizing Soil Polygons')
 
-    folder_fmt = 'gsmsoil_{}'
-    polygon_fmt = 'gsmsoilmu_a_us_{}_albers.shp'
+    folder_fmt = 'statsgo_{}'
+    polygon_fmt = '{}_WTA_0to152cm_statsgo.shp'
     output_soil_ws = os.path.join(gis_ws, 'soils')
 
     scratch_ws = os.path.join(gis_ws, 'scratch')
@@ -69,7 +69,7 @@ def main(gis_ws, input_soil_ws, prop_list=['all'], overwrite_flag=False,
 
     logging.info('Soil Property:   {}'.format(', '.join(prop_list)))
     if prop_list == ['all']:
-        prop_list = ['awc', 'clay', 'sand']
+        prop_list = ['AWC', 'CLAY', 'SAND']
 
     # Check input folders
     if not os.path.isdir(gis_ws):

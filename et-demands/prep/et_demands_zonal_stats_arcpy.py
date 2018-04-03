@@ -12,9 +12,11 @@ import datetime as dt
 import logging
 import os
 import sys
+import time
 
 import arcpy
-
+import pandas as pd
+import numpy as np
 import _util as util
 
 
@@ -45,7 +47,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         zone_path = os.path.join(gis_ws, 'huc8', 'wbdhu8_albers.shp')
         zone_id_field = 'HUC8'
         zone_name_field = 'HUC8'
-        zone_name_str = 'HUC8 '
+        zone_name_str = 'HUC8 '    
     elif zone_type == 'county':
         zone_path = os.path.join(
             gis_ws, 'counties', 'county_nrcs_a_mbr_albers.shp')
@@ -53,6 +55,11 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         # zone_id_field = 'FIPSCO'
         zone_name_field = 'COUNTYNAME'
         zone_name_str = ''
+    elif zone_type == 'gridmet':
+        zone_path = os.path.join(gis_ws, 'gridmet', 'gridmet_4km_cells_albers.shp')
+        zone_id_field = 'GRIDMET_ID'
+        zone_name_field = 'GRIDMET_ID'
+        zone_name_str = 'GRIDMET_ID '    
     # elif zone_type == 'nldas':
     #     _path = os.path.join(
     #        gis_ws, 'counties', 'county_nrcs_a_mbr_albers.shp')
@@ -121,116 +128,133 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
 
     # Link ET demands crop number (1-84) with CDL values (1-255)
     # Key is CDL number, value is crop number, comment is CDL class name
-    crop_num_dict = dict()
-    crop_num_dict[1] = [7]     # Corn -> Field Corn
-    crop_num_dict[2] = [58]    # Cotton -> Cotton
-    crop_num_dict[3] = [65]    # Rice -> Rice
-    crop_num_dict[4] = [60]    # Sorghum -> Sorghum
-    crop_num_dict[5] = [66]    # Soybeans -> Soybeans
-    crop_num_dict[6] = [36]    # Sunflower -> Sunflower -irrigated
-    crop_num_dict[10] = [67]   ## Peanuts -> Peanuts
-    crop_num_dict[11] = [36]   ## Tobacco -> Sunflower -irrigated
-    crop_num_dict[12] = [9]    # Sweet Corn -> Sweet Corn Early Plant
-    crop_num_dict[13] = [7]     # Pop or Orn Corn -> Field Corn
-    crop_num_dict[14] = [33]    # Mint -> Mint
-    crop_num_dict[21] = [11]    # Barley -> Spring Grain - irrigated
-    crop_num_dict[22] = [11]    # Durum Wheat -> Spring Grain - irrigated
-    crop_num_dict[23] = [11]    # Spring Wheat -> Spring Grain - irrigated
-    crop_num_dict[24] = [13]    # Winter Wheat -> Winter Grain - irrigated
-    crop_num_dict[25] = [11]    # Other Small Grains -> Spring Grain - irrigated
-    crop_num_dict[26] = [13, 85]    # Dbl Crop WinWht/Soybeans -> Soybeans After Another Crop
-    crop_num_dict[27] = [11]    # Rye -> Spring Grain - irrigated
-    crop_num_dict[28] = [11]    # Oats -> Spring Grain - irrigated
-    crop_num_dict[29] = [68]    # Millet -> Millet
-    crop_num_dict[30] = [11]    # Speltz -> Spring Grain - irrigated
-    crop_num_dict[31] = [40]    # Canola -> Canola
-    crop_num_dict[32] = [11]    # Flaxseed -> Spring Grain - irrigated
-    crop_num_dict[33] = [38]    # Safflower -> Safflower -irrigated
-    crop_num_dict[34] = [41]    # Rape Seed -> Mustard
-    crop_num_dict[35] = [41]    # Mustard -> Mustard
-    crop_num_dict[36] = [3]     # Alfalfa -> Alfalfa - Beef Style
-    crop_num_dict[37] = [4]     # Other Hay/Non Alfalfa -> Grass Hay
-    crop_num_dict[38] = [41]    # Camelina -> Mustard
-    crop_num_dict[39] = [41]    # Buckwheat -> Mustard
-    crop_num_dict[41] = [31]    # Sugarbeets -> Sugar beets
-    crop_num_dict[42] = [5]     # Dry Beans -> Snap and Dry Beans - fresh
-    crop_num_dict[43] = [30]    # Potatoes -> Potatoes
-    crop_num_dict[44] = [11]    # Other Crops -> Spring Grain - irrigated
-    crop_num_dict[45] = [76]    # Sugarcane -> Sugarcane
-    crop_num_dict[46] = [30]    # Sweet Potatoes -> Potatoes
-    crop_num_dict[47] = [21]    # Misc Vegs & Fruits -> Garden Vegetables  - general
-    crop_num_dict[48] = [24]    # Watermelons -> Melons
-    crop_num_dict[49] = [23]    # Onions -> Onions
-    crop_num_dict[50] = [21]    # Cucumbers -> Garden Vegetables  - general
-    crop_num_dict[51] = [5]     # Chick Peas -> Snap and Dry Beans - fresh
-    crop_num_dict[52] = [5]     # Lentils -> Snap and Dry Beans - fresh
-    crop_num_dict[53] = [27]    # Peas -> Peas--fresh
-    crop_num_dict[54] = [69]    # Tomatoes -> Tomatoes
-    crop_num_dict[55] = [75]    # Caneberries -> Cranberries
-    crop_num_dict[56] = [32]    # Hops -> Hops
-    crop_num_dict[57] = [21]    # Herbs -> Garden Vegetables  - general
-    crop_num_dict[58] = [41]    # Clover/Wildflowers -> Mustard
-    crop_num_dict[59] = [17]    # Sod/Grass Seed -> Grass - Turf (lawns) -irrigated
-    crop_num_dict[60] = [81]    # Switchgrass -> Sudan
-    crop_num_dict[66] = [19]    # Cherries -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[67] = [19]    # Peaches -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[68] = [19]    # Apples -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[69] = [25]    # Grapes -> Grapes
-    crop_num_dict[70] = [82]    # Christmas Trees -> Christmas Trees
-    crop_num_dict[71] = [19]    # Other Tree Crops -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[72] = [70]    # Citrus -> Oranges
-    crop_num_dict[74] = [74]    # Pecans -> Nuts
-    crop_num_dict[75] = [74]    # Almonds -> Nuts
-    crop_num_dict[76] = [74]    # Walnuts -> Nuts
-    crop_num_dict[77] = [19]    # Pears -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[176] = [15]    # Grassland/Pasture -> Grass Pasture - high management
-    crop_num_dict[204] = [74]    # Pistachios -> Nuts
-    crop_num_dict[205] = [11]    # Triticale -> Spring Grain - irrigated
-    crop_num_dict[206] = [22]    # Carrots -> Carrots
-    crop_num_dict[207] = [21]    # Asparagus -> Aparagus
-    crop_num_dict[208] = [43]    # Garlic -> Garlic
-    crop_num_dict[209] = [24]    # Cantaloupes -> Melons
-    crop_num_dict[210] = [19]    # Prunes -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[211] = [61]    # Olives -> Olives
-    crop_num_dict[212] = [70]    # Oranges -> Oranges
-    crop_num_dict[213] = [24]    # Honeydew Melons -> Melons
-    crop_num_dict[214] = [21]    # Broccoli -> Garden Vegetables  - general
-    crop_num_dict[216] = [59]    # Peppers -> Peppers
-    crop_num_dict[217] = [19]    # Pomegranates -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[218] = [19]    # Nectarines -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[219] = [21]    # Greens -> Garden Vegetables  - general
-    crop_num_dict[220] = [19]    # Plums -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[221] = [62]    # Strawberries -> Strawberries
-    crop_num_dict[222] = [21]    # Squash -> Garden Vegetables  - general
-    crop_num_dict[223] = [19]    # Apricots -> Orchards - Apples and Cherries w/ground cover
-    crop_num_dict[224] = [6]     # Vetch -> Snap and Dry Beans - seed
-    crop_num_dict[225] = [77]    # Dbl Crop WinWht/Corn -> Field Corn After Another Crop
-    crop_num_dict[226] = [77]    # Dbl Crop Oats/Corn -> Field Corn After Another Crop
-    crop_num_dict[227] = [71]    # Lettuce -> Lettuce (Single Crop)
-    crop_num_dict[229] = [21]    # Pumpkins -> Garden Vegetables  - general
-    crop_num_dict[230] = [71, 84]    # Dbl Crop Lettuce/Durum Wht -> Grain After Another Crop
-    crop_num_dict[231] = [71, 83]    # Dbl Crop Lettuce/Cantaloupe -> Melons After Another Crop
-    crop_num_dict[232] = [71, 79]    # Dbl Crop Lettuce/Cotton -> Cotton After Another Crop
-    crop_num_dict[233] = [71, 84]    # Dbl Crop Lettuce/Barley -> Grain After Another Crop
-    crop_num_dict[234] = [71, 78]    # Dbl Crop Durum Wht/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[235] = [71, 78]    # Dbl Crop Barley/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[236] = [13, 78]    # Dbl Crop WinWht/Sorghum -> Sorghum After Another Crop
-    crop_num_dict[237] = [11, 77]    # Dbl Crop Barley/Corn -> Field Corn After Another Crop
-    crop_num_dict[238] = [13, 79]    # Dbl Crop WinWht/Cotton -> Cotton After Another Crop
-    crop_num_dict[239] = [66, 79]    # Dbl Crop Soybeans/Cotton -> Cotton After Another Crop
-    crop_num_dict[240] = [66, 84]    # Dbl Crop Soybeans/Oats -> Grain After Another Crop
-    crop_num_dict[241] = [7, 85]    # Dbl Crop Corn/Soybeans -> Soybeans After Another Crop
-    crop_num_dict[242] = [63]    # Blueberries -> Blueberries
-    crop_num_dict[243] = [80]    # Cabbage -> Cabbage
-    crop_num_dict[244] = [21]    # Cauliflower -> Garden Vegetables  - general
-    crop_num_dict[245] = [21]    # Celery -> Garden Vegetables  - general
-    crop_num_dict[246] = [21]    # Radishes -> Garden Vegetables  - general
-    crop_num_dict[247] = [21]    # Turnips -> Garden Vegetables  - general
-    crop_num_dict[248] = [21]    # Eggplants -> Garden Vegetables  - general
-    crop_num_dict[249] = [21]    # Gourds -> Garden Vegetables  - general
-    crop_num_dict[250] = [75]    # Cranberries -> Cranberries
-    crop_num_dict[254] = [11, 85]    # Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
+    # Crosswalk values are coming from cdl_crosswalk.csv and being upacked into a dictionary
+    # Allows user to modify crosswalk in excel
+    # Pass in crosswalk file as an input argument
+    crosswalk_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cdl_crosswalk_usbrmod.csv')
+    cross = pd.read_csv(crosswalk_file)
 
+    # Add Try and Except for header names, unique crop numbers, etc.
+    crop_num_dict = dict()
+    for index, row in cross.iterrows():
+        crop_num_dict[int(row.cdl_no)] = map(int, str(row.etd_no).split(','))
+    logging.debug(crop_num_dict)
+
+    # REMOVE LATER AFTER TESTING ABOVE
+    # Link ET demands crop number (1-84) with CDL values (1-255)
+    # Key is CDL number, value is crop number, comment is CDL class name
+    # crop_num_dict = dict()
+    # crop_num_dict[1] = [7]     # Corn -> Field Corn
+    # crop_num_dict[2] = [58]    # Cotton -> Cotton
+    # crop_num_dict[3] = [65]    # Rice -> Rice
+    # crop_num_dict[4] = [60]    # Sorghum -> Sorghum
+    # crop_num_dict[5] = [66]    # Soybeans -> Soybeans
+    # crop_num_dict[6] = [36]    # Sunflower -> Sunflower -irrigated
+    # crop_num_dict[10] = [67]   ## Peanuts -> Peanuts
+    # crop_num_dict[11] = [36]   ## Tobacco -> Sunflower -irrigated
+    # crop_num_dict[12] = [9]    # Sweet Corn -> Sweet Corn Early Plant
+    # crop_num_dict[13] = [7]     # Pop or Orn Corn -> Field Corn
+    # crop_num_dict[14] = [33]    # Mint -> Mint
+    # crop_num_dict[21] = [11]    # Barley -> Spring Grain - irrigated
+    # crop_num_dict[22] = [11]    # Durum Wheat -> Spring Grain - irrigated
+    # crop_num_dict[23] = [11]    # Spring Wheat -> Spring Grain - irrigated
+    # crop_num_dict[24] = [13]    # Winter Wheat -> Winter Grain - irrigated
+    # crop_num_dict[25] = [11]    # Other Small Grains -> Spring Grain - irrigated
+    # crop_num_dict[26] = [13, 85]    # Dbl Crop WinWht/Soybeans -> Soybeans After Another Crop
+    # crop_num_dict[27] = [11]    # Rye -> Spring Grain - irrigated
+    # crop_num_dict[28] = [11]    # Oats -> Spring Grain - irrigated
+    # crop_num_dict[29] = [68]    # Millet -> Millet
+    # crop_num_dict[30] = [11]    # Speltz -> Spring Grain - irrigated
+    # crop_num_dict[31] = [40]    # Canola -> Canola
+    # crop_num_dict[32] = [11]    # Flaxseed -> Spring Grain - irrigated
+    # crop_num_dict[33] = [38]    # Safflower -> Safflower -irrigated
+    # crop_num_dict[34] = [41]    # Rape Seed -> Mustard
+    # crop_num_dict[35] = [41]    # Mustard -> Mustard
+    # crop_num_dict[36] = [3]     # Alfalfa -> Alfalfa - Beef Style
+    # crop_num_dict[37] = [4]     # Other Hay/Non Alfalfa -> Grass Hay
+    # crop_num_dict[38] = [41]    # Camelina -> Mustard
+    # crop_num_dict[39] = [41]    # Buckwheat -> Mustard
+    # crop_num_dict[41] = [31]    # Sugarbeets -> Sugar beets
+    # crop_num_dict[42] = [5]     # Dry Beans -> Snap and Dry Beans - fresh
+    # crop_num_dict[43] = [30]    # Potatoes -> Potatoes
+    # crop_num_dict[44] = [11]    # Other Crops -> Spring Grain - irrigated
+    # crop_num_dict[45] = [76]    # Sugarcane -> Sugarcane
+    # crop_num_dict[46] = [30]    # Sweet Potatoes -> Potatoes
+    # crop_num_dict[47] = [21]    # Misc Vegs & Fruits -> Garden Vegetables  - general
+    # crop_num_dict[48] = [24]    # Watermelons -> Melons
+    # crop_num_dict[49] = [23]    # Onions -> Onions
+    # crop_num_dict[50] = [21]    # Cucumbers -> Garden Vegetables  - general
+    # crop_num_dict[51] = [5]     # Chick Peas -> Snap and Dry Beans - fresh
+    # crop_num_dict[52] = [5]     # Lentils -> Snap and Dry Beans - fresh
+    # crop_num_dict[53] = [27]    # Peas -> Peas--fresh
+    # crop_num_dict[54] = [69]    # Tomatoes -> Tomatoes
+    # crop_num_dict[55] = [75]    # Caneberries -> Cranberries
+    # crop_num_dict[56] = [32]    # Hops -> Hops
+    # crop_num_dict[57] = [21]    # Herbs -> Garden Vegetables  - general
+    # crop_num_dict[58] = [41]    # Clover/Wildflowers -> Mustard
+    # crop_num_dict[59] = [17]    # Sod/Grass Seed -> Grass - Turf (lawns) -irrigated
+    # crop_num_dict[60] = [81]    # Switchgrass -> Sudan
+    # crop_num_dict[66] = [19]    # Cherries -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[67] = [19]    # Peaches -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[68] = [19]    # Apples -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[69] = [25]    # Grapes -> Grapes
+    # crop_num_dict[70] = [82]    # Christmas Trees -> Christmas Trees
+    # crop_num_dict[71] = [19]    # Other Tree Crops -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[72] = [70]    # Citrus -> Oranges
+    # crop_num_dict[74] = [74]    # Pecans -> Nuts
+    # crop_num_dict[75] = [74]    # Almonds -> Nuts
+    # crop_num_dict[76] = [74]    # Walnuts -> Nuts
+    # crop_num_dict[77] = [19]    # Pears -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[176] = [15]    # Grassland/Pasture -> Grass Pasture - high management
+    # crop_num_dict[204] = [74]    # Pistachios -> Nuts
+    # crop_num_dict[205] = [11]    # Triticale -> Spring Grain - irrigated
+    # crop_num_dict[206] = [22]    # Carrots -> Carrots
+    # crop_num_dict[207] = [21]    # Asparagus -> Aparagus
+    # crop_num_dict[208] = [43]    # Garlic -> Garlic
+    # crop_num_dict[209] = [24]    # Cantaloupes -> Melons
+    # crop_num_dict[210] = [19]    # Prunes -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[211] = [61]    # Olives -> Olives
+    # crop_num_dict[212] = [70]    # Oranges -> Oranges
+    # crop_num_dict[213] = [24]    # Honeydew Melons -> Melons
+    # crop_num_dict[214] = [21]    # Broccoli -> Garden Vegetables  - general
+    # crop_num_dict[216] = [59]    # Peppers -> Peppers
+    # crop_num_dict[217] = [19]    # Pomegranates -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[218] = [19]    # Nectarines -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[219] = [21]    # Greens -> Garden Vegetables  - general
+    # crop_num_dict[220] = [19]    # Plums -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[221] = [62]    # Strawberries -> Strawberries
+    # crop_num_dict[222] = [21]    # Squash -> Garden Vegetables  - general
+    # crop_num_dict[223] = [19]    # Apricots -> Orchards - Apples and Cherries w/ground cover
+    # crop_num_dict[224] = [6]     # Vetch -> Snap and Dry Beans - seed
+    # crop_num_dict[225] = [77]    # Dbl Crop WinWht/Corn -> Field Corn After Another Crop
+    # crop_num_dict[226] = [77]    # Dbl Crop Oats/Corn -> Field Corn After Another Crop
+    # crop_num_dict[227] = [71]    # Lettuce -> Lettuce (Single Crop)
+    # crop_num_dict[229] = [21]    # Pumpkins -> Garden Vegetables  - general
+    # crop_num_dict[230] = [71, 84]    # Dbl Crop Lettuce/Durum Wht -> Grain After Another Crop
+    # crop_num_dict[231] = [71, 83]    # Dbl Crop Lettuce/Cantaloupe -> Melons After Another Crop
+    # crop_num_dict[232] = [71, 79]    # Dbl Crop Lettuce/Cotton -> Cotton After Another Crop
+    # crop_num_dict[233] = [71, 84]    # Dbl Crop Lettuce/Barley -> Grain After Another Crop
+    # crop_num_dict[234] = [71, 78]    # Dbl Crop Durum Wht/Sorghum -> Sorghum After Another Crop
+    # crop_num_dict[235] = [71, 78]    # Dbl Crop Barley/Sorghum -> Sorghum After Another Crop
+    # crop_num_dict[236] = [13, 78]    # Dbl Crop WinWht/Sorghum -> Sorghum After Another Crop
+    # crop_num_dict[237] = [11, 77]    # Dbl Crop Barley/Corn -> Field Corn After Another Crop
+    # crop_num_dict[238] = [13, 79]    # Dbl Crop WinWht/Cotton -> Cotton After Another Crop
+    # crop_num_dict[239] = [66, 79]    # Dbl Crop Soybeans/Cotton -> Cotton After Another Crop
+    # crop_num_dict[240] = [66, 84]    # Dbl Crop Soybeans/Oats -> Grain After Another Crop
+    # crop_num_dict[241] = [7, 85]    # Dbl Crop Corn/Soybeans -> Soybeans After Another Crop
+    # crop_num_dict[242] = [63]    # Blueberries -> Blueberries
+    # crop_num_dict[243] = [80]    # Cabbage -> Cabbage
+    # crop_num_dict[244] = [21]    # Cauliflower -> Garden Vegetables  - general
+    # crop_num_dict[245] = [21]    # Celery -> Garden Vegetables  - general
+    # crop_num_dict[246] = [21]    # Radishes -> Garden Vegetables  - general
+    # crop_num_dict[247] = [21]    # Turnips -> Garden Vegetables  - general
+    # crop_num_dict[248] = [21]    # Eggplants -> Garden Vegetables  - general
+    # crop_num_dict[249] = [21]    # Gourds -> Garden Vegetables  - general
+    # crop_num_dict[250] = [75]    # Cranberries -> Cranberries
+    # crop_num_dict[254] = [11, 85]    # Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
+    # crop_num_dict[99] = [20]    #Empty CDL Placeholder for Orchards without Cover
+    # crop_num_dict[98] = [86]    #Empty CDL Placeholder for AgriMet based "Grass Pasture- Mid Management"
+    # crop_num_dict[97] = [16]    #Empty CDL Placeholder for "Grass Pasture- Low Management"
 
     # Check input folders
     if not os.path.isdir(gis_ws):
@@ -301,17 +325,17 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #         os.path.dirname(gdb_path), os.path.basename(gdb_path))
 
     raster_list = [
-        [awc_field, 'MEAN', os.path.join(input_soil_ws, 'awc_30m_albers.img')],
-        [clay_field, 'MEAN', os.path.join(input_soil_ws, 'clay_30m_albers.img')],
-        [sand_field, 'MEAN', os.path.join(input_soil_ws, 'sand_30m_albers.img')],
+        [awc_field, 'MEAN', os.path.join(input_soil_ws, 'AWC_30m_albers.img')],
+        [clay_field, 'MEAN', os.path.join(input_soil_ws, 'CLAY_30m_albers.img')],
+        [sand_field, 'MEAN', os.path.join(input_soil_ws, 'SAND_30m_albers.img')],
         ['AG_COUNT', 'SUM', agmask_path],
         ['AG_ACRES', 'SUM', agmask_path],
         ['AG_' + awc_field, 'MEAN', os.path.join(
-            soil_ws, 'awc_{}_30m_cdls.img'.format(cdl_year))],
+            soil_ws, 'AWC_{}_30m_cdls.img'.format(cdl_year))],
         ['AG_' + clay_field, 'MEAN', os.path.join(
-            soil_ws, 'clay_{}_30m_cdls.img'.format(cdl_year))],
+            soil_ws, 'CLAY_{}_30m_cdls.img'.format(cdl_year))],
         ['AG_' + sand_field, 'MEAN', os.path.join(
-            soil_ws, 'sand_{}_30m_cdls.img'.format(cdl_year))]
+            soil_ws, 'SAND_{}_30m_cdls.img'.format(cdl_year))]
     ]
 
     # The zone field must be defined
@@ -389,18 +413,18 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         logging.debug('  {0}'.format(met_id_field))
         arcpy.AddField_management(
             et_cells_path, met_id_field, 'TEXT', '', '', 24)
-    # if zone_id_field not in field_list:
-    #     logging.debug('  {0}'.format(zone_id_field))
-    #     arcpy.AddField_management(
-    #         et_cells_path, zone_id_field, 'TEXT', '', '', 8)
+    if zone_id_field not in field_list:
+        logging.debug('  {0}'.format(zone_id_field))
+        arcpy.AddField_management(
+            et_cells_path, zone_id_field, 'TEXT', '', '', 8)
 
     # Status flags
     # if active_flag_field not in field_list:
-    #     .debug('  {0}'.format(active_flag_field))
-    #     .AddField_management(et_cells_path, active_flag_field, 'SHORT')
+    #     logging.debug('  {0}'.format(active_flag_field))
+    #     arcpy.AddField_management(et_cells_path, active_flag_field, 'SHORT')
     # if irrig_flag_field not in field_list:
-    #     .debug('  {0}'.format(irrig_flag_field))
-    #     .AddField_management(et_cells_path, irrig_flag_field, 'SHORT')
+    #     logging.debug('  {0}'.format(irrig_flag_field))
+    #     arcpy.AddField_management(et_cells_path, irrig_flag_field, 'SHORT')
     # Add zonal stats fields
     for field_name, stat, raster_path in raster_list:
         if field_name not in field_list:
@@ -449,6 +473,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     cell_lat_lon_func(et_cells_path, 'LAT', 'LON', output_sr.GCS)
 
     # Set CELL_ID and CELL_NAME
+    #zone_id_field must be a string
     arcpy.CalculateField_management(
         et_cells_path, cell_id_field,
         'str(!{0}!)'.format(zone_id_field), 'PYTHON')
@@ -479,15 +504,20 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         arcpy.env.snapRaster = snap_raster
         # arcpy.env.extent = arcpy.Describe(snap_raster).extent
         arcpy.FeatureToRaster_conversion(
-            zone_proj_path, zone_id_field, zone_raster_path, snap_cs)
+            zone_proj_path, cell_id_field, zone_raster_path, snap_cs)
         arcpy.ClearEnvironment('snapRaster')
         # arcpy.ClearEnvironment('extent')
 
-    # Link zone raster Value to zone field
-    fields = ('Value', zone_id_field)
+    # # Link zone raster Value to zone field
+    # #zone_id_field must be a string
+    fields = ('Value', cell_id_field)
+    print(fields)
+    print(zone_raster_path)
     zone_value_dict = {
         row[0]: row[1]
         for row in arcpy.da.SearchCursor(zone_raster_path, fields)}
+
+
 
     # Calculate zonal stats
     logging.info('\nProcessing soil rasters')
@@ -515,7 +545,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
         #        zs_dict[row[0]] = row[1]
 
         # Write zonal stats values to zone polygon shapefile
-        fields = (zone_id_field, field_name)
+        fields = (cell_id_field, field_name)
         with arcpy.da.UpdateCursor(et_cells_path, fields) as u_cursor:
             for row in u_cursor:
                 row[1] = zs_dict.pop(row[0], 0)
@@ -546,7 +576,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
                 row[2], row[3] = 2, 'B'
             u_cursor.updateRow(row)
 
-    # Calculate default values
+    # # Calculate default values
     # logging.info('\nCalculating default values')
     # logging.info('  {0:10s}: {1}'.format(active_flag_field, active_flag_default))
     # arcpy.CalculateField_management(
@@ -554,7 +584,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # logging.info('  {0:10s}: {1}'.format(irrig_flag_field, irrig_flag_default))
     # arcpy.CalculateField_management(
     #     _cells_path, irrig_flag_field, irrig_flag_default, 'PYTHON')
-
+    #
     # logging.info('  {0:10s}: {1}'.format(permeability_field, permeability_default))
     # arcpy.CalculateField_management(
     #     _cells_path, permeability_field, permeability_default, 'PYTHON')
@@ -564,7 +594,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # logging.info('  {0:10s}: {1}'.format(aridity_field, aridity_default))
     # arcpy.CalculateField_management(
     #     _cells_path, aridity_field, aridity_default, 'PYTHON')
-
+    #
     # logging.info('  {0:10s}: {1}'.format(dairy_cutting_field, dairy_cutting_default))
     # arcpy.CalculateField_management(
     #     _cells_path, dairy_cutting_field, dairy_cutting_default, 'PYTHON')
@@ -573,45 +603,85 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     #     _cells_path, beef_cutting_field, beef_cutting_default, 'PYTHON')
 
     # Calculate crop zonal stats
+
+    # Copied from above for testing
+    zone_raster_path = os.path.join(table_ws, zone_raster_name)
+
     logging.info('\nCalculating crop zonal stats')
-    table_path = os.path.join(table_ws, 'crops_table')
-    if arcpy.Exists(table_path):
-        arcpy.Delete_management(table_path)
-    table_obj = arcpy.sa.ZonalHistogram(
-        zone_raster_path, 'VALUE', agland_path, table_path)
-    del table_obj
+    temp_table_ws = os.path.join(table_ws, 'crop_tables')
+
+    # #Create folder if it doesn't exist
+    if not os.path.isdir(temp_table_ws):
+        os.makedirs(temp_table_ws)
+
+    # Loop through zones one by one (ZonalHistrogram takes a max of 255 zones)
+    # Break ZonalHistogram call down into 250 zone steps and check that all zones exist in output table
+    temp_list = []
+    step_size = 250
+    zone_raster_obj = arcpy.Raster(zone_raster_path)
+    for i in range(1, zone_count+1, step_size):
+    # for i in range(3251, zone_count + 1, step_size):
+        start = time.clock()
+        logging.info('Zones: {} to {}'.format(i, i+step_size-1))
+        # Create temporary path for each zone in memory
+        temp_table_path = os.path.join(temp_table_ws, 'crop_table_{}_{}.dbf').format(i, (i+step_size-1))
+        # Add temporary paths to list for merge
+        temp_list.append(temp_table_path)
+        # Run ZonalHistogram on group of zone
+        single_zone = arcpy.sa.Con((zone_raster_obj >= i) & (zone_raster_obj < (i + step_size)), zone_raster_obj)
+        table_obj = arcpy.sa.ZonalHistogram(
+            single_zone, 'VALUE', agland_path, temp_table_path)
+
+        # Look for missing zones in output table
+        field_name_list = [f.name for f in arcpy.ListFields(temp_table_path)]
+        value_list = [f.split('_')[-1] for f in field_name_list]
+        value_list.remove('OID')
+        value_list = map(int, value_list)
+
+        # if not set((range(i, i+step_size))) & set(value_list):
+        if len(set(range(i, np.clip(i+step_size, 1, zone_count+1))).difference(set(value_list))) > 0:
+            print('Output Table Missing Zones (Check Input Station and CDL Files):')
+            print(sorted(set(range(i, np.clip(i+step_size, 1, zone_count+1))).difference(set(value_list))))
+            # sys.exit()
+        del table_obj
+        print("ZonalHistogram Runtime: {}".format(time.clock() - start))
+    del zone_raster_obj
 
     # Read in zonal stats values from table
     logging.info('Reading crop zonal stats')
     zone_crop_dict = defaultdict(dict)
-    field_name_list = [f.name for f in arcpy.ListFields(table_path)]
-    value_list = [f.split('_')[-1] for f in field_name_list]
-    logging.debug('  Crop histogram field list:\n    {0}'.format(
-        ', '.join(field_name_list)))
-    with arcpy.da.SearchCursor(table_path, '*') as s_cursor:
-        for i, row in enumerate(s_cursor):
-            # Row id is 1 based, but FID/CDL is 0 based?
-            cdl_number = int(row[0] - 1)
-            # Only 'crops' have a crop number (no shrub, water, urban, etc.)
-            if cdl_number not in crop_num_dict.keys():
-                logging.debug('  Skipping CDL {}'.format(cdl_number))
-                continue
-            # Crop number can be an integer or list of integers (double crops)
-            crop_number = crop_num_dict[cdl_number]
-            # Crop numbers of -1 are for crops that haven't been linked
-            #   to a CDL number
-            if not crop_number or crop_number == -1:
-                logging.warning('  Missing CDL {}'.format(cdl_number))
-                continue
-            # Get values
-            for j, cell in enumerate(row):
-                if j > 0 and row[j] != 0:
-                    # Save acreage twice for double crops
-                    for c in crop_number:
-                        zone_str = zone_value_dict[int(value_list[j])]
-                        zone_crop_dict[zone_str][c] = row[j]
-    if cleanup_flag and arcpy.Exists(table_path):
-        arcpy.Delete_management(table_path)
+    for temp_table_path in temp_list:
+        logging.info(temp_table_path)
+        field_name_list = [f.name for f in arcpy.ListFields(temp_table_path)]
+        value_list = [f.split('_')[-1] for f in field_name_list]
+        logging.debug('  Crop histogram field list:\n    {0}'.format(
+            ', '.join(field_name_list)))
+        with arcpy.da.SearchCursor(temp_table_path, '*') as s_cursor:
+            for i, row in enumerate(s_cursor):
+                # Row id is 1 based, but FID/CDL is 0 based? THIS IS WRONG FOR DBFs? vs INFO
+                # cdl_number set to i after modifying ZonalHistogram to write to DBF not memory
+                # cdl_number = int(row[0] - 1)
+                cdl_number = i
+                # Only 'crops' have a crop number (no shrub, water, urban, etc.)
+                if cdl_number not in crop_num_dict.keys():
+                    logging.debug('  Skipping CDL {}'.format(cdl_number))
+                    continue
+                # Crop number can be an integer or list of integers (double crops)
+                crop_number = crop_num_dict[cdl_number]
+                # Crop numbers of -1 are for crops that haven't been linked
+                #   to a CDL number
+                if not crop_number or crop_number == -1:
+                    logging.warning('  Missing CDL {}'.format(cdl_number))
+                    continue
+                # Get values
+                for j, cell in enumerate(row):
+                    if j > 0 and row[j] != 0:
+                        # Save acreage twice for double crops
+                        for c in crop_number:
+                            zone_str = zone_value_dict[int(value_list[j])]
+                            zone_crop_dict[zone_str][c] = row[j]
+        # if cleanup_flag and arcpy.Exists(temp_table_path):
+        #     arcpy.Delete_management(temp_table_path)
 
     # Get unique crop number values and field names
     crop_number_list = sorted(list(set([
@@ -630,9 +700,9 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
             arcpy.AddField_management(et_cells_path, field_name, 'FLOAT')
 
     # Write zonal stats values to zone polygon shapefile
-    # DEADBEEF - This is intenionally writing every cell
+    # DEADBEEF - This is intentionally writing every cell
     #   0's are written for cells with nodata
-    fields = crop_field_list + [zone_id_field]
+    fields = crop_field_list + [cell_id_field]
     with arcpy.da.UpdateCursor(et_cells_path, fields) as u_cursor:
         for row in u_cursor:
             crop_dict = zone_crop_dict.pop(row[-1], dict())
@@ -669,8 +739,8 @@ def arg_parse():
         help='GIS workspace/folder', metavar='FOLDER')
     parser.add_argument(
         '--zone', default='huc8', metavar='', type=str,
-        choices=('huc8', 'huc10', 'county'),
-        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county'])))
+        choices=('huc8', 'huc10', 'county','gridmet'),
+        help='Zone type [{}]'.format(', '.join(['huc8', 'huc10', 'county','gridmet'])))
     parser.add_argument(
         '-y', '--year', metavar='YEAR', required=True, type=int,
         help='CDL year')

@@ -1,0 +1,112 @@
+cdl_no,etd_no,comment
+1,7,Corn -> Field Corn
+2,58,Cotton -> Cotton
+3,65,Rice -> Rice
+4,60,Sorghum -> Sorghum
+5,66,Soybeans -> Soybeans
+6,36,Sunflower -> Sunflower -irrigated
+10,67,Peanuts -> Peanuts
+11,36,Tobacco -> Sunflower -irrigated
+12,9,Sweet Corn -> Sweet Corn Early Plant
+13,7,Pop or Orn Corn -> Field Corn
+14,33,Mint -> Mint
+21,11,Barley -> Spring Grain - irrigated
+22,11,Durum Wheat -> Spring Grain - irrigated
+23,11,Spring Wheat -> Spring Grain - irrigated
+24,13,Winter Wheat -> Winter Grain - irrigated
+25,11,Other Small Grains -> Spring Grain - irrigated
+26,"13,85",Dbl Crop WinWht/Soybeans -> Soybeans After Another Crop
+27,11,Rye -> Spring Grain - irrigated
+28,11,Oats -> Spring Grain - irrigated
+29,68,Millet -> Millet
+30,11,Speltz -> Spring Grain - irrigated
+31,40,Canola -> Canola
+32,11,Flaxseed -> Spring Grain - irrigated
+33,38,Safflower -> Safflower -irrigated
+34,41,Rape Seed -> Mustard
+35,41,Mustard -> Mustard
+36,3,Alfalfa -> Alfalfa - Beef Style
+37,4,Other Hay/Non Alfalfa -> Grass Hay
+38,41,Camelina -> Mustard
+39,41,Buckwheat -> Mustard
+41,31,Sugarbeets -> Sugar beets
+42,5,Dry Beans -> Snap and Dry Beans - fresh
+43,30,Potatoes -> Potatoes
+44,11,Other Crops -> Spring Grain - irrigated
+45,76,Sugarcane -> Sugarcane
+46,30,Sweet Potatoes -> Potatoes
+47,21,Misc Vegs & Fruits -> Garden Vegetables  - general
+48,24,Watermelons -> Melons
+49,23,Onions -> Onions
+50,21,Cucumbers -> Garden Vegetables  - general
+51,5,Chick Peas -> Snap and Dry Beans - fresh
+52,5,Lentils -> Snap and Dry Beans - fresh
+53,27,Peas -> Peas--fresh
+54,69,Tomatoes -> Tomatoes
+55,75,Caneberries -> Cranberries
+56,32,Hops -> Hops
+57,21,Herbs -> Garden Vegetables  - general
+58,41,Clover/Wildflowers -> Mustard
+59,17,Sod/Grass Seed -> Grass - Turf (lawns) -irrigated
+60,81,Switchgrass -> Sudan
+66,19,Cherries -> Orchards - Apples and Cherries w/ground cover
+67,19,Peaches -> Orchards - Apples and Cherries w/ground cover
+68,19,Apples -> Orchards - Apples and Cherries w/ground cover
+69,25,Grapes -> Grapes
+70,82,Christmas Trees -> Christmas Trees
+71,19,Other Tree Crops -> Orchards - Apples and Cherries w/ground cover
+72,70,Citrus -> Oranges
+74,74,Pecans -> Nuts
+75,74,Almonds -> Nuts
+76,74,Walnuts -> Nuts
+77,19,Pears -> Orchards - Apples and Cherries w/ground cover
+176,15,Grassland/Pasture -> Grass Pasture - high management
+204,74,Pistachios -> Nuts
+205,11,Triticale -> Spring Grain - irrigated
+206,22,Carrots -> Carrots
+207,21,Asparagus -> Aparagus
+208,43,Garlic -> Garlic
+209,24,Cantaloupes -> Melons
+210,19,Prunes -> Orchards - Apples and Cherries w/ground cover
+211,61,Olives -> Olives
+212,70,Oranges -> Oranges
+213,24,Honeydew Melons -> Melons
+214,21,Broccoli -> Garden Vegetables  - general
+216,59,Peppers -> Peppers
+217,19,Pomegranates -> Orchards - Apples and Cherries w/ground cover
+218,19,Nectarines -> Orchards - Apples and Cherries w/ground cover
+219,21,Greens -> Garden Vegetables  - general
+220,19,Plums -> Orchards - Apples and Cherries w/ground cover
+221,62,Strawberries -> Strawberries
+222,21,Squash -> Garden Vegetables  - general
+223,19,Apricots -> Orchards - Apples and Cherries w/ground cover
+224,6,Vetch -> Snap and Dry Beans - seed
+225,77,Dbl Crop WinWht/Corn -> Field Corn After Another Crop
+226,77,Dbl Crop Oats/Corn -> Field Corn After Another Crop
+227,71,Lettuce -> Lettuce (Single Crop)
+229,21,Pumpkins -> Garden Vegetables  - general
+230,"71,84",Dbl Crop Lettuce/Durum Wht -> Grain After Another Crop
+231,"71,83",Dbl Crop Lettuce/Cantaloupe -> Melons After Another Crop
+232,"71,79",Dbl Crop Lettuce/Cotton -> Cotton After Another Crop
+233,"71,84",Dbl Crop Lettuce/Barley -> Grain After Another Crop
+234,"71,78",Dbl Crop Durum Wht/Sorghum -> Sorghum After Another Crop
+235,"71,78",Dbl Crop Barley/Sorghum -> Sorghum After Another Crop
+236,"13,78",Dbl Crop WinWht/Sorghum -> Sorghum After Another Crop
+237,"11,77",Dbl Crop Barley/Corn -> Field Corn After Another Crop
+238,"13,79",Dbl Crop WinWht/Cotton -> Cotton After Another Crop
+239,"66,79",Dbl Crop Soybeans/Cotton -> Cotton After Another Crop
+240,"66,84",Dbl Crop Soybeans/Oats -> Grain After Another Crop
+241,"7,85",Dbl Crop Corn/Soybeans -> Soybeans After Another Crop
+242,63,Blueberries -> Blueberries
+243,80,Cabbage -> Cabbage
+244,21,Cauliflower -> Garden Vegetables  - general
+245,21,Celery -> Garden Vegetables  - general
+246,21,Radishes -> Garden Vegetables  - general
+247,21,Turnips -> Garden Vegetables  - general
+248,21,Eggplants -> Garden Vegetables  - general
+249,21,Gourds -> Garden Vegetables  - general
+250,75,Cranberries -> Cranberries
+254,"11,85",Dbl Crop Barley/Soybeans -> Soybeans After Another Crop
+99,20,Empty CDL Placeholder for Orchards without Cover
+98,86,Empty CDL Placeholder for AgriMet based Grass Pasture- Mid Management
+97,16,Empty CDL Placeholder for Grass Pasture- Low Management

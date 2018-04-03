@@ -6,9 +6,18 @@ __pycache__/
 # Temporary microsoft files
 ~$*
 
-common
+# PyCharm
+.idea
+
+# Docs
+docs
 docs/_build
-et_volumes
+
+# Common Data
+common
+
+# Example
 example/*_plots*
 example/*_stats
 example/static
+example

@@ -12,7 +12,7 @@ import compute_crop_et
 import compute_crop_gdd
 from initialize_crop_cycle import InitializeCropCycle
 import kcb_daily
-
+import sys
 
 class DayData:
     def __init__(self):
@@ -275,7 +275,13 @@ def write_crop_output(data, et_cell, crop, foo):
     month_field = 'Month'
     day_field = 'Day'
     doy_field = 'DOY'
-    pmeto_field = 'PMETo'
+    # print(dir(data))
+    # print(dir(data.refet))
+
+    #Build PMET type fieldname from input data (Eto or ETr)
+    et_type=data.refet['fields']['etref']
+    pmet_field='PM'+et_type
+
     precip_field = 'PPT'
     etact_field = 'ETact'
     etpot_field = 'ETpot'
@@ -307,7 +313,7 @@ def write_crop_output(data, et_cell, crop, foo):
         daily_output_pd.index.rename('Date', inplace=True)
         daily_output_pd[year_field] = daily_output_pd.index.year
         daily_output_pd = daily_output_pd.rename(columns={
-            'doy': doy_field, 'ppt': precip_field, 'etref': pmeto_field,
+            'doy': doy_field, 'ppt': precip_field, 'etref': pmet_field,
             'et_act': etact_field, 'et_pot': etpot_field,
             'et_bas': etbas_field, 'kc_act': kc_field, 'kc_bas': kcb_field,
             'niwr': niwr_field, 'irrigation': irrig_field,
@@ -317,7 +323,7 @@ def write_crop_output(data, et_cell, crop, foo):
     # Compute monthly and annual stats before modifying daily format below
     if data.monthly_output_flag:
         monthly_resample_func = {
-            pmeto_field: np.sum, etact_field: np.sum, etpot_field: np.sum,
+            pmet_field: np.sum, etact_field: np.sum, etpot_field: np.sum,
             etbas_field: np.sum, kc_field: np.mean, kcb_field: np.mean,
             niwr_field: np.sum, precip_field: np.sum, irrig_field: np.sum,
             runoff_field: np.sum, dperc_field: np.sum, season_field: np.sum,
@@ -328,7 +334,7 @@ def write_crop_output(data, et_cell, crop, foo):
         #     'MS', how=monthly_resample_func)
     if data.annual_output_flag:
         resample_func = {
-            pmeto_field: np.sum, etact_field: np.sum, etpot_field: np.sum,
+            pmet_field: np.sum, etact_field: np.sum, etpot_field: np.sum,
             etbas_field: np.sum, kc_field: np.mean, kcb_field: np.mean,
             niwr_field: np.sum, precip_field: np.sum, irrig_field: np.sum,
             runoff_field: np.sum, dperc_field: np.sum, season_field: np.sum,
@@ -360,27 +366,36 @@ def write_crop_output(data, et_cell, crop, foo):
                 season_diff = np.diff(group[season_field].values)
                 try:
                     start_i = np.where(season_diff == 1)[0][0] + 1
-                    gs_output_pd.set_value(
-                        group.index[0], gs_start_doy_field,
-                        int(group.ix[start_i, doy_field]))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_start_doy_field,
+                    #     int(group.ix[start_i, doy_field]))
+                    # Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_start_doy_field] = int(group.ix[start_i, doy_field])
                 except:
-                    gs_output_pd.set_value(
-                        group.index[0], gs_start_doy_field,
-                        int(min(group[doy_field].values)))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_start_doy_field,
+                    #     int(min(group[doy_field].values)))
+                    #Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_start_doy_field] = int(min(group[doy_field].values))
                 try:
                     end_i = np.where(season_diff == -1)[0][0] + 1
-                    gs_output_pd.set_value(
-                        group.index[0], gs_end_doy_field,
-                        int(group.ix[end_i, doy_field]))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_end_doy_field,
+                    #     int(group.ix[end_i, doy_field]))
+                    # Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_end_doy_field] = int(group.ix[end_i, doy_field])
                 except:
-                    gs_output_pd.set_value(
-                        group.index[0], gs_end_doy_field,
-                        int(max(group[doy_field].values)))
+                    # gs_output_pd.set_value(
+                    #     group.index[0], gs_end_doy_field,
+                    #     int(max(group[doy_field].values)))
+                    # Replacement for set_value Future Warning
+                    gs_output_pd.at[group.index[0], gs_end_doy_field] = int(max(group[doy_field].values))
                 del season_diff
-            gs_output_pd.set_value(
-                group.index[0], gs_length_field,
-                int(sum(group[season_field].values)))
-
+            # gs_output_pd.set_value(
+            #     group.index[0], gs_length_field,
+            #     int(sum(group[season_field].values)))
+            # Replacement for set_value Future Warning
+            gs_output_pd.at[group.index[0], gs_length_field] = int(sum(group[season_field].values))
 
     # # Write daily output
     if data.daily_output_flag:
@@ -406,7 +421,7 @@ def write_crop_output(data, et_cell, crop, foo):
                 et_cell.cell_id, int(crop.class_number)))
         # Set the output column order
         daily_output_columns = [
-            year_field, month_field, day_field, doy_field, pmeto_field,
+            year_field, month_field, day_field, doy_field, pmet_field,
             etact_field, etpot_field, etbas_field, kc_field, kcb_field,
             precip_field, irrig_field, runoff_field, dperc_field,
             niwr_field, season_field]
@@ -443,7 +458,7 @@ def write_crop_output(data, et_cell, crop, foo):
             data.monthly_output_ws, '{0}_monthly_crop_{1:02d}.csv'.format(
                 et_cell.cell_id, int(crop.class_number)))
         monthly_output_columns = [
-            year_field, month_field, pmeto_field, etact_field, etpot_field,
+            year_field, month_field, pmet_field, etact_field, etpot_field,
             etbas_field, kc_field, kcb_field, precip_field, irrig_field,
             runoff_field, dperc_field, niwr_field,
             season_field]
@@ -468,7 +483,7 @@ def write_crop_output(data, et_cell, crop, foo):
             data.annual_output_ws, '{0}_annual_crop_{1:02d}.csv'.format(
                 et_cell.cell_id, int(crop.class_number)))
         annual_output_columns = [
-            year_field, pmeto_field, etact_field, etpot_field, etbas_field,
+            year_field, pmet_field, etact_field, etpot_field, etbas_field,
             kc_field, kcb_field, precip_field, irrig_field, runoff_field,
             dperc_field, niwr_field, season_field]
         if data.cutting_flag and crop.cutting_crop:
