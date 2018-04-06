@@ -2,3 +2,4 @@ bokeh>=0.12.7
 gdal>=2.0
 numpy
 pandas
+openpyxl>=2.4.7

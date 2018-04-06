@@ -2,8 +2,8 @@ import datetime as dt
 import logging
 import os
 
+import pandas as pd
 import numpy as np
-
 
 def es_from_t(t):
     """ Tetens (1930) equation for sat. vap pressure, kPa, (T in C)
@@ -12,10 +12,9 @@ def es_from_t(t):
         t (float): temperature [C]
 
     Returns:
-        A float of the saturated vapor pressure [kPa]
+        A float ofsaturated vapor pressure [kPa]
     """
     return 0.6108 * np.exp((17.27 * t) / (t + 237.3))
-
 
 def es_ice_from_t(t):
     """ Murray (1967) equation for sat. vap pressure over ice, kPa, (T in C)
@@ -24,29 +23,27 @@ def es_ice_from_t(t):
         t (float): temperature [C]
 
     Returns:
-        A float of the saturated vapor pressure over ice [kPa]
+        A float ofsaturated vapor pressure over ice [kPa]
     """
     return 0.6108 * np.exp((21.87 * t) / (t + 265.5))
 
-
 def is_winter(et_cell, foo_day):
-    """Determine if the input day is in a winter month
+    """Determine ifinput day is in a winter month
 
     Args:
         et_cell (): ?
         foo_day (): ?
 
     Returns:
-        A boolean that is True if the input day is in a winter month
+        A boolean that is True ifinput day is in a winter month
     """
-    if et_cell.stn_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
+    if et_cell.latitude > 0 and (foo_day.month < 4 or foo_day.month > 10):
     # if et_cell.cell_lat > 0 and (foo_day.month < 4 or foo_day.month > 10):
         # Northern hemisphere
         return True
     else:
         # Southern hemisphere
         return False
-
 
 def pair_from_elev(elevation):
     """Calculates air pressure as a function of elevation
@@ -57,8 +54,18 @@ def pair_from_elev(elevation):
     Returns:
         NumPy array of air pressures [kPa]
     """
-    return 101.3 * np.power((293.0 - 0.0065 * elevation) / 293.0, 5.26)
+    # version converted from vb.net
+    
+    # return 101.3 * ((293. - 0.0065 * elevm) / 293.) ** (9.8 / (0.0065 * 286.9)) # kPa ' standardized by ASCE 2005
+    
+    # version from from DRI
+    
+    # return 101.3 * np.power((293.0 - 0.0065 * elevation) / 293.0, 5.26)
 
+    # version extended to better match vb.net version
+    # 5.255114352 = 9.8 / (0.0065 * 286.9
+    
+    return 101.3 * np.power((293.0 - 0.0065 * elevation) / 293.0, 5.255114352)
 
 def ea_from_q(p, q):
     """Calculates vapor pressure from pressure and specific humidity
@@ -72,7 +79,6 @@ def ea_from_q(p, q):
     """
     return p * q / (0.622 + 0.378 * q)
 
-
 def q_from_ea(ea, p):
     """Calculates specific humidity from vapor pressure and pressure
 
@@ -85,7 +91,6 @@ def q_from_ea(ea, p):
     """
     return 0.622 * ea / (p - 0.378 * ea)
 
-
 def tdew_from_ea(ea):
     """Calculates vapor pressure at a given temperature
 
@@ -97,15 +102,14 @@ def tdew_from_ea(ea):
     """
     return (237.3 * np.log(ea / 0.6108)) / (17.27 - np.log(ea / 0.6108))
 
-
 def valid_date(input_date):
     """Check that a date string is ISO format (YYYY-MM-DD)
 
-    This function is used to check the format of dates entered as command
+    This function is used to checkformat of dates entered as command
       line arguments.
     DEADBEEF - It would probably make more sense to have this function
-      parse the date using dateutil parser (http://labix.org/python-dateutil)
-      and return the ISO format string
+      parsedate using dateutil parser (http://labix.org/python-dateutil)
+      and returnISO format string
 
     Args:
         input_date: string
@@ -121,11 +125,9 @@ def valid_date(input_date):
         msg = "Not a valid date: '{0}'.".format(input_date)
         raise argparse.ArgumentTypeError(msg)
 
-
 def wind_adjust_func(uz_array, zw):
     """Adjust wind speed to 2m"""
     return uz_array * 4.87 / np.log(67.8 * zw - 5.42)
-
 
 def file_logger(logger=logging.getLogger(''), log_level=logging.DEBUG,
                 output_ws=os.getcwd()):
@@ -138,7 +140,6 @@ def file_logger(logger=logging.getLogger(''), log_level=logging.DEBUG,
     logger.addHandler(log_file)
     return logger
 
-
 def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
     """Create console logger"""
     import sys
@@ -148,7 +149,6 @@ def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
     log_console.setFormatter(logging.Formatter('%(message)s'))
     logger.addHandler(log_console)
     return logger
-
 
 def parse_int_set(nputstr=""):
     """Return list of numbers given a string of ranges

@@ -1,6 +1,9 @@
 #!/usr/bin/env python
-import numpy as np
 
+import numpy as np
+import xlrd
+
+curve_descs = {'1': '1=NCGDD', '2': '2=%PL-EC', '3': '3=%PL-EC+daysafter', '4': '4=%PL-Term'}
 
 class CropCoeff:
     """Crop coefficient container
@@ -11,92 +14,68 @@ class CropCoeff:
         curve_type (): Crop curve type number
             (NCGDD, %PL-EC, %PL-EC+daysafter, %PL-Term)
         name (str): Crop name
-        percents (numpy array): crop coefficient percents
         data (numpy array): Crop coefficient curve values
-
     """
 
     def __init__(self):
+        """ """
         self.name = None
         self.gdd_type_name = ''
 
     def __str__(self):
-        return '<%s, type %s>' % (self.name, self.curve_type)
+        """ """
+        return '<%s, type %s>' % (self.name, self.curve_types)
 
-    def init_from_column(self, dc):
-        """Parse the column of data from the static crop coefficients file
-
-        This functionality could be moved into the init function above
+    def init_from_column(self, curve_no, curve_type_no, curve_name,  data_col):
+        """ Parse column of data
 
         Args:
-            percents (numpy array): percents column from static file
-            dc (numpy array): crop data column from static file
+            data_col - string of data column
         """
-
         # Info
-        t2d = {'1': '1=NCGDD',
-               '2': '2=%PL-EC',
-               '3': '3=%PL-EC+daysafter',
-               '4': '4=%PL-Term'}
-        self.curve_no = dc[2]
-        self.curve_type_no = dc[3]
-        self.curve_type = t2d[dc[3]]
-        self.name = dc[4]
+        
+        self.curve_no = curve_no.replace('.0', '')
+        self.curve_type_no = curve_type_no.replace('.0', '')
+        self.curve_types = curve_descs[self.curve_type_no]
+        self.name = curve_name
 
         # Data table
-        # Percents values are not being used anywhere in the code
-        # self.percents = percents.astype(float)
-        values = dc[6:41]
-        mask = values == ''
-        values = np.where(mask, '0', values)
+        
+        values = data_col[0:35]    # this version's data_col already has header lines removed
+        values = np.where(values == '', '0', values)
         self.data = values.astype(float)
-        self.lentry = np.where(~mask)[0][-1]
+        self.lentry = len(np.where(self.data > 0.0)[0]) - 1
 
-        # # CGM 9/1/2015 - These aren't used anywhere else in the code
-        # t2n = { '1':'simple', '2':'corn'}
-        # self.gdd_base_c = dc[41]
-        # self.gdd_type = dc[42]
-        # if dc[42] in t2n:
-        #     .gdd_type_name = t2n[dc[42]]
-
-        # # CGM 9/1/2015 - These aren't used anywhere else in the code
-        # self.cgdd_planting_to_fc = dc[43]
-        # self.cgdd_planting_to_terminate = dc[44]
-        # self.cgdd_planting_to_terminate_alt = dc[45]
-        # self.comment1 = dc[46]
-        # self.comment2 = dc[47]
-
-
-def read_crop_coefs(fn):
-    """Load the crop coefficients from the static file
-
-    Assume crop coefficients are constant for all cells
-
-    Args:
-        fn (str): file path
-
-    Returns:
-        A dict mapping crop curve numbers to the crop coefficients
-    """
-
-    a = np.loadtxt(fn, delimiter="\t", dtype='str')
-    curve_type = a[3, 2:]
-
+def read_crop_coefs_txt(data):
+    """ Read crop coefficients from text file"""
+    a = np.loadtxt(data.crop_coefs_path, delimiter = data.crop_coefs_delimiter, dtype = 'str')
+    curve_numbers = a[2, 2:]
+    curve_type_numbs = a[3, 2:]    # repaired from 'a[2, 2:]' - dlk - 05/07/2016
+    curve_names = a[4, 2:]
     coeffs_dict = {}
-    for i, num in enumerate(curve_type):
-        # Percents values are not being used anywhere in the code
-        # if curve_type[i] == '3':
-        #     percents = a[6:41, 1]
-        # else:
-        #     percents = a[6:37, 0]
-
-        data_col = a[:41, 2+i]
-        if not data_col[2]:
-            continue
+    for i, num in enumerate(curve_type_numbs):
+        data_col = a[6:, 2 + i]
+        if not curve_numbers[0]: continue
         coeff_obj = CropCoeff()
-        coeff_obj.init_from_column(data_col)
-        # coeff_obj.init_from_column(percents, data_col)
+        coeff_obj.init_from_column(curve_numbers[i], curve_type_numbs[i], curve_names[i], data_col)
+        coeffs_dict[int(coeff_obj.curve_no)] = coeff_obj
+    return coeffs_dict
 
+def read_crop_coefs_xls_xlrd(data):
+    """ Read crop coefficients from workbook using xlrd"""
+    coeffs_dict = {}
+    wb = xlrd.open_workbook(data.crop_coefs_path)
+    ws = wb.sheet_by_name(data.crop_coefs_ws)
+    curve_numbers= np.asarray(ws.row_values(data.crop_coefs_names_line - 2, 2), dtype = np.str)
+    curve_type_numbs = np.asarray(ws.row_values(data.crop_coefs_names_line - 1, 2), dtype = np.str)
+    curve_names= np.asarray(ws.row_values(data.crop_coefs_names_line, 2), dtype = np.str)
+    for i, num in enumerate(curve_type_numbs):
+        if curve_type_numbs[i] == '3':
+            data_col = np.asarray(ws.col_values(i + 2, data.crop_coefs_header_lines, data.crop_coefs_header_lines + 31), dtype = np.str)
+        else:
+            data_col = np.asarray(ws.col_values(i + 2, data.crop_coefs_header_lines, data.crop_coefs_header_lines  + 35), dtype = np.str)
+        coeff_obj = CropCoeff()
+        coeff_obj.init_from_column(curve_numbers[i], curve_type_numbs[i], curve_names[i], data_col)
         coeffs_dict[int(coeff_obj.curve_no)] = coeff_obj
     return coeffs_dict
 

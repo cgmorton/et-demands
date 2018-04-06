@@ -13,9 +13,13 @@ Table of Contents:
    prep_tools
    prep_example
    spatial
-   run_basin
+   run_ret
+   run_cet
+   run_aet
    tools
+   refet
    cropet
+   areaet
 
 Indices and tables
 ==================
@@ -23,4 +27,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

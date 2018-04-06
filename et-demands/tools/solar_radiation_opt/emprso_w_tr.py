@@ -37,7 +37,9 @@ def emprso_w_tr(lat, p, ea, doy, deltaT, tmax_tmin,
     lat_rad = lat * pi / 180
 
     # Solar constant [MJ m-2 h-1]
-    gsc = 4.92
+    # Changed to 4.9212 to be same as ref et modules's 0.08202 * 60
+    # gsc = 4.92
+    gsc = 4.9212
 
     # Eqn 24
     sinb24 = np.sin(

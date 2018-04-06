@@ -1,6 +1,5 @@
 import logging
 
-
 def runoff(foo, foo_day, debug_flag=False):
     """Curve number method for computing runoff."""
     # logging.debug('runoff()')

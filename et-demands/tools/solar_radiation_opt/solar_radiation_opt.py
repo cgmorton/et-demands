@@ -9,6 +9,7 @@
 import argparse
 import logging
 import os
+import datetime
 from time import clock
 
 import matplotlib.pyplot as plt
@@ -17,57 +18,66 @@ import pandas as pd
 
 import emprso_w_tr
 
+import solar_config
 
-def main(file_name=None, station_elev=None,
-         station_lat=None, station_lon=None,
-         comparison_flag=False, mc_iterations=None, debug_flag=True):
-    """
+def main(ts_ini_name = None, sheet_delim = None, missing_data_value = 'NaN', 
+        elevation = None, latitude = None, longitude = None,
+        comparison_flag = False, save_temp_flag = False,
+        mc_iterations = None, debug_flag = True):
+    """Solar Radiation Calibration
 
     Args:
         file_name (str): file_name to process
-        station_elev (float): station elevation [m]
-        station_lat (float): station longitude [decimal degrees]
-        station_lon (float): station longitude [decimal degrees]
+        cfg.elevation (float): station elevation [m]
+        cfg.latitude (float): station longitude [decimal degrees]
+        cfg.longitude (float): station longitude [decimal degrees]
         comparison_flag (bool): if True,
+        save_temp_flag: boolean
         mc_iterations (int):
         debug_flag (bool): if True, enable debug level logging
 
     Returns:
         None
     """
+    
+    # determine if ts_ini_name is a time series file or an ini file
 
-    # Column names
-    year_col = 'Year'
-    month_col = 'Month'
-    day_col = 'Day'
-    doy_col = 'DOY'
-    tdelta_col = 'Tdelta'
-    tmonth_col = 'Tmonth'
-    rs_month_col = 'Rs_month'
+    if ts_ini_name is None:
+        file_name = None
+    else:
+        ext = os.path.splitext(ts_ini_name)[1][1:]
+        if ext != 'ini' and ext != 'cfg':
+            file_name = ts_ini_name
+            ts_ini_name = None
+    if ts_ini_name is None:
+        file_path, sheet_delim = get_tsfile_path(file_name, sheet_delim)
 
-    tmax_col = 'TmaxC'
-    tmin_col = 'TminC'
-    tdew_col = 'TdewC'
-    rs_col = 'Rs_MJ_m2'
-    # rs_col = 'Rs_w_m2'
+        # set configuration with hard wired attributes
+        
+        cfg = solar_config.SolarConfig()
+        cfg.set_solar_ini(sheet_delim, elevation, latitude, longitude, missing_data_value)
+        cfg.file_path = file_path
+        cfg.sheet_delim = sheet_delim
+        if '.xls' in file_path: cfg.file_type = 'xls'
+    else:
+        # read ini file
 
-    # tmax_col = 0
-    # tmin_col = 1
-    # tdew_col = 2
-    # rs_col = 3
-
-    # USER VARIABLES
-    missing_data_value = -999
-    rs_watts_flag = False
-
-    workspace = os.getcwd()
+        cfg = solar_config.SolarConfig()
+        cfg.read_solar_ini(ts_ini_name, debug_flag)
+    ext = '.' + os.path.splitext(cfg.file_path)[1][1:]
+    if comparison_flag:
+        file_name = cfg.file_path.replace(ext, '_Processed_Comparison')
+    else:
+        file_name = cfg.file_path.replace(ext, '_Processed_Optimazation')
     if debug_flag:
         # File Logger
-        logging.basicConfig(
-            level=logging.DEBUG, format='%(message)s', filemode='w',
-            filename=os.path.join(
-                workspace, file_name + '_input_log' + '.txt'))
+
+        logging.basicConfig(level = logging.DEBUG, 
+            format='%(message)s', filemode = 'w', 
+            filename = file_name + '_log.txt')
+                
         # Display Logger
+        
         log_console = logging.StreamHandler()
         log_console.setLevel(logging.DEBUG)
         log_console.setFormatter(logging.Formatter('%(message)s'))
@@ -76,223 +86,239 @@ def main(file_name=None, station_elev=None,
         logging.basicConfig(level=logging.INFO, format='%(message)s')
     logging.info('\nOptimizing Thornton-Running Coefficients\n')
 
-    while True:
-        file_name = raw_input('Specify the station file name: ')
-        file_path = os.path.join(workspace, file_name)
-        if not os.path.isfile(file_path):
-            logging.info(
-                ('  The file {0} doesn\'t exist in the current ' +
-                 'working directory').format(file_name))
-            # Display the available XLS files
-            logging.info('  The following XLS files are {0}'.format(workspace))
-            for item in os.listdir(workspace):
-                if item.lower().endswith('.xls'):
-                    logging.info('    {0}'.format(item))
-            logging.info('')
-        else:
-            break
-    # Check input file
-    # file_name = 'FTCB_tr_opt_input.xls'
-    # file_path = os.path.join(workspace, file_name)
-    # if not os.path.isfile(file_path):
-    #     .error('\nERROR: Station file doesn\'t exist')
-    #      SystemExit()
+    # computed column names
 
-    # Use filename (without extensions)
-    file_name = 'processed_' + os.path.splitext(file_name)[0]
+    doy_col = 'DOY'    
+    tdelta_col = 'Tdelta'
+    tmonth_col = 'Tmonth'
+    rs_month_col = 'Rs_month'
 
-    if comparison_flag:
-        file_name = 'Comparison_' + file_name
-    else:
-        file_name = 'Optimization_' + file_name
+    # USER VARIABLES
 
-    # DEADBEEF - hardcode inputs for now
-    if station_elev is None:
-        station_elev = float(raw_input(
-            'Specify the station elevation [meters]: '))
-    if station_lat is None:
-        station_lat = float(raw_input(
-            'Specify the station latitude [decimal degrees (N)]: '))
-    if station_lon is None:
-        station_lon = float(raw_input(
-            'Specify the station longitude [decimal degrees (W)]: '))
-    # station_elev = 422
-    # station_lat = 35.14887
-    # station_lon = 98.46607
+    rs_watts_flag = False
+
+    # parse meta data
+
+    if cfg.elevation is None:
+        cfg.elevation = float(raw_input(
+            'Specify station elevation [meters]: '))
+    if cfg.latitude is None:
+        cfg.latitude = float(raw_input(
+            'Specify station latitude [decimal degrees (N)]: '))
+    if cfg.longitude is None:
+        cfg.longitude = float(raw_input(
+            'Specify station longitude [decimal degrees (W)]: '))
     if mc_iterations is None:
         mc_iterations = float(raw_input(
-            'Specify the number of Monte Carlo iterations: '))
-    # mc_iterations = int(raw_input(
-    #    'Specify how many iterations to run (Expect ~10 run time per 1000):
+            'Specify number of Monte Carlo iterations: '))
 
-    # Read the Excel file
-    data_pd = pd.read_excel(
-        file_path, sheetname='Sheet1', na_values=['-999'],
-        index_col=0, has_index_names=True,
-        parse_dates={'Date': [2, 0, 1]},
-        date_parser=lambda x: pd.datetime.strptime(x, '%Y %m %d'))
-    # print data_pd.ix['1997-11-20']
-    num_lines = len(data_pd.index)
+    # Read data
 
-    # Assign month and DOY columns to the data frame
-    data_pd[year_col] = data_pd.index.year
-    data_pd[month_col] = data_pd.index.month
-    data_pd[day_col] = data_pd.index.day
-    data_pd[doy_col] = data_pd.index.dayofyear
+    # Get list of 0 based line numbers to skip
+    # Ignore header but assume header was set as 1's based index
+    data_skip = [i for i in range(cfg.header_lines) if i + 1 <> cfg.names_line]
+    if cfg.file_type == 'xls':
+        data_df = pd.read_excel(cfg.file_path,  sheetname = cfg.sheet_delim, 
+            header = cfg.names_line - 1, skip_rows = data_skip, 
+            na_values = cfg.missing_data_value)
+    else:
+        data_df = pd.read_table(cfg.file_path, sep = cfg.sheet_delim, 
+            engine = 'python', header = cfg.names_line - 1, 
+            skiprows = data_skip, na_values = cfg.missing_data_value)
 
-    # Assigning dates
-    # month = data_pd[:,0]
-    # day = data_pd[:,1]
-    # year = data_pd[:,2]
+    # Convert date strings to datetimes and index on date
+    
+    if cfg.input_met['fields']['date'] is not None:
+        if cfg.input_met['fields']['date'] in data_df.columns:
+            data_df['Date'] = pd.to_datetime(data_df[cfg.input_met['fields']['date']])
+        else:    # this for case where YMD an ini is not used with YMD
+            data_df['Date'] = data_df[[cfg.input_met['fields']['year'], \
+                cfg.input_met['fields']['month'], cfg.input_met['fields']['day']]].apply(
+                lambda s : datetime.datetime(*s),axis = 1)
+    else:
+        data_df['Date'] = data_df[[cfg.input_met['fields']['year'], \
+            cfg.input_met['fields']['month'], cfg.input_met['fields']['day']]].apply(
+            lambda s : datetime.datetime(*s),axis = 1)
+    data_df.set_index('Date', inplace = True)
+    if not cfg.start_dt is None and not cfg.end_dt is None:
+        # truncate data to user period
+        
+        data_df = data_df.truncate(before = cfg.start_dt, after = cfg.end_dt)
+    
+    # print "index\n", data_df.index
+    # print data_df.head(2)
+    # print data_df.tail(2)
+    num_lines = len(data_df.index)
+        
+    # Check/modify units
+        
+    for field_key, field_units in cfg.input_met['units'].items():
+        # print "units for", field_key, "are", field_units
+        if field_units is None:
+            continue
+        elif field_units.lower() in ['c', 'mj/m2', 'mj/m^2', 'mj/m2/day', 'mj/m^2/day', 'mj/m2/d', 'mj/m^2/d']:
+            continue
+        elif field_units.lower() == 'f':
+            data_df[cfg.input_met['fields'][field_key]] -= 32
+            data_df[cfg.input_met['fields'][field_key]] /= 1.8
+        elif field_units.lower() in ['w/m2', 'w/m^2']:
+            data_df[cfg.input_met['fields'][field_key]] *= 0.0864
+        elif field_units.lower() in ['cal/cm2', 'cal/cm2/d', 'cal/cm2/day', 'cal/cm^2/d', 'cal/cm^2/day', 'langley']:
+            data_df[cfg.input_met['fields'][field_key]] *= 0.041868
+        else:
+            logging.error('\n ERROR: Unknown {0} units {1}'.format(field_key, field_units) + ' input met data')
+            return false
 
-    # Read data by column name or column number
-    # data_pd[rs_col] = data_pd.ix[:,3]    # w/m2
-    # tmax = data_pd.ix[:,0]          # C
-    # tmin = data_pd.ix[:,1]          # C
-    # tdew = data_pd.ix[:,2]          # C
-    #wind = data[:,12]        # m/s
-    #rhmax = data[:,6]        #
-    #rhmin = data[:,7]        #
-    #precip = data[:,13]      # mm
-    #uz = Wind                # change variable name for downhill code
+    # Assign month and DOY columns to data frame
+
+    data_df[cfg.input_met['fields']['year']] = data_df.index.year
+    data_df[cfg.input_met['fields']['month']] = data_df.index.month
+    data_df[cfg.input_met['fields']['day']] = data_df.index.day
+    data_df[doy_col] = data_df.index.dayofyear
+    print data_df.head(5)
+    print data_df.tail(5)
 
     # Compute pressure kPa
-    p = (2.406 - 0.0000534 * station_elev) ** 5.26
+    
+    # 5.26 changed to 5.255114352 to improve vb.net to py comparisons
+
+    # p = (2.406 - 0.0000534 * cfg.elevation) ** 5.26
+    # p = (2.406 - 0.0000534 * cfg.elevation) ** 5.255114352
+    p = (2.406 - 0.0000534 * cfg.elevation) ** 5.255114352
 
     # FAO converting watts into mj m2 d
-    if rs_watts_flag:
-        data_pd[rs_col] *= 0.0864
+    
+    if rs_watts_flag: data_df[cfg.input_met['fields']['rs']] *= 0.0864
 
     # Mean monthly difference between Tmax and Tmin for T-R
-    data_pd[tdelta_col] = data_pd[tmax_col] - data_pd[tmin_col]
-    tdelta_monthly = data_pd[[month_col,tdelta_col]].groupby(month_col).mean()
-    tdelta_monthly.rename(columns={tdelta_col:tmonth_col}, inplace=True)
-    tdelta_monthly.reset_index(level=0, inplace=True)
-    # tdelta_monthly[month_col] = df.index
-
+    
+    data_df[tdelta_col] = data_df[cfg.input_met['fields']['tmax']] - data_df[cfg.input_met['fields']['tmin']]
+    tdelta_monthly = data_df[[cfg.input_met['fields']['month'], tdelta_col]].groupby(cfg.input_met['fields']['month']).mean()
+    tdelta_monthly.rename(columns = {tdelta_col:tmonth_col}, inplace = True)
+    tdelta_monthly.reset_index(level = 0, inplace = True)
+    
     # Join mean monthly tdelta back to main table
     # Date index is dropped by merge, so save it before merging
-    data_pd = data_pd.reset_index()
-    data_pd = pd.merge(data_pd, tdelta_monthly, on=month_col)
-    data_pd = data_pd.set_index('Date')
+    
+    data_df = data_df.reset_index()
+    data_df = pd.merge(data_df, tdelta_monthly, on = cfg.input_met['fields']['month'])
+    data_df = data_df.set_index('Date')
 
     # Apply Limits on Variables, rhmax, rhmin, tmax, tmin, rs, wind, rh
-    data_pd[data_pd[tmax_col] < -40] = np.nan
-    data_pd[data_pd[tmax_col] > 60] = np.nan
-    data_pd[data_pd[tmin_col] < -40] = np.nan
-    data_pd[data_pd[tmin_col] > 60] = np.nan
-    # rhmax[rhmax < -40] = np.nan
-    # rhmax[rhmax >= 60] = np.nan
-    # rhmin[rhmin < -40] = np.nan
-    # rhmin[rhmin >= 60] = np.nan
+
+    data_df[data_df[cfg.input_met['fields']['tmax']] < -40] = np.nan
+    data_df[data_df[cfg.input_met['fields']['tmax']] > 60] = np.nan
+    data_df[data_df[cfg.input_met['fields']['tmin']] < -40] = np.nan
+    data_df[data_df[cfg.input_met['fields']['tmin']] > 60] = np.nan
 
     # Calculate all secondary variables as separate arrays
-    eo_tmax = 0.6108 * np.exp((17.27 * data_pd[tmax_col]) / (data_pd[tmax_col] + 237.3))
-    eo_tmin = 0.6108 * np.exp((17.27 * data_pd[tmin_col]) / (data_pd[tmin_col] + 237.3))
-    ea = 0.6108 * np.exp((17.27 * data_pd[tdew_col]) / (data_pd[tdew_col] + 237.3))
-    #ea = ((eo_tmin * (rhmax / 100)) + (eo_tmax * (rhmin / 100))) / 2
+    
+    eo_tmax = 0.6108 * np.exp((17.27 * data_df[cfg.input_met['fields']['tmax']]) / (data_df[cfg.input_met['fields']['tmax']] + 237.3))
+    eo_tmin = 0.6108 * np.exp((17.27 * data_df[cfg.input_met['fields']['tmin']]) / (data_df[cfg.input_met['fields']['tmin']] + 237.3))
+    ea = 0.6108 * np.exp((17.27 * data_df[cfg.input_met['fields']['tdew']]) / (data_df[cfg.input_met['fields']['tdew']] + 237.3))
     tdew = (116.91 + 237.3 * np.log(ea)) / (16.78 - np.log(ea))
-    tmin_tdew = data_pd[tmin_col] - data_pd[tdew_col]
+    tmin_tdew = data_df[cfg.input_met['fields']['tmin']] - data_df[cfg.input_met['fields']['tdew']]
+    # print "eo_tmax, eo_tmin, ea, tdew, tmin_tdew"
+    # print eo_tmax, eo_tmin, ea, tdew, tmin_tdew
 
     # MJ m-2 d-1
+    
     if comparison_flag:
         rso_d, rs_custom_tr = emprso_w_tr.emprso_w_tr(
-            station_lat, p, ea, data_pd[doy_col].values,
-            data_pd[tmonth_col].values, data_pd[tdelta_col].values,
-            b0=0.015690, b1=0.207780, b2=-0.174350)
-            # b0=0.029805, b1=0.178585, b2=-0.24383)
+            cfg.latitude, p, ea, data_df[doy_col].values,
+            data_df[cfg.input_met['fields']['month']].values, data_df[tdelta_col].values,
+            b0 = 0.015690, b1 = 0.207780, b2 = -0.174350)
+            # b0 = 0.029805, b1 = 0.178585, b2 = -0.24383)
     rso_d, rs_standard_tr = emprso_w_tr.emprso_w_tr(
-        station_lat, p, ea, data_pd[doy_col].values,
-        data_pd[tmonth_col].values, data_pd[tdelta_col].values,
-        b0=0.031, b1=0.201, b2=-0.185)
+        cfg.latitude, p, ea, data_df[doy_col].values,
+        data_df[cfg.input_met['fields']['month']].values, data_df[tdelta_col].values,
+        b0 = 0.031, b1 = 0.201, b2 = -0.185)
 
     # Pull out numpy array of measured solar from data frame
-    rs_meas = data_pd[rs_col].values
+    
+    rs_meas = data_df[cfg.input_met['fields']['rs']].values
     rs_mask = np.isfinite(rs_meas) & np.isfinite(rs_standard_tr)
     rs_max = max(rs_meas[rs_mask])
 
     # Calculate monthly means for rs and standard param rs_tr
-    rs_monthly = data_pd[[month_col, rs_col]].groupby(month_col).mean()
-    rs_monthly.rename(columns={rs_col: rs_month_col}, inplace=True)
-    rs_monthly.reset_index(level=0, inplace=True)
+    
+    rs_monthly = data_df[[cfg.input_met['fields']['month'], cfg.input_met['fields']['rs']]].groupby(cfg.input_met['fields']['month']).mean()
+    rs_monthly.rename(columns = {cfg.input_met['fields']['rs']: rs_month_col}, inplace = True)
+    rs_monthly.reset_index(level = 0, inplace = True)
 
     # Join mean monthly Rs back to main table
-    data_pd = data_pd.reset_index()
-    data_pd = pd.merge(data_pd, rs_monthly, on=month_col)
-    data_pd = data_pd.set_index('Date')
-
-    #
+    
+    data_df = data_df.reset_index()
+    data_df = pd.merge(data_df, rs_monthly, on = cfg.input_met['fields']['month'])
+    data_df = data_df.set_index('Date')
     rs_tr_standard_monthly = np.zeros(12)
     rs_tr_custom_monthly = np.zeros(12)
     for month_i, month in enumerate(range(1,13)):
-        month_mask = (data_pd[month_col].values == month)
-        # rs_monthly[i] = np.nanmean[data_pd[rs_col][month_mask]]
+        month_mask = (data_df[cfg.input_met['fields']['month']].values == month)
         rs_tr_standard_monthly[month_i] = np.nanmean(rs_standard_tr[month_mask])
         if comparison_flag:
             rs_tr_custom_monthly[month_i] = np.nanmean(rs_custom_tr[month_mask])
 
-    # Save the updated data to a new excel file
-    save_temp_flag = False
+    # Save updated data to a new workbook
+    
+    # save_temp_flag = False
     if save_temp_flag:
-        temp_pd = data_pd.copy().sort_index()
-        temp_pd = temp_pd.reset_index()
-        writer = pd.ExcelWriter(file_path.replace('.xls', '_temp.xls'),
-                                datetime_format='yyyy-mm-dd')
-        temp_pd.to_excel(writer, 'Sheet1', index=False)
-        writer.save()
-        del temp_pd, writer
+        temp_df = data_df.copy().sort_index()
+        temp_df = temp_df.reset_index()
+        ext = '.' + os.path.splitext(cfg.file_path)[1][1:]
+        output_path = cfg.file_path.replace(ext, '_temp' + ext)
+        if '.xls' in cfg.file_path.lower():
+            writer = pd.ExcelWriter(output_path, datetime_format = 'yyyy-mm-dd')
+            temp_df.to_excel(writer, sheet_name = cfg.sheet_delim, index = False)
+            writer.save()
+            del writer
+        else:
+            temp_df.to_csv(output_path, sep = cfg.sheet_delim, index = False)
+        del temp_df
 
     # Compute statistics
     # Correlation of monthly values?
-    tr_standard_corr = np.corrcoef(
-        rs_monthly[rs_month_col].values, rs_tr_standard_monthly)[0,1]
-    # tr_standard_corr = np.correlate(
-    #     .array(rs_monthly[rs_month_col]), rs_tr_standard_monthly)
-    # RMSE and percent bias of all values
-    tr_standard_rmse = rmse(rs_standard_tr, data_pd[rs_col].values)
-    tr_standard_perct_bias = pct_bias(rs_standard_tr, data_pd[rs_col].values)
-    # tr_standard_log10_bias = log10_bias(rs_standard_tr, data_pd[rs_col].values)
+    
+    tr_standard_corr = np.corrcoef(rs_monthly[rs_month_col].values, rs_tr_standard_monthly)[0,1]
+    tr_standard_rmse = rmse(rs_standard_tr, data_df[cfg.input_met['fields']['rs']].values)
+    tr_standard_perct_bias = pct_bias(rs_standard_tr, data_df[cfg.input_met['fields']['rs']].values)
+
     logging.info(
-        ('\nThe standard parameter RMSE is {0:.6f} and has a correlation ' +
+        ('\nStandard parameter RMSE is {0:.6f} and has a correlation ' +
          'of {1:.6f}').format(tr_standard_rmse, tr_standard_corr))
 
     if comparison_flag:
         # Correlation of monthly values?
         tr_custom_corr = np.corrcoef(
             rs_monthly[rs_month_col].values, rs_tr_custom_monthly)[0, 1]
-        # tr_custom_corr = np.correlate(
-        #     .array(rs_monthly[rs_month_col]), rs_tr_custom_monthly)
-        # RMSE and percent bias of all values
-        tr_custom_rmse = rmse(rs_custom_tr, data_pd[rs_col].values)
-        tr_custom_perct_bias = pct_bias(rs_custom_tr, data_pd[rs_col].values)
-        # tr_custom_log10_bias = log10_bias(rs_custom_tr, data_pd[rs_col].values)
+        tr_custom_rmse = rmse(rs_custom_tr, data_df[cfg.input_met['fields']['rs']].values)
+        tr_custom_perct_bias = pct_bias(rs_custom_tr, data_df[cfg.input_met['fields']['rs']].values)
         logging.info(
-            ('The custom parameter RMSE is {0:.6f} and has a correlation ' +
+            ('Custom parameter RMSE is {0:.6f} and has a correlation ' +
              'of {1:.6f}').format(tr_custom_rmse, tr_custom_corr))
 
-    if comparison_flag:
         # DISPLAY OUTPUT IN PLOTS
-        f, axarr = plt.subplots(2, 2, figsize=(10, 10))
+        
+        f, axarr = plt.subplots(2, 2, figsize = (10, 10))
         months = range(1, 13)
 
         # Mean Monthly Standard vs Measured
-        axarr[0, 0].plot(
-            months, rs_monthly[rs_month_col].values, 'b', label='Measured')
-        axarr[0, 0].plot(
-            months, rs_tr_standard_monthly, 'r', label='TR Standard')
-        axarr[0, 0].set_ylabel('Rs (w/m2)')
+        
+        axarr[0, 0].plot(months, rs_monthly[rs_month_col].values, 'b', label = 'Measured')
+        axarr[0, 0].plot(months, rs_tr_standard_monthly, 'r', label = 'TR Standard')
+        axarr[0, 0].set_ylabel('Rs (MJ/m2/d)')
         axarr[0, 0].set_xlabel('Month')
         axarr[0, 0].set_title('Mean Monthly Standard vs Measured')
         axarr[0, 0].legend(loc=3)
         axarr[0, 0].set_xlim([1, 12])
 
         # Daily Standard vs Measured
-        axarr[0, 1].scatter(rs_meas, rs_standard_tr, s=2, c='b', alpha=0.3)
-        axarr[0, 1].set_ylabel('Estimated (w/m2)')
-        axarr[0, 1].set_xlabel('Observed (w/m2)')
+        
+        axarr[0, 1].scatter(rs_meas, rs_standard_tr, s = 2, c = 'b', alpha = 0.3)
+        axarr[0, 1].set_ylabel('Estimated (MJ/m2/d)')
+        axarr[0, 1].set_xlabel('Observed (MJ/m2/d)')
         axarr[0, 1].set_title('Daily Standard vs Measured')
-        lsrl_standard_eqn = np.polyfit(
-            rs_meas[rs_mask], rs_standard_tr[rs_mask], deg=1)
+        lsrl_standard_eqn = np.polyfit(rs_meas[rs_mask], rs_standard_tr[rs_mask], deg = 1)
         axarr[0, 1].plot(
             rs_meas[rs_mask],
             lsrl_standard_eqn[0] * rs_meas[rs_mask] + lsrl_standard_eqn[1],
@@ -300,9 +326,9 @@ def main(file_name=None, station_elev=None,
         axarr[0, 1].plot([0, rs_max], [0, rs_max], 'k--')
 
         # Mean Monthly Standard vs Custom
-        axarr[1, 0].plot(months, rs_monthly[rs_month_col].values, 'b',
-                         label='Measured')
-        axarr[1, 0].plot(months, rs_tr_custom_monthly, 'r', label='TR Custom')
+
+        axarr[1,0].plot(months, rs_monthly[rs_month_col].values, 'b', label = 'Measured')
+        axarr[1,0].plot(months, rs_tr_custom_monthly, 'r', label = 'TR Custom')
         axarr[1, 0].set_ylabel('Rs (w/m2)')
         axarr[1, 0].set_xlabel('Month')
         axarr[1, 0].set_title('Mean Monthly Optimized vs Measured')
@@ -310,18 +336,18 @@ def main(file_name=None, station_elev=None,
         axarr[1, 0].set_xlim([1, 12])
 
         # Daily Custom vs Measured
-        axarr[1, 1].scatter(rs_meas, rs_custom_tr, s=2, c='b', alpha=0.3)
-        axarr[1, 1].set_ylabel('Estimated (w/m2)')
-        axarr[1, 1].set_xlabel('Observed (w/m2)')
+        
+        axarr[1,1].scatter(rs_meas, rs_custom_tr, s = 2, c = 'b', alpha = 0.3)
+        axarr[1, 1].set_ylabel('Estimated (MJ/m2/d)')
+        axarr[1, 1].set_xlabel('Observed (MJ/m2/d)')
         axarr[1, 1].set_title('Daily Optimized vs Measured')
         lsrl_custom_eqn = np.polyfit(
             rs_meas[rs_mask], rs_custom_tr[rs_mask], deg=1)
         axarr[1, 1].plot(
             rs_meas[rs_mask],
             lsrl_custom_eqn[0] * rs_meas[rs_mask] + lsrl_custom_eqn[1],
-            color='red')
+            color = 'red')
         axarr[1, 1].plot([0, rs_max], [0, rs_max], 'k--')
-
         avg_diff_standard = np.nanmean(rs_standard_tr / rs_meas)
         avg_diff_opt = np.nanmean(rs_custom_tr / rs_meas)
         logging.info(
@@ -331,36 +357,30 @@ def main(file_name=None, station_elev=None,
             ('The average of (optimized/observed) on a daily basis ' +
              'is {0:.6f}').format(avg_diff_opt))
 
-        # Print out line equation
+        # Print line equation
+        
         logging.info(
-            'For the standard LSRL: y = {0:>.4f}x + {1:0.4f}'.format(
+            'For standard LSRL: y = {0:>.4f}x + {1:0.4f}'.format(
                 lsrl_standard_eqn[0], lsrl_standard_eqn[1]))
         logging.info(
-            'For the custom LSRL: y = {0:>.4f}x + {1:0.4f}'.format(
+            'For custom LSRL: y = {0:>.4f}x + {1:0.4f}'.format(
                 lsrl_custom_eqn[0], lsrl_custom_eqn[1]))
         logging.info('\n')
-
-        plt.savefig(os.path.join(workspace, file_name+'.jpg'))
+        plt.savefig(file_name + '.jpg')
         plt.show()
         plt.close()
         del f, axarr
     else:
         # Monte Carlo Analysis
-        # np.random.randint(0, mc_iterations, size=1)
+        
         b0 =  0.031 + (0.031 * 0.2) * np.random.randn(mc_iterations)
         b1 = 0.201 + (0.201 * 0.2) * np.random.randn(mc_iterations)
         b2 = -0.185 + (-0.185 * 0.2) * np.random.randn(mc_iterations)
-        # b0 =  0.031 + (0.031 * 0.2) * randn(mc_iterations,1)
-        # b1 = 0.201 + (0.201 * 0.2) * randn(mc_iterations,1)
-        # b2 = -0.185 + (-0.185 * 0.2) * randn(mc_iterations,1)
-
         mc_tr_matrix = np.zeros((mc_iterations, num_lines))
         mc_tr_monthly = np.zeros((mc_iterations, 12))
         mc_corr_vector = np.zeros(mc_iterations)
         mc_rmse_vector = np.zeros(mc_iterations)
         mc_pct_bias_vector = np.zeros(mc_iterations)
-        # mc_log10_bias_vector = np.zeros(mc_iterations)
-
         logging.info('\nMonte Carlo Iterations: {0}'.format(mc_iterations))
         mc_clock = clock()
         rmse_min = 1000
@@ -369,51 +389,47 @@ def main(file_name=None, station_elev=None,
             ('  {0:>{width}s}  {1:>8s}  {2:>8s} {3:>8s} {4:>8s}').format(
              'MC', 'RMSE', 'B0', 'B1', 'B2', width=mc_width))
         for mc_i in range(mc_iterations):
-            if mc_i % 1000 == 0:
-                 logging.info('  {0:>{width}d}'.format(
-                    mc_i, width=mc_width))
-            # logging.debug("{0} {1} {2}".format(b0[mc_i], b1[mc_i], b2[mc_i]))
+            if mc_i % 1000 == 0: logging.info('  {0:>{width}d}'.format(mc_i, width=mc_width))
+            
             # Eqn 15 Empirical fitting coefficient
-            b = b0[mc_i] + b1[mc_i] * np.exp(b2[mc_i] * data_pd[tdelta_col].values)
+            
+            b = b0[mc_i] + b1[mc_i] * np.exp(b2[mc_i] * data_df[tdelta_col].values)
+            
             # Eqn 14 Empirical solar radiation [watts]
-            rs_tr = rso_d * (1 - 0.9 * np.exp(
-                -1 * b * data_pd[tdelta_col].values ** 1.5))
+            
+            rs_tr = rso_d * (1 - 0.9 * np.exp(-1 * b * data_df[tdelta_col].values ** 1.5))
             mc_tr_matrix[mc_i,:] = rs_tr
             for month_i, month in enumerate(range(1, 13)):
-                month_mask = data_pd[month_col].values == month
+                month_mask = data_df[cfg.input_met['fields']['month']].values == month
                 mc_tr_monthly[mc_i, month_i] = np.nanmean(
                     mc_tr_matrix[mc_i][month_mask])
             mc_corr_vector[mc_i] = np.corrcoef(
                 rs_monthly[rs_month_col].values, mc_tr_monthly[mc_i, :])[0, 1]
             mc_rmse_vector[mc_i] = rmse(rs_meas, mc_tr_matrix[mc_i, :])
             mc_pct_bias_vector[mc_i] = pct_bias(mc_tr_matrix[mc_i, :], rs_meas)
-            # mc_log10_bias_vector[mc_i] = log10_bias(mc_tr_matrix[mc_i,:], rs_meas)
-
             if mc_rmse_vector[mc_i] < rmse_min:
                 rmse_min = float(mc_rmse_vector[mc_i])
                 logging.debug(
                     '  {0:>{width}d}  {1:.6f}  {2:.6f} {3:.6f} {4:.6f}'.format(
                         mc_i, rmse_min, b0[mc_i], b1[mc_i], b2[mc_i],
                         width=mc_width))
-
         logging.debug('  {0} seconds\n'.format(clock() - mc_clock))
 
         # FIND OPTIMIZED VALUES
+        
         mc_max_corr_index = np.nanargmax(mc_corr_vector)
         mc_min_rmse_index = np.nanargmin(mc_rmse_vector)
-        # mc_min_bias_index = np.nanargmin(mc_pct_bias_vector)
-
         mc_corr_ratio_vector = mc_tr_matrix[mc_max_corr_index, :]
         mc_rmse_ratio_vector = mc_tr_matrix[mc_min_rmse_index, :]
-
         avg_diff_standard = np.nanmean(rs_standard_tr / rs_meas)
         avg_diff_corr_opt = np.nanmean(mc_corr_ratio_vector / rs_meas)
         avg_diff_rmse_opt = np.nanmean(mc_rmse_ratio_vector / rs_meas)
 
-        # Check to see if indexes share common values
+        # Check if indexes share common values
+
         if mc_max_corr_index == mc_min_rmse_index:
             logging.info(
-                ('The values b0 = {0:.6f}, b1 = {1:.6f}, b2 = {2:.6f} ' +
+                ('Values b0 = {0:.6f}, b1 = {1:.6f}, b2 = {2:.6f} ' +
                  'found at index {3}').format(
                     b0[mc_max_corr_index], b1[mc_max_corr_index],
                     b2[mc_max_corr_index], mc_max_corr_index))
@@ -423,18 +439,18 @@ def main(file_name=None, station_elev=None,
                     mc_rmse_vector[mc_max_corr_index],
                     mc_corr_vector[mc_max_corr_index]))
             logging.info(
-                ('The standard parameter rmse is {0:.6f} and has a ' +
+                ('Standard parameter rmse is {0:.6f} and has a ' +
                  'correlation of {1:.6f}').format(
                 tr_standard_rmse, tr_standard_corr))
             logging.info(
-                'The average of (standard/observed) on a daily basis is {0:.6f}'.format(
+                'Average of (standard/observed) on a daily basis is {0:.6f}'.format(
                 avg_diff_standard))
             logging.info(
-                'The average of (optimized/observed) on a daily basis is {0:.6f}'.format(
+                'Average of (optimized/observed) on a daily basis is {0:.6f}'.format(
                 avg_diff_rmse_opt))
         else:
             logging.info(
-                ('The values b0 = {0:.6f}, b1 = {1:.6f}, b2 = {2:.6f} '+
+                ('Values b0 = {0:.6f}, b1 = {1:.6f}, b2 = {2:.6f} '+
                  'found at index {3}').format(
                 b0[mc_min_rmse_index], b1[mc_min_rmse_index],
                 b2[mc_min_rmse_index], mc_min_rmse_index))
@@ -442,35 +458,37 @@ def main(file_name=None, station_elev=None,
                 '  provide a minimized rmse of {0:.6f}'.format(
                     mc_rmse_vector[mc_min_rmse_index]))
             logging.info(
-                ('The values b0 = {0:.6f}, b1 = {1:.6f}, b2 = {2:.6f} '+
+                ('Values b0 = {0:.6f}, b1 = {1:.6f}, b2 = {2:.6f} '+
                  'found at index {3}').format(
                     b0[mc_max_corr_index], b1[mc_max_corr_index],
                     b2[mc_max_corr_index], mc_max_corr_index))
             logging.info('  provide a maximized correlation of {0}'.format(
                 mc_corr_vector[mc_max_corr_index]))
             logging.info(
-                ('The standard parameter rmse is {0:.6f} and has a ' +
+                ('Standard parameter rmse is {0:.6f} and has a ' +
                  'correlation of {1:.6f}').format(
                     tr_standard_rmse, tr_standard_corr))
             logging.info(
-                ('The average of (standard/observed) on a daily basis ' +
+                ('Average of (standard/observed) on a daily basis ' +
                  'is {0:.6f}').format(avg_diff_standard))
             logging.info(
-                ('The average of (optimized/observed) for maximized R^2 ' +
+                ('Average of (optimized/observed) for maximized R^2 ' +
                  'on a daily basis is {0:.6f}').format(avg_diff_corr_opt))
             logging.info(
-                ('The average of (optimized/observed) for minimized rmse ' +
+                ('Average of (optimized/observed) for minimized rmse ' +
                  'on a daily basis is {0:.6f}').format(avg_diff_rmse_opt))
 
         # DISPLAY OUTPUT IN PLOTS
+        
         f, axarr = plt.subplots(2, 2, figsize=(10,10))
         months = range(1,13)
 
         # Mean Monthly Standard vs Measured
+        
         axarr[0, 0].plot(
-            months, rs_monthly[rs_month_col].values, 'b', label='Measured')
+            months, rs_monthly[rs_month_col].values, 'b', label = 'Measured')
         axarr[0, 0].plot(
-            months, rs_tr_standard_monthly, 'r', label='TR Standard')
+            months, rs_tr_standard_monthly, 'r', label = 'TR Standard')
         axarr[0, 0].set_ylabel('Rs (w/m2)')
         axarr[0, 0].set_xlabel('Month')
         axarr[0, 0].set_title('Mean Monthly Standard vs Measured')
@@ -478,12 +496,13 @@ def main(file_name=None, station_elev=None,
         axarr[0, 0].set_xlim([1, 12])
 
         # Daily Standard vs Measured
-        axarr[0, 1].scatter(rs_meas, rs_standard_tr, s=2, c='b', alpha=0.3)
-        axarr[0, 1].set_ylabel('Estimated (w/m2)')
-        axarr[0, 1].set_xlabel('Observed (w/m2)')
+        
+        axarr[0, 1].scatter(rs_meas, rs_standard_tr, s = 2, c = 'b', alpha = 0.3)
+        axarr[0, 1].set_ylabel('Estimated (MJ/m2/d)')
+        axarr[0, 1].set_xlabel('Observed (MJ/m2/d)')
         axarr[0, 1].set_title('Daily Standard vs Measured')
         lsrl_standard_eqn = np.polyfit(
-            rs_meas[rs_mask], rs_standard_tr[rs_mask], deg=1)
+            rs_meas[rs_mask], rs_standard_tr[rs_mask], deg = 1)
         axarr[0, 1].plot(
             rs_meas[rs_mask],
             lsrl_standard_eqn[0] * rs_meas[rs_mask] + lsrl_standard_eqn[1],
@@ -491,6 +510,7 @@ def main(file_name=None, station_elev=None,
         axarr[0, 1].plot([0, rs_max], [0, rs_max], 'k--')
 
         # Mean Monthly Standard vs Optimized
+        
         axarr[1, 0].plot(
             months, rs_monthly[rs_month_col].values, 'b', label='Measured')
         axarr[1, 0].plot(
@@ -503,11 +523,12 @@ def main(file_name=None, station_elev=None,
         axarr[1, 0].set_xlim([1, 12])
 
         # Daily Optimized vs Measured
+        
         axarr[1, 1].scatter(
             rs_meas, mc_tr_matrix[mc_min_rmse_index, :],
-            s=2, c='b', alpha=0.3)
-        axarr[1, 1].set_ylabel('Estimated (w/m2)')
-        axarr[1, 1].set_xlabel('Observed (w/m2)')
+            s = 2, c = 'b', alpha = 0.3)
+        axarr[1, 1].set_ylabel('Estimated (MJ/m2/d)')
+        axarr[1, 1].set_xlabel('Observed (MJ/m2/d)')
         axarr[1, 1].set_title('Daily Optimized vs Measured')
         lsrl_optimized_eqn = np.polyfit(
             rs_meas[rs_mask], mc_tr_matrix[mc_min_rmse_index, :][rs_mask],
@@ -518,95 +539,124 @@ def main(file_name=None, station_elev=None,
             color='red')
         axarr[1, 1].plot([0, rs_max], [0, rs_max], 'k--')
 
-        # Print out line equation
-        logging.info('For the standard LSRL: y = {0:.4f} x + {1:0.4f}'.format(
+        # Print line equation
+        
+        logging.info('For standard LSRL: y = {0:.4f} x + {1:0.4f}'.format(
             lsrl_standard_eqn[0], lsrl_standard_eqn[1]))
-        logging.info('For the optimized LSRL: y = {0:.4f} x + {1:0.4f}'.format(
+        logging.info('For optimized LSRL: y = {0:.4f} x + {1:0.4f}'.format(
             lsrl_optimized_eqn[0], lsrl_optimized_eqn[1]))
-
-        plt.savefig(os.path.join(workspace, file_name+'.jpg'))
+        plt.savefig(file_name + '.jpg')
         plt.show()
         plt.close()
         del f, axarr
     raw_input('Press ENTER to close')
 
-
 def rmse(data, estimate):
     """Function to calculate root mean square error from a data vector or matrix
-      and the corresponding estimates.
+      and corresponding estimates.
 
     Usage: r = rmse(data,estimate)
     Note: data and estimates have to be of same size
-    Example: r = rmse(randn(100,100), randn(100,100));
+    Example: r = rmse(randn(100,100), randn(100, 100));
 
     delete records with NaNs in both datasets first
     """
-
     mask = np.isfinite(data) & np.isfinite(estimate)
-    return np.sqrt(
-        np.sum((data[mask] - estimate[mask]) ** 2) / np.sum(data[mask]))
-
+    return np.sqrt(np.sum((data[mask] - estimate[mask]) ** 2) / np.sum(data[mask]))
 
 def log10_bias(a_array, b_array):
     """"""
     b_log10 = np.log10(b_array)
     return 100 * np.nansum(a_array - b_log10) / np.nansum(b_log10)
 
-
 def pct_bias(a_array, b_array):
     """"""
     return 100 * np.nansum(a_array - b_array) / np.nansum(b_array)
 
+def get_tsfile_path(file_name, sheet_delim):
+    workspace = os.getcwd()
+    while True:
+        if file_name is None: file_name = raw_input('Specify station file name: ')
+        if os.sep in file_name:
+            file_path = file_name
+        else:
+	    file_path = os.path.join(workspace, file_name)
+        if sheet_delim is None:
+            if '.xls' in file_path.lower():
+                sheet_delim = "Sheet1"
+            else:
+                if 'csv' in sheet_delim:
+                    sheet_delim = ","
+                else:
+                    sheet_delim = "\t"
+        if not os.path.isfile(file_path):
+            print 'File', file_name, 'doesn\'t exist in user workspace'
+            
+            # prompt for file name/path
+            
+            if '.xls' in file_path.lower():
+                # Display available Excel files
+            
+                print 'Following Excel files exist in', workspace
+                for item in os.listdir(workspace):
+                    if item.lower().endswith('.xlsx') or item.lower().endswith('.xls'):
+                        print item
+            else:
+                # Display suspected text files
+            
+                print 'Following text files exist in', workspace
+                for item in os.listdir(workspace):
+                    if item.lower().endswith('.txt') or item.lower().endswith('.csv') or item.lower().endswith('.dat'):
+                        print item
+            file_name = None
+        else:
+            break
+    return file_path, sheet_delim
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Thornton-Running Monte Carlo Optimization')
+        description = 'Thornton-Running Monte Carlo Optimization')
     parser.add_argument(
-        '--file', metavar='PATH', help='Weather Data')
+        '-f', '--file', metavar = 'PATH', help = 'INI or Weather Data File Name')
     parser.add_argument(
-        '--elev', type=float, metavar='ELEV',
-        help='Station elevation [m]')
+        '-sd', '--sheet_delim', metavar = 'SHEET_DELIM', help = 'Weather Data Worksheet or Delimiter')
     parser.add_argument(
-        '--lat', type=float, metavar='LAT',
-        help='Station longitude [decimal degrees (N)]')
+        '--elev', type = float, metavar = 'ELEVATION', default = None, 
+        help = 'Station elevation [m]')
     parser.add_argument(
-        '--lon', type=float, metavar='LON',
-        help='Station longitude [decimal degrees (W)]')
+        '--lat', type = float, metavar = 'LATITUDE', default = None, 
+        help = 'Station latitude [decimal degrees (N)]')
     parser.add_argument(
-        '-mc', '--iter', type=int, metavar='N',
-        help='Monte Carlo iterations')
+        '--lon', type = float, metavar = 'LONGITUDE', default = None, 
+        help = 'Station longitude [decimal degrees (W)]')
     parser.add_argument(
-        '-c', '--compare', default=False, action="store_true",
-        help='Comparison Flag')
+        '-mv', '--mdv', type = float, metavar = 'MISSING_DATA_VALUE', default = 'NaN', 
+        help = 'Missing data value [NaN]')
     parser.add_argument(
-        '-d', '--debug', default=False, action="store_true",
-        help='Debug level logging')
-    # parser.add_argument(
-    #     'workspace', nargs='?', default=os.getcwd(),
-    #     help='Landsat scene folder', metavar='FOLDER')
-    # parser.add_argument(
-    #     '-o', '--overwrite', default=None, action="store_true",
-    #     help='Force overwrite of existing files')
+        '-mc', '--iter', type = int, metavar = 'N', default = 20000, 
+        help = 'Number Monte Carlo iterations')
+    parser.add_argument(
+        '-c', '--compare', default = False, action = "store_true",
+        help = 'Comparison Flag')
+    parser.add_argument(
+        '-s', '--save', default = False, action = "store_true", 
+        help = 'Save Temp Excel Flag')
+    parser.add_argument(
+        '-d', '--debug', default = False, action = "store_true",
+        help = 'Debug level logging')
     args = parser.parse_args()
 
     # Convert relative paths to absolute paths
+    
     if args.file and os.path.isfile(os.path.abspath(args.file)):
         args.file = os.path.abspath(args.file)
     return args
 
-
 if __name__ == '__main__':
     args = parse_args()
-
-    # logging.basicConfig(level=logging.INFO, format='%(message)s')
-    # logging.info('\n{0}'.format('#'*80))
-    # log_f = '{0:<20s} {1}'
-    # logging.info(log_f.format(
-    #     'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    # logging.info(log_f.format('Current Directory:', args.workspace))
-    # logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
-
-    main(file_name=args.file, station_elev=args.elev,
-         station_lat=args.lat, station_lon=args.lon,
-         comparison_flag=args.compare, mc_iterations=args.iter,
-         debug_flag=args.debug)
+    if args.debug: print "args\n", args
+    main(ts_ini_name = args.file, sheet_delim = args.sheet_delim, 
+         missing_data_value = args.mdv, elevation = args.elev, 
+         latitude = args.lat, longitude = args.lon, 
+         comparison_flag = args.compare, save_temp_flag = args.save, 
+         mc_iterations = args.iter, debug_flag = args.debug)
