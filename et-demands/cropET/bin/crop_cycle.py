@@ -340,14 +340,13 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
             foo.crop_df, et_cell.climate_df[['ppt']],
             # foo.crop_df, et_cell.climate_df[['ppt', 't30']],
             left_index=True, right_index=True)
-            'doy': doy_field, 'ppt': precip_field, 'etref': pmet_field,
-            
+
         # Rename output columns
         
         daily_output_df.index.rename('Date', inplace=True)
         daily_output_df[year_field] = daily_output_df.index.year
         daily_output_df = daily_output_df.rename(columns={
-            'doy': doy_field, 'ppt': precip_field, 'etref': pmeto_field,
+            'doy': doy_field, 'ppt': precip_field, 'etref': pmet_field,
             'et_act': etact_field, 'et_pot': etpot_field,
             'et_bas': etbas_field, 'kc_act': kc_field, 'kc_bas': kcb_field,
             'niwr': niwr_field, 'irrigation': irrig_field,
@@ -368,7 +367,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
         monthly_output_df = daily_output_df.resample('MS').apply(monthly_resample_func)
     if data.cet_out['annual_output_flag']:
         annual_resample_func = {
-            pmeto_field: np.sum, etact_field: np.sum, etpot_field: np.sum,
+            pmet_field: np.sum, etact_field: np.sum, etpot_field: np.sum,
             etbas_field: np.sum, kc_field: np.mean, kcb_field: np.mean,
             niwr_field: np.sum, precip_field: np.sum, irrig_field: np.sum,
             runoff_field: np.sum, dperc_field: np.sum, season_field: np.sum,
@@ -401,32 +400,32 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
                     #     group.index[0], gs_start_doy_field,
                     #     int(group.ix[start_i, doy_field]))
                     # Replacement for set_value Future Warning
-                    gs_output_pd.at[group.index[0], gs_start_doy_field] = int(group.ix[start_i, doy_field])
+                    gs_output_df.at[group.index[0], gs_start_doy_field] = int(group.ix[start_i, doy_field])
                 except:
                     # gs_output_pd.set_value(
                     #     group.index[0], gs_start_doy_field,
                     #     int(min(group[doy_field].values)))
                     #Replacement for set_value Future Warning
-                    gs_output_pd.at[group.index[0], gs_start_doy_field] = int(min(group[doy_field].values))
+                    gs_output_df.at[group.index[0], gs_start_doy_field] = int(min(group[doy_field].values))
                 try:
                     end_i = np.where(season_diff == -1)[0][0] + 1
                     # gs_output_pd.set_value(
                     #     group.index[0], gs_end_doy_field,
                     #     int(group.ix[end_i, doy_field]))
                     # Replacement for set_value Future Warning
-                    gs_output_pd.at[group.index[0], gs_end_doy_field] = int(group.ix[end_i, doy_field])
+                    gs_output_df.at[group.index[0], gs_end_doy_field] = int(group.ix[end_i, doy_field])
                 except:
                     # gs_output_pd.set_value(
                     #     group.index[0], gs_end_doy_field,
                     #     int(max(group[doy_field].values)))
                     # Replacement for set_value Future Warning
-                    gs_output_pd.at[group.index[0], gs_end_doy_field] = int(max(group[doy_field].values))
+                    gs_output_df.at[group.index[0], gs_end_doy_field] = int(max(group[doy_field].values))
                 del season_diff
             # gs_output_pd.set_value(
             #     group.index[0], gs_length_field,
             #     int(sum(group[season_field].values)))
             # Replacement for set_value Future Warning
-            gs_output_pd.at[group.index[0], gs_length_field] = int(sum(group[season_field].values))
+            gs_output_df.at[group.index[0], gs_length_field] = int(sum(group[season_field].values))
 
     if data.cet_out['data_structure_type'].upper() == 'DRI':
         base_columns = []
@@ -475,7 +474,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
         # Set output column order
 
         daily_output_columns = base_columns + \
-            [year_field, month_field, day_field, doy_field, pmeto_field,
+            [year_field, month_field, day_field, doy_field, pmet_field,
             etact_field, etpot_field, etbas_field, kc_field, kcb_field,
             precip_field, irrig_field, runoff_field, dperc_field,
             niwr_field, season_field]
@@ -525,7 +524,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
             monthly_output_df['Crop Num'] = crop.class_number
             monthly_output_df['Crop Name'] = crop.name
         monthly_output_columns = base_columns + \
-            [year_field, month_field, pmeto_field, etact_field, etpot_field,
+            [year_field, month_field, pmet_field, etact_field, etpot_field,
             etbas_field, kc_field, kcb_field, precip_field, irrig_field,
             runoff_field, dperc_field, niwr_field,
             season_field]
@@ -555,7 +554,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
             annual_output_df['Crop Num'] = crop.class_number
             annual_output_df['Crop Name'] = crop.name
         annual_output_columns = base_columns + \
-            [year_field, pmeto_field, etact_field, etpot_field, etbas_field,
+            [year_field, pmet_field, etact_field, etpot_field, etbas_field,
             kc_field, kcb_field, precip_field, irrig_field, runoff_field,
             dperc_field, niwr_field, season_field]
         try: annual_output_columns.remove('Date')
