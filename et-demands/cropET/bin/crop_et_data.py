@@ -30,13 +30,16 @@ class CropETData():
         config = ConfigParser.ConfigParser()
         try:
             ini = config.readfp(open(ini_path))
-            if debug_flag: 
-                cfg_path = os.path.join(os.getcwd(), "test_cet.cfg")
-                with open(cfg_path, 'wb') as cf: config.write(cf)
         except:
             logging.error('\nERROR: Config file could not be read, ' +
                           'is not an input file, or does not exist\n')
             sys.exit()
+
+        # # Copies ini to test_cet.cfg file
+        # if debug_flag:
+        #     cfg_path = os.path.join(os.getcwd(), "test_cet.cfg")
+        #     with open(cfg_path, 'wb') as cf:
+        #         config.write(cf)
 
         # Check that all sections are present
 
@@ -204,7 +207,6 @@ class CropETData():
             self.cell_properties_path = cell_properties_name
             
             # test if fully specified path
-            
             if not os.path.isfile(self.cell_properties_path):
                 logging.error('ERROR:  ET Cells properties file {} does not exist'.format(self.self.cell_properties_path))
                 sys.exit()
