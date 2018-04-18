@@ -605,7 +605,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
     # Calculate crop zonal stats
 
     # Copied from above for testing
-    zone_raster_path = os.path.join(table_ws, zone_raster_name)
+    #zone_raster_path = os.path.join(table_ws, zone_raster_name)
 
     logging.info('\nCalculating crop zonal stats')
     temp_table_ws = os.path.join(table_ws, 'crop_tables')
@@ -640,7 +640,7 @@ def main(gis_ws, input_soil_ws, cdl_year, zone_type='huc8',
 
         # if not set((range(i, i+step_size))) & set(value_list):
         if len(set(range(i, np.clip(i+step_size, 1, zone_count+1))).difference(set(value_list))) > 0:
-            print('Output Table Missing Zones (Check Input Station and CDL Files):')
+            print('Output Table Missing Zones (Check Input Station and CDL Files for ag area):')
             print(sorted(set(range(i, np.clip(i+step_size, 1, zone_count+1))).difference(set(value_list))))
             # sys.exit()
         del table_obj

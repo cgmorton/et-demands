@@ -21,3 +21,4 @@ example/*_plots*
 example/*_stats
 example/static
 example
+example/debug.txt
