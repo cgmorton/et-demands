@@ -770,7 +770,10 @@ class ETCell():
                         header = None, skiprows = data.eto_ratios_header_lines - 1, na_values = ['NaN'])
             else:
                 refet_ratios_df = pd.read_table(data.refet_ratios_path, delimiter = data.eto_ratios_delimiter,
-                        header = None, skiprows = data.eto_ratios_header_lines - 1, na_values = ['NaN'])
+                        header = 'infer', skiprows = data.eto_ratios_header_lines - 1, na_values = ['NaN'])
+                # print(refet_ratios_df)
+                # print(refet_ratios_df[data.eto_ratios_name_field])
+                # print(data.eto_ratios_name_field)
             del refet_ratios_df[data.eto_ratios_name_field]
         except IOError:
             logging.error(
@@ -803,12 +806,12 @@ class ETCell():
         
         refet_ratios_df.fillna(value=1.0, inplace=True)
 
-        # Convert month abbrevations to numbers
+        # Convert month abbreviations to numbers
         
         refet_ratios_df[data.eto_ratios_month_field] = [
             datetime.datetime.strptime(m, '%b').month
             for m in refet_ratios_df[data.eto_ratios_month_field]]
-
+        # print(refet_ratios_df)
         # Filter to current station
         
         refet_ratios_df = refet_ratios_df[
@@ -823,8 +826,9 @@ class ETCell():
         logging.info(refet_ratios_df)
 
         # Scale ETo/ETr values
-        
-        self.refet_df = self.refet_df.join(refet_ratios_df, 'month')
+        #WHY 'Month' vs 'month' change needed? Input climate files have Year, Month, Day.
+        self.refet_df = self.refet_df.join(refet_ratios_df, 'Month')
+
         self.refet_df['etref'] *= self.refet_df[data.eto_ratios_ratio_field]
         del self.refet_df[data.eto_ratios_ratio_field]
         del self.refet_df[data.eto_ratios_month_field]

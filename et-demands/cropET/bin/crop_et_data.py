@@ -472,7 +472,7 @@ class CropETData():
         # reference ET adjustment ratios
 
         if original:
-            eto_ratios_name = 'EToRatiosMonth.txt'
+            eto_ratios_name = 'ETrRatiosMon.txt'
             self.refet_ratios_path = os.path.join(self.static_folder, eto_ratios_name)
             if not os.path.isfile(self.refet_ratios_path):
                 logging.error('Warning:  ETo Ratios file set to None')
@@ -483,7 +483,7 @@ class CropETData():
             self.eto_ratios_names_line = 1
             self.eto_ratios_id_field = 'Met Node ID'
             self.eto_ratios_name_field = 'Met Node Name'
-            self.eto_ratios_month_field = 'month'
+            self.eto_ratios_month_field = 'Month'
             self.eto_ratios_ratio_field = 'ratio'
         else:
             try:
