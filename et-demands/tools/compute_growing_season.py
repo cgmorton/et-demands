@@ -188,7 +188,8 @@ def main(ini_path, start_date = None, end_date = None, crop_str = ''):
         logging.debug('')
         logging.info('  Processing {0}'.format(file_name))
         station, crop_num = os.path.splitext(file_name)[0].split(prefix)
-        crop_num = int(crop_num[:crop_num.index(suf_no_ext)])
+        # crop_num = int(crop_num[:crop_num.index(suf_no_ext)])
+        crop_num = int(crop_num)
         logging.debug('    Station:         {0}'.format(station))
         logging.debug('    Crop Num:        {0}'.format(crop_num))
         if station == 'temp': continue
