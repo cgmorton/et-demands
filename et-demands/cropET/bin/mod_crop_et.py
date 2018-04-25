@@ -140,19 +140,21 @@ def main(ini_path, log_level = logging.WARNING,
                 cell_mp_list.append([cell_count, data, cell, mp_procs])
             elif crop_mp_flag:
                 # Multiprocessing by crop
-
                 logging.warning('CellID: {}'.format(cell_id))
-                if not cell.set_input_timeseries(cell_count, data, cells): sys.exit()
+                if not cell.set_input_timeseries(cell_count, data, cells):
+                    sys.exit()
                 crop_cycle.crop_cycle_mp(data, cell, mp_procs = mp_procs)
             else:
                 logging.warning('CellID: {}'.format(cell_id))
-                if not cell.set_input_timeseries(cell_count, data, cells): sys.exit()
+                if not cell.set_input_timeseries(cell_count, data, cells):
+                    sys.exit()
                 crop_cycle.crop_cycle(data, cell, debug_flag = debug_flag)
 
     # Multiprocess all cells
     
     results = []
     if cell_mp_list:
+        print(cell_mp_list)
         pool = mp.Pool(mp_procs)
         results = pool.imap(cell_mp, cell_mp_list, chunksize = 1)
         pool.close()
