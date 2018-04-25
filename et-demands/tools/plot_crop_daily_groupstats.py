@@ -153,7 +153,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
     #        figure_height = 300
 
     # Regular expressions
-    data_re = re.compile('(?P<CELLID>\w+)_daily_crop_(?P<CROP>\d+).csv$', re.I)
+    data_re = re.compile('(?P<CELLID>\w+)_crop_(?P<CROP>\d+).csv$', re.I)
+    # data_re = re.compile('(?P<CELLID>\w+)_daily_crop_(?P<CROP>\d+).csv$', re.I)
 
     # Build list of all data files
     data_file_list = sorted(
@@ -171,7 +172,8 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
         logging.debug('')
         logging.info('  {0}'.format(file_name))
 
-        station, crop_num = os.path.splitext(file_name)[0].split('_daily_crop_')
+        # station, crop_num = os.path.splitext(file_name)[0].split('_daily_crop_')
+        station, crop_num = os.path.splitext(file_name)[0].split('_crop_')
         crop_num = int(crop_num)
         logging.debug('    Station:         {0}'.format(station))
         logging.debug('    Crop Num:        {0}'.format(crop_num))

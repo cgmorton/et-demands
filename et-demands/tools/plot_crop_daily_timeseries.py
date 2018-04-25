@@ -133,9 +133,11 @@ def main(ini_path, figure_show_flag=False, figure_save_flag=True,
     try:
         name_format = config.get(crop_et_sec, 'name_format')
         if name_format is None or name_format == 'None': 
-            name_format = '%s_daily_crop_%c.csv'
+            # name_format = '%s_daily_crop_%c.csv'
+            name_format = '%s_crop_%c.csv'
     except:
-        name_format = '%s_daily_crop_%c.csv'
+        # name_format = '%s_daily_crop_%c.csv'
+        name_format = '%s_crop_%c.csv'
     if '%s' not in name_format or '%c' not in name_format:
         logging.error("crop et file name format requires '%s' and '%c' wildcards.")
         sys.exit()
