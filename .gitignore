@@ -10,7 +10,7 @@ __pycache__/
 .idea
 
 # Docs
-docs
+#docs
 docs/_build
 
 # Common Data
@@ -20,5 +20,7 @@ common
 example/*_plots*
 example/*_stats
 example/static
-example
+#example
 example/debug.txt
+example/gis
+example/validation_files
