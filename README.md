@@ -1,6 +1,4 @@
-#Chris Test Change
-
-
+## Note: all future development of this repository will occur at  https://github.com/usbr/et-demands
 
 # CropET
 Crop ET Demands Model
